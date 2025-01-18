@@ -1,0 +1,61 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Visual Studio 17 2022 Win64",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\bin\\build\\${name}",
+      "installRoot": "${projectDir}\\bin\\install\\${name}",
+      "cmakeCommandArgs": "-DCMAKE_BUILD_TYPE=Debug",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "intelliSenseMode": "windows-msvc-x64",
+      "variables": [
+        {
+          "name": "RUNTIME_SHADER_COMPILATION",
+          "value": "true",
+          "type": "BOOL"
+        },
+      ]
+    },
+    {
+      "name": "x64-Development",
+      "generator": "Visual Studio 17 2022 Win64",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${projectDir}\\bin\\build\\${name}",
+      "installRoot": "${projectDir}\\bin\\install\\${name}",
+      "cmakeCommandArgs": "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "intelliSenseMode": "windows-msvc-x64",
+	  "variables": [
+        {
+          "name": "ASSIMP_INSTALL",
+          "value": "False",
+          "type": "BOOL"
+        },
+      ]
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Visual Studio 17 2022 Win64",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\bin\\build\\${name}",
+      "installRoot": "${projectDir}\\bin\\install\\${name}",
+      "cmakeCommandArgs": "-DCMAKE_BUILD_TYPE=Release",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "intelliSenseMode": "windows-msvc-x64",
+      "variables": [
+        {
+          "name": "ASSIMP_INSTALL",
+          "value": "False",
+          "type": "BOOL"
+        },
+      ]
+    }
+  ]
+}
