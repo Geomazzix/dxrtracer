@@ -17,8 +17,8 @@ namespace dxray::vath
 	class Matrix<4, 4, T>
 	{
 	public:
-		typedef Vector<4, T> ColumnType;
-		typedef Vector<4, T> RowType;
+		using ColumnType = Vector<4, T>;
+		using RowType = Vector<4, T>;
 
 		Matrix();
 		explicit Matrix(T a_scalar);
@@ -43,15 +43,15 @@ namespace dxray::vath
 			return m_data[i];
 		}
 
-		Matrix<3, 3, T> GetInner() const;
+		constexpr Matrix<3, 3, T> GetInner() const;
 
-		usize GetColumnCount() const;
-		usize GetRowCount() const;
+		constexpr usize GetColumnCount() const;
+		constexpr usize GetRowCount() const;
 
 		constexpr Matrix& operator +=(const Matrix& a_rhs);
 		constexpr Matrix& operator -=(const Matrix& a_rhs);
 		constexpr Matrix& operator *=(const Matrix& a_rhs);
-		constexpr Matrix& operator *=(float a_scalar);
+		constexpr Matrix& operator *=(const T a_scalar);
 
 	private:
 		ColumnType m_data[4];
@@ -98,19 +98,19 @@ namespace dxray::vath
 	//--- Matrix getters/setters ---
 
 	template<typename T>
-	usize Matrix<4, 4, T>::GetColumnCount() const
+	constexpr usize Matrix<4, 4, T>::GetColumnCount() const
 	{
 		return 4;
 	}
 
 	template<typename T>
-	usize Matrix<4, 4, T>::GetRowCount() const
+	constexpr usize Matrix<4, 4, T>::GetRowCount() const
 	{
 		return 4;
 	}
 
 	template<typename T>
-	Matrix<3, 3, T> Matrix<4, 4, T>::GetInner() const
+	constexpr Matrix<3, 3, T> Matrix<4, 4, T>::GetInner() const
 	{
 		return Matrix<3, 3, T>(
 			m_data[0][0], m_data[0][0], m_data[0][0],
@@ -149,7 +149,7 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<4, 4, T>& Matrix<4, 4, T>::operator*=(float a_scalar)
+	constexpr Matrix<4, 4, T>& Matrix<4, 4, T>::operator*=(const T a_scalar)
 	{
 		m_data[0] *= a_scalar;
 		m_data[1] *= a_scalar;
@@ -229,7 +229,18 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<4, 4, T> operator*(const Matrix<4, 4, T>& a_lhs, float a_scalar)
+	constexpr Matrix<4, 4, T> operator*(const Matrix<4, 4, T>& a_lhs, const T a_scalar)
+	{
+		return Matrix<4, 4, T>(
+			a_lhs[0] * a_scalar,
+			a_lhs[1] * a_scalar,
+			a_lhs[2] * a_scalar,
+			a_lhs[3] * a_scalar
+		);
+	}
+
+	template<typename T>
+	constexpr Matrix<4, 4, T> operator*(const T a_scalar, const Matrix<4, 4, T>& a_lhs)
 	{
 		return Matrix<4, 4, T>(
 			a_lhs[0] * a_scalar,

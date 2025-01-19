@@ -16,8 +16,8 @@ namespace dxray::vath
 	class Matrix<3, 3, T> final
 	{
 	public:
-		typedef Vector<3, T> ColumnType;
-		typedef Vector<3, T> RowType;
+		using ColumnType = Vector<3, T>;
+		using RowType = Vector<3, T>;
 
 		Matrix();
 		explicit Matrix(T a_scalar);
@@ -42,13 +42,13 @@ namespace dxray::vath
 			return m_data[i];
 		}
 
-		usize GetColumnCount() const;
-		usize GetRowCount() const;
+		constexpr usize GetColumnCount() const;
+		constexpr usize GetRowCount() const;
 
 		constexpr Matrix& operator +=(const Matrix& a_rhs);
 		constexpr Matrix& operator -=(const Matrix& a_rhs);
 		constexpr Matrix& operator *=(const Matrix& a_rhs);
-		constexpr Matrix& operator *=(float a_scalar);
+		constexpr Matrix& operator *=(const T a_scalar);
 
 	private:
 		ColumnType m_data[3];
@@ -91,13 +91,13 @@ namespace dxray::vath
 	//--- Matrix getters/setters ---
 
 	template<typename T>
-	usize Matrix<3, 3, T>::GetColumnCount() const
+	constexpr usize Matrix<3, 3, T>::GetColumnCount() const
 	{
 		return 3;
 	}
 
 	template<typename T>
-	usize Matrix<3, 3, T>::GetRowCount() const
+	constexpr usize Matrix<3, 3, T>::GetRowCount() const
 	{
 		return 3;
 	}
@@ -130,7 +130,7 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<3, 3, T>& Matrix<3, 3, T>::operator*=(float a_scalar)
+	constexpr Matrix<3, 3, T>& Matrix<3, 3, T>::operator*=(const T a_scalar)
 	{
 		m_data[0] *= a_scalar;
 		m_data[1] *= a_scalar;
@@ -198,7 +198,17 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<3, 3, T> operator*(const Matrix<3, 3, T>& a_lhs, float a_scalar)
+	constexpr Matrix<3, 3, T> operator*(const Matrix<3, 3, T>& a_lhs, const T a_scalar)
+	{
+		return Matrix<3, 3, T>(
+			a_lhs[0] * a_scalar,
+			a_lhs[1] * a_scalar,
+			a_lhs[2] * a_scalar
+		);
+	}
+
+	template<typename T>
+	constexpr Matrix<3, 3, T> operator*(const T a_scalar, const Matrix<3, 3, T>& a_lhs)
 	{
 		return Matrix<3, 3, T>(
 			a_lhs[0] * a_scalar,

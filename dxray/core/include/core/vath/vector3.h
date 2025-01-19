@@ -16,8 +16,8 @@ namespace dxray::vath
 	class Vector<3, T> final
 	{
 	public:
-		typedef Vector<3, T> Type;
-		typedef T ValueType;
+		using Type = Vector<3, T>;
+		using ValueType = T;
 
 		Vector();
 		explicit Vector(T a_scalar);
@@ -33,19 +33,18 @@ namespace dxray::vath
 		
 		T& operator[](usize i);
 		const T& operator[](usize i) const;
-		usize GetLength() const;
+		constexpr usize GetLength() const;
 
 		constexpr Vector<3, T>& operator +=(T a_scalar);
 		constexpr Vector<3, T>& operator -=(T a_scalar);
 		constexpr Vector<3, T>& operator *=(T a_scalar);
 		constexpr Vector<3, T>& operator /=(T a_scalar);
 
-	private:
 		union
 		{
-			T m_data[3];
-			struct { T m_x, m_y, m_z; };
-			struct { T m_r, m_g, m_b; };
+			T Data[3];
+			struct { T x, y, z; };
+			struct { T r, g, b; };
 		};
 	};
 
@@ -53,37 +52,37 @@ namespace dxray::vath
 
 	template<typename T>
 	Vector<3, T>::Vector() :
-		m_x(0.0f),
-		m_y(0.0f),
-		m_z(0.0f)
+		x(0.0f),
+		y(0.0f),
+		z(0.0f)
 	{}
 
 	template<typename T>
 	Vector<3, T>::Vector(T* a_pData)
 	{
-		memcpy(m_data, a_pData, GetLength() * sizeof(T));
+		memcpy(Data, a_pData, GetLength() * sizeof(T));
 	}
 
 	template<typename T>
 	Vector<3, T>::Vector(T a_x, T a_y, T a_z) :
-		m_x(a_x),
-		m_y(a_y),
-		m_z(a_z)
+		x(a_x),
+		y(a_y),
+		z(a_z)
 	{}
 
 	template<typename T>
 	Vector<3, T>::Vector(T a_scalar) :
-		m_x(a_scalar),
-		m_y(a_scalar),
-		m_z(a_scalar)
+		x(a_scalar),
+		y(a_scalar),
+		z(a_scalar)
 	{}
 
 	template<typename T>
 	template<typename U>
 	Vector<3, T>::Vector(const Vector<4, U>& a_vector4) :
-		m_x(static_cast<T>(a_vector4[0])),
-		m_y(static_cast<T>(a_vector4[1])),
-		m_z(static_cast<T>(a_vector4[2]))
+		x(static_cast<T>(a_vector4[0])),
+		y(static_cast<T>(a_vector4[1])),
+		z(static_cast<T>(a_vector4[2]))
 	{}
 
 
@@ -93,31 +92,30 @@ namespace dxray::vath
 	T& Vector<3, T>::operator[](usize i)
 	{
 		DXRAY_ASSERT(i < GetLength());
-		return m_data[i];
+		return Data[i];
 	}
 
 	template<typename T>
 	const T& Vector<3, T>::operator[](usize i) const
 	{
 		DXRAY_ASSERT(i < GetLength());
-		return m_data[i];
+		return Data[i];
 	}
 
 	template<typename T>
-	usize Vector<3, T>::GetLength() const
+	constexpr usize Vector<3, T>::GetLength() const
 	{
 		return 3;
 	}
-
 
 	//--- Vector class operators ---
 
 	template<typename T>
 	constexpr Vector<3, T>& Vector<3, T>::operator*=(T a_scalar)
 	{
-		m_x *= a_scalar;
-		m_y *= a_scalar;
-		m_z *= a_scalar;
+		x *= a_scalar;
+		y *= a_scalar;
+		z *= a_scalar;
 		return (*this);
 	}
 
@@ -125,27 +123,27 @@ namespace dxray::vath
 	constexpr Vector<3, T>& Vector<3, T>::operator/=(T a_scalar)
 	{
 		T divider = 1.0f / a_scalar;
-		m_x *= divider;
-		m_y *= divider;
-		m_z *= divider;
+		x *= divider;
+		y *= divider;
+		z *= divider;
 		return (*this);
 	}
 
 	template<typename T>
 	constexpr Vector<3, T>& Vector<3, T>::operator+=(T a_scalar)
 	{
-		m_x += a_scalar;
-		m_y += a_scalar;
-		m_z += a_scalar;
+		x += a_scalar;
+		y += a_scalar;
+		z += a_scalar;
 		return *this;
 	}
 
 	template<typename T>
 	constexpr Vector<3, T>& Vector<3, T>::operator-=(T a_scalar)
 	{
-		m_x -= a_scalar;
-		m_y -= a_scalar;
-		m_z -= a_scalar;
+		x -= a_scalar;
+		y -= a_scalar;
+		z -= a_scalar;
 		return *this;
 	}
 
@@ -159,9 +157,33 @@ namespace dxray::vath
 	}
 
 	template<typename T>
+	constexpr Vector<3, T> operator +(const Vector<3, T>& a_vector, const T a_scalar)
+	{
+		return Vector<3, T>(a_vector[0] + a_scalar, a_vector[1] + a_scalar, a_vector[2] + a_scalar);
+	}
+
+	template<typename T>
+	constexpr Vector<3, T> operator +(const T a_scalar, const Vector<3, T>& a_vector)
+	{
+		return Vector<3, T>(a_vector + a_scalar);
+	}
+
+	template<typename T>
 	constexpr Vector<3, T> operator -(const Vector<3, T>& a_vector, const Vector<3, T>& a_rhs)
 	{
 		return Vector<3, T>(a_vector[0] - a_rhs[0], a_vector[1] - a_rhs[1], a_vector[2] - a_rhs[2]);
+	}
+
+	template<typename T>
+	constexpr Vector<3, T> operator -(const Vector<3, T>& a_vector, const T a_scalar)
+	{
+		return Vector<3, T>(a_vector[0] - a_scalar, a_vector[1] - a_scalar, a_vector[2] - a_scalar);
+	}
+
+	template<typename T>
+	constexpr Vector<3, T> operator -(const T a_scalar, const Vector<3, T>& a_vector)
+	{
+		return Vector<3, T>(a_vector - a_scalar);
 	}
 
 	template<typename T>
@@ -171,9 +193,15 @@ namespace dxray::vath
 	}
 
 	template<typename T>
+	constexpr Vector<3, T> operator *(const T a_scalar, const Vector<3, T>& a_vector)
+	{
+		return a_vector * a_scalar;
+	}
+
+	template<typename T>
 	constexpr Vector<3, T> operator /(const Vector<3, T>& a_vector, const T a_scalar)
 	{
-		const T divider = 1.0f / a_scalar;
+		const T divider = static_cast<T>(1.0) / a_scalar;
 		return Vector<3, T>(a_vector[0] * divider, a_vector[1] * divider, a_vector[2] * divider);
 	}
 

@@ -16,6 +16,7 @@ namespace dxray::vath
 	class Quat final
 	{
 		static_assert(std::is_floating_point_v<T>); //Quaternions should only be used with decimal numbers.
+		using ValueType = T;
 
 	public:
 		Quat();
@@ -31,9 +32,9 @@ namespace dxray::vath
 
 		T& operator[](usize i);
 		const T& operator[](usize i) const;
-		Vector<3, T> GetComplex() const;
-		T GetReal() const;
-		usize GetLength() const;
+		constexpr Vector<3, T> GetComplex() const;
+		constexpr T GetReal() const;
+		constexpr usize GetLength() const;
 
 		constexpr Quat& operator +=(T a_scalar);
 		constexpr Quat& operator -=(T a_scalar);
@@ -43,9 +44,9 @@ namespace dxray::vath
 	private:
 		union
 		{
-			T m_data[4];
-			struct { T m_x, m_y, m_z, m_w; };
-			struct { T m_r, m_g, m_b, m_a; };
+			T Data[4];
+			struct { T x, y, z, w; };
+			struct { T r, g, b, a; };
 		};
 	};
 
@@ -53,40 +54,40 @@ namespace dxray::vath
 
 	template<typename T>
 	Quat<T>::Quat() :
-		m_x(0.0),
-		m_y(0.0),
-		m_z(0.0),
-		m_w(1.0)
+		x(0.0),
+		y(0.0),
+		z(0.0),
+		w(1.0)
 	{}
 
 	template<typename T>
 	Quat<T>::Quat(T a_scalar) :
-		m_x(a_scalar),
-		m_y(a_scalar),
-		m_z(a_scalar),
-		m_w(a_scalar)
+		x(a_scalar),
+		y(a_scalar),
+		z(a_scalar),
+		w(a_scalar)
 	{}
 
 	template<typename T>
 	Quat<T>::Quat(T a_x, T a_y, T a_z, T a_scalar) :
-		m_x(a_x),
-		m_y(a_y),
-		m_z(a_z),
-		m_w(a_scalar)
+		x(a_x),
+		y(a_y),
+		z(a_z),
+		w(a_scalar)
 	{}
 
 	template<typename T>
 	Quat<T>::Quat(const Vector<3, T>& a_vector, T a_scalar) :
-		m_x(a_vector[0]),
-		m_y(a_vector[1]),
-		m_z(a_vector[2]),
-		m_w(a_scalar)
+		x(a_vector[0]),
+		y(a_vector[1]),
+		z(a_vector[2]),
+		w(a_scalar)
 	{}
 
 	template<typename T>
 	Quat<T>::Quat(T* a_pData)
 	{
-		memcpy(m_data, a_pData, GetLength() * sizeof(T));
+		memcpy(Data, a_pData, GetLength() * sizeof(T));
 	}
 
 	template<typename T>
@@ -141,30 +142,30 @@ namespace dxray::vath
 	T& Quat<T>::operator[](usize i)
 	{
 		DXRAY_ASSERT(i < GetLength());
-		return m_data[i];
+		return Data[i];
 	}
 
 	template<typename T>
 	const T& Quat<T>::operator[](usize i) const
 	{
 		DXRAY_ASSERT(i < GetLength());
-		return m_data[i];
+		return Data[i];
 	}
 
 	template<typename T>
-	Vector<3, T> Quat<T>::GetComplex() const
+	constexpr Vector<3, T> Quat<T>::GetComplex() const
 	{
-		return Vector<3, T>(m_x, m_y, m_z);
+		return Vector<3, T>(x, y, z);
 	}
 
     template<typename T>
-    T Quat<T>::GetReal() const 
+    constexpr T Quat<T>::GetReal() const 
     {
-        return m_w;
+        return w;
     }
 
 	template<typename T>
-	usize Quat<T>::GetLength() const
+	constexpr usize Quat<T>::GetLength() const
 	{
 		return 4;
 	}
@@ -175,40 +176,40 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Quat<T>& Quat<T>::operator+=(T a_scalar)
 	{
-		m_x += a_scalar;
-		m_y += a_scalar;
-		m_z += a_scalar;
-		m_w += a_scalar;
+		x += a_scalar;
+		y += a_scalar;
+		z += a_scalar;
+		w += a_scalar;
 		return (*this);
 	}
 
 	template<typename T>
 	constexpr Quat<T>& Quat<T>::operator-=(T a_scalar)
 	{
-		m_x -= a_scalar;
-		m_y -= a_scalar;
-		m_z -= a_scalar;
-		m_w -= a_scalar;
+		x -= a_scalar;
+		y -= a_scalar;
+		z -= a_scalar;
+		w -= a_scalar;
 		return (*this);
 	}
 
 	template<typename T>
 	constexpr Quat<T>& Quat<T>::operator*=(T a_scalar)
 	{
-		m_x *= a_scalar;
-		m_y *= a_scalar;
-		m_z *= a_scalar;
-		m_w *= a_scalar;
+		x *= a_scalar;
+		y *= a_scalar;
+		z *= a_scalar;
+		w *= a_scalar;
 		return (*this);
 	}
 
 	template<typename T>
 	constexpr Quat<T>& Quat<T>::operator/=(T a_scalar)
 	{
-		m_x /= a_scalar;
-		m_y /= a_scalar;
-		m_z /= a_scalar;
-		m_w /= a_scalar;
+		x /= a_scalar;
+		y /= a_scalar;
+		z /= a_scalar;
+		w /= a_scalar;
 		return (*this);
 	}
 

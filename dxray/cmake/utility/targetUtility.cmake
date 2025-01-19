@@ -106,7 +106,7 @@ function(project_add_interface)
         SOURCE ${SOURCE}
     )
 
-    MESSAGE(STATUS "[module] ${TARGET_NAME}")
+    MESSAGE(STATUS "[library] ${TARGET_NAME}")
 endfunction(project_add_interface)
 
 
@@ -160,7 +160,7 @@ function(project_add_target)
     )
 
     if(NOT "${TARGET_TYPE}" STREQUAL "EXECUTABLE")
-        MESSAGE(STATUS "[module] ${TARGET_NAME}")
+        MESSAGE(STATUS "[library] ${TARGET_NAME}")
     else()
         MESSAGE(STATUS "[executable] ${TARGET_NAME}")
     endif()

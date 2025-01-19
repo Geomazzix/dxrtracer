@@ -1,34 +1,47 @@
-#include "riow/riow.h"
-
-#include <core/debug.h>
-#include <core/fileSystem/stbIO.h>
-#include <core/vath/vath.h>
+#include "riow/traceable/sphere.h"
+#include "riow/camera.h"
+#include "riow/renderer.h"
 
 using namespace dxray;
 
-namespace RIOW
-{
-	
-}
-
 int main(int argc, char** argv)
 {
-	i32 imageWidth = 256;
-	i32 imageHeight = 256;
-	i32 imageChannels = 3; //RGB image, no alpha.
+	Stopwatchf timer;
+	timer.Start();
 
-	const usize imagePixelCount = imageWidth * imageHeight;
-	vath::Vector3* imageData = new vath::Vector3[imagePixelCount];
+	//Aspect ratio and output image dimensions.
+	const vath::Vector2i32 imageDimensions(1600, 900);
+	const i32 imageChannelNum = 3;
 
-	if (imageData != nullptr)
-	{
-		for (i32 i = 0; i < imagePixelCount; i++)
-		{
-			imageData[i] = vath::Vector3(1.0f);
-		}
-	}
+	//Camera/viewport
+	riow::Camera camera;
+	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
+	camera.SetZNear(0.01f);
+	camera.SetZFar(1000.0f);
+	camera.SetFocalLength(1.0f);
 
-	StorePNG("riowOutput", imageWidth, imageHeight, imageChannels, static_cast<vath::Vector3f*>(imageData), true);
-	delete[] imageData;
+	//Scene
+	riow::Scene scene;
+	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -100.5f, -1.0f), 100.0f));	//Ground
+	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 0.0f, -1.2f), 0.5f));		//Middle sphere
+
+	//Renderer
+	riow::RendererPipeline renderPipeline;
+	riow::Renderer renderer;
+	renderer.SetCamera(camera);
+	renderer.SetRenderPipeline(renderPipeline);
+
+	//Render the scene and store the result.
+	std::vector<vath::Vector3> imageData(imageDimensions.x * imageDimensions.y);
+	DXRAY_INFO("Initialization complete after {} ms.", timer.GetElapsedMs());
+
+	timer.Reset();
+	renderer.Render(scene, imageData);
+	DXRAY_INFO("Rendering complete after {} ms.", timer.GetElapsedMs());
+
+	timer.Reset();
+	StorePNG("riowOutput", imageDimensions.x, imageDimensions.y, imageChannelNum, static_cast<vath::Vector3f*>(imageData.data()), true);
+	DXRAY_INFO("Saved results to binary directory in {} ms.", timer.GetElapsedMs());
+	
 	return 0;
 }

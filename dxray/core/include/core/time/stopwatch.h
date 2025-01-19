@@ -2,7 +2,7 @@
 #include <ctime>
 #include <chrono>
 
-#include "core/debug.h"
+#include "core/valueTypes.h"
 
 namespace dxray
 {
@@ -57,7 +57,7 @@ namespace dxray
 	template<typename Precision>
 	inline void Stopwatch<Precision>::Stop()
 	{
-		RPTN_ASSERT(m_isTicking);
+		DXRAY_ASSERT(m_isTicking);
 		m_elapsedTime += std::chrono::duration<ValueType, std::chrono::seconds::period>(std::chrono::high_resolution_clock::now() - m_startTime).count();
 		m_isTicking = false;
 	}

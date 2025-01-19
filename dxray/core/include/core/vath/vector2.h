@@ -15,6 +15,9 @@ namespace dxray::vath
 	class Vector<2, T> final
 	{
 	public:
+		using Type = Vector<2, T>;
+		using ValueType = T;
+
 		Vector();
 		explicit Vector(T a_scalar);
 		Vector(T a_x, T a_y);
@@ -26,20 +29,19 @@ namespace dxray::vath
 
 		T& operator[](usize i);
 		const T& operator[](usize i) const;
-		usize GetLength() const;
+		constexpr usize GetLength() const;
 
 		constexpr Vector& operator +=(T a_scalar);
 		constexpr Vector& operator -=(T a_scalar);
 		constexpr Vector& operator *=(T a_scalar);
 		constexpr Vector& operator /=(T a_scalar);
 
-	private:
 		union
 		{
-			T m_data[2];
+			T Data[2];
 			struct
 			{
-				T m_x, m_y;
+				T x, y;
 			};
 		};
 	};
@@ -49,28 +51,28 @@ namespace dxray::vath
 
 	template<typename T>
 	Vector<2, T>::Vector() :
-		m_x(0.0f),
-		m_y(0.0f)
+		x(0.0f),
+		y(0.0f)
 	{}
 
 	template<typename T>
 	Vector<2, T>::Vector(T a_scalar) :
-		m_x(a_scalar),
-		m_y(a_scalar)
+		x(a_scalar),
+		y(a_scalar)
 	{}
 
 	template<typename T>
 	Vector<2, T>::Vector(T a_x, T a_y) :
-		m_x(a_x),
-		m_y(a_y)
+		x(a_x),
+		y(a_y)
 	{}
 
 	template<typename T>
 	Vector<2, T>::Vector(T* a_pData) :
-		m_x(0.0f),
-		m_y(0.0f)
+		x(0.0f),
+		y(0.0f)
 	{
-		memcpy(m_data, a_pData, 2 * sizeof(T));
+		memcpy(Data, a_pData, 2 * sizeof(T));
 	}
 
 
@@ -80,18 +82,18 @@ namespace dxray::vath
 	T& Vector<2, T>::operator[](usize i)
 	{
 		DXRAY_ASSERT(i < GetLength());
-		return m_data[i];
+		return Data[i];
 	}
 
 	template<typename T>
 	const T& Vector<2, T>::operator[](usize i) const
 	{
 		DXRAY_ASSERT(i < GetLength());
-		return m_data[i];
+		return Data[i];
 	}
 
 	template<typename T>
-	usize Vector<2, T>::GetLength() const
+	constexpr usize Vector<2, T>::GetLength() const
 	{
 		return 2;
 	}
@@ -102,24 +104,24 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<2, T>& Vector<2, T>::operator+=(T a_scalar)
 	{
-		m_x += a_scalar;
-		m_y += a_scalar;
+		x += a_scalar;
+		y += a_scalar;
 		return *this;
 	}
 
 	template<typename T>
 	constexpr Vector<2, T>& Vector<2, T>::operator-=(T a_scalar)
 	{
-		m_x -= a_scalar;
-		m_y -= a_scalar;
+		x -= a_scalar;
+		y -= a_scalar;
 		return *this;
 	}
 
 	template<typename T>
 	constexpr Vector<2, T>& Vector<2, T>::operator*=(T a_scalar)
 	{
-		m_x *= a_scalar;
-		m_y *= a_scalar;
+		x *= a_scalar;
+		y *= a_scalar;
 		return *this;
 	}
 
@@ -127,8 +129,8 @@ namespace dxray::vath
 	constexpr Vector<2, T>& Vector<2, T>::operator/=(T a_scalar)
 	{
 		T divider = 1.0f / a_scalar;
-		m_x *= a_scalar;
-		m_y *= a_scalar;
+		x *= a_scalar;
+		y *= a_scalar;
 		return *this;
 	}
 
@@ -142,28 +144,58 @@ namespace dxray::vath
 	}
 
 	template<typename T>
+	constexpr Vector<2, T> operator+(const Vector<2, T>& a_lhs, const T a_scalar)
+	{
+		return Vector<2, T>(a_lhs[0] + a_scalar, a_lhs[1] + a_scalar);
+	}
+
+	template<typename T>
+	constexpr Vector<2, T> operator+(const T a_scalar, const Vector<2, T>& a_rhs)
+	{
+		return a_rhs + a_scalar;
+	}
+
+	template<typename T>
 	constexpr Vector<2, T> operator-(const Vector<2, T>& a_lhs, const Vector<2, T>& a_rhs)
 	{
 		return Vector<2, T>(a_lhs[0] - a_rhs[0], a_lhs[1] - a_rhs[1]);
 	}
 
 	template<typename T>
-	constexpr Vector<2, T> operator*(const Vector<2, T>& a_vector, const T a_scalar)
+	constexpr Vector<2, T> operator-(const Vector<2, T>& a_lhs, const T a_scalar)
 	{
-		return Vector<2, T>(a_vector[0] * a_scalar, a_vector[1] * a_scalar);
+		return Vector<2, T>(a_lhs[0] - a_scalar, a_lhs[1] - a_scalar);
 	}
 
 	template<typename T>
-	constexpr Vector<2, T> operator/(const Vector<2, T>& a_vector, const T a_scalar)
+	constexpr Vector<2, T> operator-(const T a_scalar, const Vector<2, T>& a_rhs)
+	{
+		return a_rhs - a_scalar;
+	}
+
+	template<typename T>
+	constexpr Vector<2, T> operator*(const Vector<2, T>& a_lhs, const T a_scalar)
+	{
+		return Vector<2, T>(a_lhs[0] * a_scalar, a_lhs[1] * a_scalar);
+	}
+
+	template<typename T>
+	constexpr Vector<2, T> operator*(const T a_scalar, const Vector<2, T>& a_rhs)
+	{
+		return Vector<2, T>(a_rhs[0] * a_scalar, a_rhs[1] * a_scalar);
+	}
+
+	template<typename T>
+	constexpr Vector<2, T> operator/(const Vector<2, T>& a_lhs, const T a_scalar)
 	{
 		T divider = 1.0f / a_scalar;
-		return Vector<2, T>(a_vector[0] * divider, a_vector[1] * divider);
+		return Vector<2, T>(a_lhs[0] * divider, a_lhs[1] * divider);
 	}
 
 	template<typename T>
-	constexpr Vector<2, T> operator-(const Vector<2, T>& a_vector)
+	constexpr Vector<2, T> operator-(const Vector<2, T>& a_rhs)
 	{
-		return Vector<2, T>(-a_vector[0], -a_vector[1]);
+		return Vector<2, T>(-a_rhs[0], -a_rhs[1]);
 	}
 
 

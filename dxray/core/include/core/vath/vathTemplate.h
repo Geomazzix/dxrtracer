@@ -1,7 +1,8 @@
 #pragma once
+#include "core/valueTypes.h"
 
 namespace dxray::vath
 {
-	template<size_t length, typename type> class Vector;
-	template<size_t column, size_t row, typename type> class Matrix;
+	template<usize length, typename type> class Vector;
+	template<usize column, usize row, typename type> class Matrix;
 }

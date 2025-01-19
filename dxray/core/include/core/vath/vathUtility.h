@@ -53,6 +53,13 @@ namespace dxray::vath
 		return (static_cast<T>(1) - a_coefficient) * a_min + a_coefficient * a_max;
 	}
 
+	template<typename T>
+	constexpr T Infinity()
+	{
+		static_assert(std::numeric_limits<T>::has_infinity);
+		return std::numeric_limits<T>::infinity();
+	}
+
 	//--- cmath automatic type deductions ---
 
 	template <typename T>

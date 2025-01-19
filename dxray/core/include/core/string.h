@@ -3,6 +3,7 @@
 #include <fstream>
 #include <ostream>
 #include <sstream>
+#include <format>
 
 //#Todo: When starting with WINAPI UTF16 support will be needed.
 
