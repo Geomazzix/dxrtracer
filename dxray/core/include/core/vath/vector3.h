@@ -36,7 +36,9 @@ namespace dxray::vath
 		constexpr usize GetLength() const;
 
 		constexpr Vector<3, T>& operator +=(T a_scalar);
+		constexpr Vector<3, T>& operator +=(const Vector<3, T>& a_rhs);
 		constexpr Vector<3, T>& operator -=(T a_scalar);
+		constexpr Vector<3, T>& operator -=(const Vector<3, T>& a_rhs);
 		constexpr Vector<3, T>& operator *=(T a_scalar);
 		constexpr Vector<3, T>& operator /=(T a_scalar);
 
@@ -108,7 +110,44 @@ namespace dxray::vath
 		return 3;
 	}
 
+
 	//--- Vector class operators ---
+
+	template<typename T>
+	constexpr Vector<3, T>& Vector<3, T>::operator+=(T a_scalar)
+	{
+		x += a_scalar;
+		y += a_scalar;
+		z += a_scalar;
+		return *this;
+	}
+
+	template<typename T>
+	constexpr Vector<3, T>& Vector<3, T>::operator+=(const Vector<3, T>& a_rhs)
+	{
+		x += a_rhs.x;
+		y += a_rhs.y;
+		z += a_rhs.z;
+		return (*this);
+	}
+
+	template<typename T>
+	constexpr Vector<3, T>& Vector<3, T>::operator-=(T a_scalar)
+	{
+		x -= a_scalar;
+		y -= a_scalar;
+		z -= a_scalar;
+		return *this;
+	}
+
+	template<typename T>
+	constexpr Vector<3, T>& Vector<3, T>::operator-=(const Vector<3, T>& a_rhs)
+	{
+		x -= a_rhs.x;
+		y -= a_rhs.y;
+		z -= a_rhs.z;
+		return (*this);
+	}
 
 	template<typename T>
 	constexpr Vector<3, T>& Vector<3, T>::operator*=(T a_scalar)
@@ -127,24 +166,6 @@ namespace dxray::vath
 		y *= divider;
 		z *= divider;
 		return (*this);
-	}
-
-	template<typename T>
-	constexpr Vector<3, T>& Vector<3, T>::operator+=(T a_scalar)
-	{
-		x += a_scalar;
-		y += a_scalar;
-		z += a_scalar;
-		return *this;
-	}
-
-	template<typename T>
-	constexpr Vector<3, T>& Vector<3, T>::operator-=(T a_scalar)
-	{
-		x -= a_scalar;
-		y -= a_scalar;
-		z -= a_scalar;
-		return *this;
 	}
 
 

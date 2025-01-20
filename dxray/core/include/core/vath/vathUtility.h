@@ -1,5 +1,6 @@
 #pragma once
 #include "core/valueTypes.h"
+#include <random>
 
 namespace dxray::vath
 {
@@ -84,5 +85,21 @@ namespace dxray::vath
 	constexpr T RadToDeg(T a_valueInRad)
 	{
 		return a_valueInRad * (static_cast<T>(180) / Pi<T>());
+	}
+
+	//--- random number generator ---
+
+	template <typename T>
+	inline T RandomNumber()
+	{
+		static std::mt19937 generator;
+		static std::uniform_real_distribution<T> distribution(static_cast<T>(0.0), static_cast<T>(1.0));
+		return distribution(generator);
+	}
+
+	template <typename T>
+	inline T RandomNumber(const T a_min, const T a_max)
+	{
+		return a_min + (a_max - a_min) * RandomNumber<T>();
 	}
 }

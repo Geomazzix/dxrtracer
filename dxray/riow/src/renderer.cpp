@@ -20,19 +20,38 @@ namespace dxray::riow
 		const vath::Vector3f viewportUpperLeft = cameraPosition - vath::Vector3f(0.0f, 0.0f, focalLength) - viewportU / 2.0f - viewportV / 2.0f;
 		const vath::Vector3f pixelCenter = 0.5f * (pixelDeltaU + pixelDeltaV);
 
+		const u8 sampleSize = m_pipelineConfiguration.AASampleCount;
+
 		//Rendering the data into the color buffer.
 		for (u32 pixely = 0; pixely < viewportDimensionsInPx.y; pixely++)
 		{
 			for (u32 pixelx = 0; pixelx < viewportDimensionsInPx.x; pixelx++)
 			{
-				const vath::Vector3f pixelPosition = viewportUpperLeft + pixelCenter +
-					(static_cast<fp32>(pixelx) * pixelDeltaU) +
-					(static_cast<fp32>(pixely) * pixelDeltaV);
-				const vath::Vector3f rayDirection = pixelPosition - cameraPosition;
-				const riow::Ray camRay(cameraPosition, rayDirection);
+				//Anti-aliasing - #Todo: see if this can be moved into a seperate function to reduce complexity.
+				vath::Vector3f pixelColor(0.0f);
+				for (u8 sy = 0; sy < sampleSize; sy++)
+				{
+					for (u8 sx = 0; sx < sampleSize; sx++)
+					{
+						//#Note: Double check on validity: tiger book says:
+						// color = rayColor(pixelx + 0.5, pixely + 0.5) for each pixel without aa.
+						//while with aa it turns:
+						// color += rayColor(pixelx + (samplex + r) / sampleSize, pixely + (sampley + r) / sampleSize).
+						//The current algorithm offsets this a bit differently, which could lead to the wrong pixel positions.
+
+						const fp32 r = vath::RandomNumber<fp32>();
+						const vath::Vector3f pixelPosition = viewportUpperLeft + pixelCenter +
+							((pixelx + (sx + r) / sampleSize) * pixelDeltaU) +
+							((pixely + (sy + r) / sampleSize) * pixelDeltaV);
+						const vath::Vector3f rayDirection = pixelPosition - cameraPosition;
+
+						const riow::Ray camRay(cameraPosition, rayDirection);
+						pixelColor += ComputeRayColor(camRay, a_scene);
+					}
+				}
 
 				const u32 pixelIndex = pixelx + pixely * viewportDimensionsInPx.x;
-				a_colorDataBuffer[pixelIndex] = ComputeRayColor(camRay, a_scene);
+				a_colorDataBuffer[pixelIndex] = pixelColor / static_cast<fp32>(sampleSize * sampleSize);
 			}
 		}
 	}

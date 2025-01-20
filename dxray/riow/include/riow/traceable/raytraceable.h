@@ -6,7 +6,7 @@ namespace dxray::riow
 	/// <summary>
 	/// Structure containing the intersection results on a ray-traceable object.
 	/// </summary>
-	struct IntersectionInfo
+	struct IntersectionInfo final
 	{
 		vath::Vector3f Point = vath::Vector3(0.0f);
 		vath::Vector3f Normal = vath::Vector3(0.0f);

@@ -26,7 +26,11 @@ int main(int argc, char** argv)
 	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 0.0f, -1.2f), 0.5f));		//Middle sphere
 
 	//Renderer
-	riow::RendererPipeline renderPipeline;
+	riow::RendererPipeline renderPipeline =
+	{
+		.AASampleCount = 2
+	};
+
 	riow::Renderer renderer;
 	renderer.SetCamera(camera);
 	renderer.SetRenderPipeline(renderPipeline);

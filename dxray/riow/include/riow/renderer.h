@@ -7,15 +7,15 @@ namespace dxray::riow
 	/// <summary>
 	/// Render pipeline configuration.
 	/// </summary>
-	struct RendererPipeline
+	struct RendererPipeline final
 	{
-		//#Note: Empty for now, later on used to toggle effects on or off.
+		u8 AASampleCount = 2;
 	};
 
 	/// <summary>
 	/// The renderer is responsible for the construction and dispatching of rays.
 	/// </summary>
-	class Renderer
+	class Renderer final
 	{
 	public:
 		Renderer() = default;
@@ -27,8 +27,8 @@ namespace dxray::riow
 		void Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer);
 
 	private:
-		vath::Vector3 ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene);
-		
+		vath::Vector3f ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene);
+
 		Camera m_camera;
 		RendererPipeline m_pipelineConfiguration;
 	};

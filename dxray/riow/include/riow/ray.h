@@ -6,7 +6,7 @@ namespace dxray::riow
 	/// <summary>
 	/// Ray class representing P = A + t(B);
 	/// </summary>
-	class Ray
+	class Ray final
 	{
 	public:
 		Ray();
