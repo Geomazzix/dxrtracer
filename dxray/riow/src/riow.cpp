@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 	//Renderer
 	riow::RendererPipeline renderPipeline =
 	{
-		.AASampleCount = 2
+		.AASampleCount = 4
 	};
 
 	riow::Renderer renderer;
