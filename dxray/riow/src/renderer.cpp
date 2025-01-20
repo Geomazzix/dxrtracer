@@ -27,22 +27,18 @@ namespace dxray::riow
 		{
 			for (u32 pixelx = 0; pixelx < viewportDimensionsInPx.x; pixelx++)
 			{
-				//Anti-aliasing - #Todo: see if this can be moved into a seperate function to reduce complexity.
+				//Anti-aliasing.
 				vath::Vector3f pixelColor(0.0f);
 				for (u8 sy = 0; sy < sampleSize; sy++)
 				{
 					for (u8 sx = 0; sx < sampleSize; sx++)
 					{
-						//#Note: Double check on validity: tiger book says:
-						// color = rayColor(pixelx + 0.5, pixely + 0.5) for each pixel without aa.
-						//while with aa it turns:
-						// color += rayColor(pixelx + (samplex + r) / sampleSize, pixely + (sampley + r) / sampleSize).
-						//The current algorithm offsets this a bit differently, which could lead to the wrong pixel positions.
+                        const fp32 r = vath::RandomNumber<fp32>();
+						const vath::Vector2f sampleOffset((sx + r) / sampleSize, (sy + r) / sampleSize);
 
-						const fp32 r = vath::RandomNumber<fp32>();
 						const vath::Vector3f pixelPosition = viewportUpperLeft + pixelCenter +
-							((pixelx + (sx + r) / sampleSize) * pixelDeltaU) +
-							((pixely + (sy + r) / sampleSize) * pixelDeltaV);
+							((pixelx + sampleOffset.x) * pixelDeltaU) +
+							((pixely + sampleOffset.y) * pixelDeltaV);
 						const vath::Vector3f rayDirection = pixelPosition - cameraPosition;
 
 						const riow::Ray camRay(cameraPosition, rayDirection);
