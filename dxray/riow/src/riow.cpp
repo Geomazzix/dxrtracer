@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 	//Camera/viewport
 	riow::Camera camera;
 	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
-	camera.SetZNear(0.01f);
+	camera.SetZNear(0.001f);
 	camera.SetZFar(1000.0f);
 	camera.SetFocalLength(1.0f);
 

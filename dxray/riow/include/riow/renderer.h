@@ -9,6 +9,7 @@ namespace dxray::riow
 	/// </summary>
 	struct RendererPipeline final
 	{
+		u8 MaxTraceDepth = 8;
 		u8 AASampleCount = 2;
 	};
 
@@ -27,7 +28,7 @@ namespace dxray::riow
 		void Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer);
 
 	private:
-		vath::Vector3f ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene);
+		vath::Vector3f ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth);
 
 		Camera m_camera;
 		RendererPipeline m_pipelineConfiguration;

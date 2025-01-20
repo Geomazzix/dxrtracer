@@ -2,6 +2,32 @@
 
 namespace dxray::riow
 {
+	vath::Vector3f RandomHemisphereReflection(const vath::Vector3f a_normal)
+	{
+		//Generate a random unit vector.
+		vath::Vector3 randomUnitDirection(0.0f);
+		while (true)
+		{
+			const vath::Vector3 randomDirection(
+				vath::RandomNumber<fp32>(-1.0f, 1.0f),
+				vath::RandomNumber<fp32>(-1.0f, 1.0f),
+				vath::RandomNumber<fp32>(-1.0f, 1.0f)
+			);
+			
+			const fp32 directionSqrMagnitude = vath::SqrMagnitude(randomDirection);
+			if (1e-160 < directionSqrMagnitude && directionSqrMagnitude <= 1.0f)
+			{
+				randomUnitDirection = randomDirection / std::sqrt(directionSqrMagnitude);
+				break;
+			}
+		}
+
+		//Invert the unit direction if it's pointing towards the inside of the sphere.
+		return vath::Dot(randomUnitDirection, a_normal) > 0.0f
+			? randomUnitDirection
+			: -randomUnitDirection;
+	}
+
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{
 		//Retrieving all data needed for render.
@@ -40,7 +66,7 @@ namespace dxray::riow
                     const vath::Vector3f rayDirection = pixelPosition - cameraPosition;
 
                     const riow::Ray camRay(cameraPosition, rayDirection);
-                    pixelColor += ComputeRayColor(camRay, a_scene);
+                    pixelColor += ComputeRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
                 }
             }
 
@@ -58,12 +84,19 @@ namespace dxray::riow
 		}
 	}
 
-	vath::Vector3 Renderer::ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene)
+	vath::Vector3 Renderer::ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth)
 	{
+		//When max depth is reached return black.
+		if (a_maxTraceDepth <= 0)
+		{
+			return vath::Vector3f(0.0f);
+		}
+
 		riow::IntersectionInfo hitInfo;
 		if (a_scene.DoesIntersect(a_ray, m_camera.GetZNear(), m_camera.GetZFar(), hitInfo))
 		{
-			return 0.5f * (hitInfo.Normal + 1.0f); //#Note: Temporarily, currently used to visualize normals.
+			vath::Vector3f rayBounceDirection = RandomHemisphereReflection(hitInfo.Normal);
+			return 0.5f * ComputeRayColor(Ray(hitInfo.Point, rayBounceDirection), a_scene, a_maxTraceDepth - 1);
 		}
 
 		//If no intersection took place render a sky-like gradient, emulated through a simple lerp.
