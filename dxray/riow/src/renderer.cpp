@@ -2,10 +2,9 @@
 
 namespace dxray::riow
 {
-	vath::Vector3f RandomHemisphereReflection(const vath::Vector3f a_normal)
+	vath::Vector3f RandomUnitVector()
 	{
 		//Generate a random unit vector.
-		vath::Vector3 randomUnitDirection(0.0f);
 		while (true)
 		{
 			const vath::Vector3 randomDirection(
@@ -13,19 +12,23 @@ namespace dxray::riow
 				vath::RandomNumber<fp32>(-1.0f, 1.0f),
 				vath::RandomNumber<fp32>(-1.0f, 1.0f)
 			);
-			
+
 			const fp32 directionSqrMagnitude = vath::SqrMagnitude(randomDirection);
 			if (1e-160 < directionSqrMagnitude && directionSqrMagnitude <= 1.0f)
 			{
-				randomUnitDirection = randomDirection / std::sqrt(directionSqrMagnitude);
-				break;
+				return randomDirection / std::sqrt(directionSqrMagnitude);
 			}
 		}
+	}
 
-		//Invert the unit direction if it's pointing towards the inside of the sphere.
-		return vath::Dot(randomUnitDirection, a_normal) > 0.0f
-			? randomUnitDirection
-			: -randomUnitDirection;
+	vath::Vector3f RandomHemisphereReflection(const vath::Vector3f a_normal)
+	{
+		vath::Vector3 randomUnitVector = RandomUnitVector();
+
+		//Invert the unit direction if it's pointing towards the correct hemisphere, based on the normal.
+		return vath::Dot(randomUnitVector, a_normal) > 0.0f
+			? randomUnitVector
+			: -randomUnitVector;
 	}
 
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
@@ -95,7 +98,7 @@ namespace dxray::riow
 		riow::IntersectionInfo hitInfo;
 		if (a_scene.DoesIntersect(a_ray, m_camera.GetZNear(), m_camera.GetZFar(), hitInfo))
 		{
-			vath::Vector3f rayBounceDirection = RandomHemisphereReflection(hitInfo.Normal);
+			vath::Vector3f rayBounceDirection = hitInfo.Normal + RandomUnitVector();
 			return 0.5f * ComputeRayColor(Ray(hitInfo.Point, rayBounceDirection), a_scene, a_maxTraceDepth - 1);
 		}
 

@@ -28,7 +28,8 @@ int main(int argc, char** argv)
 	//Renderer
 	riow::RendererPipeline renderPipeline =
 	{
-		.AASampleCount = 4
+		.MaxTraceDepth = 10,
+		.AASampleCount = 4,
 	};
 
 	riow::Renderer renderer;
