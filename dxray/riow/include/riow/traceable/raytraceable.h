@@ -3,6 +3,8 @@
 
 namespace dxray::riow
 {
+	class Material;
+
 	/// <summary>
 	/// Structure containing the intersection results on a ray-traceable object.
 	/// </summary>
@@ -10,6 +12,7 @@ namespace dxray::riow
 	{
 		vath::Vector3f Point = vath::Vector3(0.0f);
 		vath::Vector3f Normal = vath::Vector3(0.0f);
+		std::shared_ptr<Material> Mat = nullptr;
 		fp32 Length = 0.0f;
 		bool FrontFace = false;
 

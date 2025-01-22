@@ -6,6 +6,8 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/traceable/sphere.h"
 
 	#Application
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/color.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/material.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/scene.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/camera.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/ray.h"

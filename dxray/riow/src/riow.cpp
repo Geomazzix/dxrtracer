@@ -22,8 +22,16 @@ int main(int argc, char** argv)
 
 	//Scene
 	riow::Scene scene;
-	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -100.5f, -1.0f), 100.0f));	//Ground
-	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 0.0f, -1.2f), 0.5f));		//Middle sphere
+
+	std::shared_ptr<riow::Lambertian> ground = std::make_shared<riow::Lambertian>(riow::Color(0.8f, 0.8f, 0.0f));
+	std::shared_ptr<riow::Lambertian> center = std::make_shared<riow::Lambertian>(riow::Color(0.1f, 0.2f, 0.5f));
+	std::shared_ptr<riow::Metalic> left = std::make_shared<riow::Metalic>(riow::Color(0.8f, 0.8f, 0.8f), 0.3f);
+	std::shared_ptr<riow::Metalic> right = std::make_shared<riow::Metalic>(riow::Color(0.8f, 0.6f, 0.2f), 1.0f);
+
+	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -100.5f, -1.0f), 100.0f, ground));	//Ground
+	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 0.0f, -1.2f), 0.5f, center));		//Middle sphere
+	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(-1.0f, 0.0f, -1.0f), 0.5f, left));			//Left
+	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(1.0f, 0.0f, -1.0f), 0.5f, right));			//Right
 
 	//Renderer
 	riow::RendererPipeline renderPipeline =

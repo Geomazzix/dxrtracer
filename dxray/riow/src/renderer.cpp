@@ -1,36 +1,8 @@
 #include "riow/renderer.h"
+#include "riow/material.h"
 
 namespace dxray::riow
 {
-	vath::Vector3f RandomUnitVector()
-	{
-		//Generate a random unit vector.
-		while (true)
-		{
-			const vath::Vector3 randomDirection(
-				vath::RandomNumber<fp32>(-1.0f, 1.0f),
-				vath::RandomNumber<fp32>(-1.0f, 1.0f),
-				vath::RandomNumber<fp32>(-1.0f, 1.0f)
-			);
-
-			const fp32 directionSqrMagnitude = vath::SqrMagnitude(randomDirection);
-			if (1e-160 < directionSqrMagnitude && directionSqrMagnitude <= 1.0f)
-			{
-				return randomDirection / std::sqrt(directionSqrMagnitude);
-			}
-		}
-	}
-
-	vath::Vector3f RandomHemisphereReflection(const vath::Vector3f a_normal)
-	{
-		vath::Vector3 randomUnitVector = RandomUnitVector();
-
-		//Invert the unit direction if it's pointing towards the correct hemisphere, based on the normal.
-		return vath::Dot(randomUnitVector, a_normal) > 0.0f
-			? randomUnitVector
-			: -randomUnitVector;
-	}
-
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{
 		//Retrieving all data needed for render.
@@ -55,7 +27,7 @@ namespace dxray::riow
 		//Sample the pixel index provided, using the values defined above.
 		auto SamplePixel = [=](const vath::Vector2u32& a_pixelIndex)
 		{
-            vath::Vector3f pixelColor(0.0f);
+            Color pixelColor(0.0f);
             for (u8 sy = 0; sy < sampleSize; sy++)
             {
                 for (u8 sx = 0; sx < sampleSize; sx++)
@@ -69,41 +41,50 @@ namespace dxray::riow
                     const vath::Vector3f rayDirection = pixelPosition - cameraPosition;
 
                     const riow::Ray camRay(cameraPosition, rayDirection);
-                    pixelColor += ComputeRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
+                    pixelColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
                 }
             }
 
 			return pixelColor * sampleReciprocal;
 		};
 
-		//Render the pixel data into the provided output buffer.
-		for (u32 pixely = 0; pixely < viewportDimensionsInPx.y; pixely++)
-		{
-			for (u32 pixelx = 0; pixelx < viewportDimensionsInPx.x; pixelx++)
-			{
-				const u32 pixelIndex = pixelx + pixely * viewportDimensionsInPx.x;
-				a_colorDataBuffer[pixelIndex] = SamplePixel(vath::Vector2u32(pixelx, pixely));
-			}
-		}
+        //Render the pixel data into the provided output buffer.
+        const u32 pixelCount = viewportDimensionsInPx.y * viewportDimensionsInPx.x;
+        for (u32 pixelIndex = 0, pixely = 0; pixely < viewportDimensionsInPx.y; pixely++)
+        {
+            for (u32 pixelx = 0; pixelx < viewportDimensionsInPx.x; pixelx++, pixelIndex++)
+            {
+				const Color rgb = SamplePixel(vath::Vector2u32(pixelx, pixely));
+				a_colorDataBuffer[pixelIndex] = LinearToSrgb(rgb);
+            }
+        }
 	}
 
-	vath::Vector3 Renderer::ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth)
+	Color Renderer::TraceRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth) const
 	{
 		//When max depth is reached return black.
 		if (a_maxTraceDepth <= 0)
 		{
-			return vath::Vector3f(0.0f);
+			return Color(0.0f);
 		}
 
+		//Otherwise keep tracing.
 		riow::IntersectionInfo hitInfo;
 		if (a_scene.DoesIntersect(a_ray, m_camera.GetZNear(), m_camera.GetZFar(), hitInfo))
 		{
-			vath::Vector3f rayBounceDirection = hitInfo.Normal + RandomUnitVector();
-			return 0.5f * ComputeRayColor(Ray(hitInfo.Point, rayBounceDirection), a_scene, a_maxTraceDepth - 1);
-		}
+			Ray scattered;
+			Color attenuation;
 
-		//If no intersection took place render a sky-like gradient, emulated through a simple lerp.
+			if (hitInfo.Mat->Scatter(a_ray, hitInfo, attenuation, scattered))
+			{
+				return attenuation * TraceRayColor(scattered, a_scene, a_maxTraceDepth - 1);
+			}
+
+			return Color(0.0f);
+        }
+
+		//If no intersection took place return a blue gradient, because of the trace depth this will result in color contribution from the sky onto objects.
 		const fp32 a = 0.5f * (Normalize(a_ray.GetDirection()).y + 1.0f);
-		return (1.0f - a) * vath::Vector3(1.0f) + a * vath::Vector3(0.5f, 0.7f, 1.0f);
+		return (1.0f - a) * Color(1.0f) + a * Color(0.5f, 0.7f, 1.0f);
 	}
 }

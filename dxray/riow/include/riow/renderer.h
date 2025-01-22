@@ -1,6 +1,7 @@
 #pragma once
 #include "riow/scene.h"
 #include "riow/camera.h"
+#include "riow/color.h"
 
 namespace dxray::riow
 {
@@ -28,7 +29,7 @@ namespace dxray::riow
 		void Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer);
 
 	private:
-		vath::Vector3f ComputeRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth);
+		Color TraceRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth) const;
 
 		Camera m_camera;
 		RendererPipeline m_pipelineConfiguration;

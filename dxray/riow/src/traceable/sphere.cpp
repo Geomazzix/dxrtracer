@@ -2,9 +2,10 @@
 
 namespace dxray::riow
 {
-	Sphere::Sphere(const vath::Vector3& a_center, fp32 a_radius) :
+	Sphere::Sphere(const vath::Vector3& a_center, fp32 a_radius, std::shared_ptr<Material> a_material) :
 		m_center(a_center),
-		m_radius(a_radius)
+		m_radius(a_radius),
+		m_material(a_material)
 	{ }
 
 	bool Sphere::DoesIntersect(const Ray& a_ray, fp32 a_tMin, fp32 a_tMax, IntersectionInfo& a_info) const
@@ -35,6 +36,7 @@ namespace dxray::riow
 		a_info.Length = t;
 		vath::Vector3f outwardNormal = (a_info.Point - m_center) / m_radius;
 		a_info.SetFaceNormal(a_ray, outwardNormal);
+		a_info.Mat = m_material;
 
 		return true;
 	}

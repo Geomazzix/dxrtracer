@@ -207,6 +207,12 @@ namespace dxray::vath
 		return Vector<3, T>(a_vector - a_scalar);
 	}
 
+    template<typename T>
+    constexpr Vector<3, T> operator *(const Vector<3, T>& a_lhs, const Vector<3, T>& a_rhs)
+    {
+        return Vector<3, T>(a_lhs[0] * a_rhs[0], a_lhs[1] * a_rhs[1], a_lhs[2] * a_rhs[2]);
+    }
+
 	template<typename T>
 	constexpr Vector<3, T> operator *(const Vector<3, T>& a_vector, const T a_scalar)
 	{

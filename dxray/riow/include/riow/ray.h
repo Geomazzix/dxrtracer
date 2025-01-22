@@ -18,8 +18,8 @@ namespace dxray::riow
 		vath::Vector3f At(fp32 a_scalar) const;
 
 	private:
-		const vath::Vector3f m_origin;
-		const vath::Vector3f m_direction;
+		vath::Vector3f m_origin;
+		vath::Vector3f m_direction;
 	};
 
 	inline Ray::Ray() :
