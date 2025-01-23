@@ -31,28 +31,37 @@ namespace dxray::vath
 		return std::max<T>(a_value, a_max);
 	}
 
-	template <typename T> requires std::arithmetic<T> && std::signed_integral<T>
+	template <typename T, typename S = T> requires std::arithmetic<T>
+	constexpr T Sign(const T a_value)
+	{
+		return a_value < static_cast<S>(0) ? static_cast<S>(-1) : static_cast<S>(1);
+	}
+
+	template <typename T> requires std::floating_point<T> || std::unsigned_integral<T>
 	constexpr T Abs(const T a_value)
 	{
-		return std::abs<T>(a_value);
+		return a_value < static_cast<T>(0.0) ? -a_value : a_value;
 	}
 
-	template <typename T> requires std::floating_point<T>
+	template <typename T, typename S = T> requires std::floating_point<T>
 	constexpr T Floor(const T a_fp)
 	{
-		return std::floor(a_fp);
+		return static_cast<S>(a_fp) - (a_fp < 0 && a_fp % 1 != 0);
 	}
 
-	template <typename T> requires std::floating_point<T>
+	template <typename T, typename S = T> requires std::floating_point<T>
 	constexpr T Ceil(const T a_fp)
 	{
-		return std::ceil<T>(a_fp);
+		return static_cast<S>(a_fp) + (a_fp > 0 && a_fp % 1 != 0);
 	}
 
 	template <typename T> requires std::floating_point<T>
 	constexpr T Round(const T a_fp)
 	{
-		return std::round(a_fp);
+		return static_cast<T>(Floor<T>(a_fp) 
+			+ (a_fp > static_cast<T>(0.0) && a_fp % static_cast<T>(1.0) >= static_cast<T>(0.5)) 
+			+ (a_fp < static_cast<T>(0.0) && (static_cast<T>(1.0) + a_fp % static_cast<T>(1.0)) 
+			% static_cast<T>(1.0) >= static_cast<T>(0.5)));
 	}
 
 	template <typename T> requires std::floating_point<T>
