@@ -46,6 +46,20 @@ namespace dxray::riow
         return a_vector - 2.0f * vath::Dot(a_vector, a_normal) * a_normal;
     }
 
+    inline vath::Vector3f Refract(const vath::Vector3f& a_unitVector, const vath::Vector3f& a_normal, const fp32 a_eta)
+    {
+        const fp32 cosTheta = vath::Min<fp32>(vath::Dot(-a_unitVector, a_normal), 1.0f);
+        vath::Vector3f perpendicular = a_eta * (a_unitVector + cosTheta * a_normal);
+        vath::Vector3f parallel = -std::sqrt(vath::Abs<fp32>(1.0f - SqrMagnitude(perpendicular))) * a_normal;
+        return perpendicular + parallel;
+    }
+
+    inline fp32 SchlickApprox(const fp32 a_cosTheta, fp32 a_refractionIndex)
+    {
+        fp32 r0 = (1.0f - a_refractionIndex) / (1.0f + a_refractionIndex);
+        r0 *= r0;
+        return r0 + (1.0f - r0) * std::powf(1.0f - a_cosTheta, 5);
+    }
 
     //--- Material definitions ---
 
@@ -117,5 +131,39 @@ namespace dxray::riow
     private:
         Color m_albedo;
         fp32 m_glossyness;
+    };
+
+
+    /// <summary>
+    /// Material that representing refractive mediums.
+    /// </summary>
+    class Dialectric final : public Material
+    {
+    public:
+        Dialectric(const fp32 a_refractiveIndex) :
+            m_refractiveIndex(a_refractiveIndex)
+        {
+        }
+
+        bool Scatter(const Ray& a_ray, const IntersectionInfo& a_hitInfo, Color& a_attenuation, Ray& a_scatteredRay) const override
+        {
+            a_attenuation = Color(1.0f); //Color of this material is currently white.
+            const fp32 ri = a_hitInfo.FrontFace ? (1.0f / m_refractiveIndex) : m_refractiveIndex;
+
+            const vath::Vector3f unitDirection = Normalize(a_ray.GetDirection());
+            const fp32 cosTheta = vath::Min<fp32>(vath::Dot(-unitDirection, a_hitInfo.Normal), 1.0f);
+            const fp32 sinTheta = std::sqrt(1.0f - cosTheta * cosTheta);
+
+            //If the ray bounces back into the hemisphere it came from there is case for internal reflection.
+            const vath::Vector3f scatterDirection = (ri * sinTheta > 1.0f) || SchlickApprox(cosTheta, ri) > vath::RandomNumber<fp32>()
+                ? Reflect(unitDirection, a_hitInfo.Normal)
+                : Refract(unitDirection, a_hitInfo.Normal, ri);
+
+            a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection);
+            return true;
+        }
+
+    private:
+        fp32 m_refractiveIndex;
     };
 }

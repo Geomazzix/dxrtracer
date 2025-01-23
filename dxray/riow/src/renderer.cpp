@@ -7,22 +7,25 @@ namespace dxray::riow
 	{
 		//Retrieving all data needed for render.
 		const vath::Vector3f cameraPosition = m_camera.GetPosition();
-		const vath::Vector2u32 viewportDimensionsInPx = m_camera.GetViewportDimensionsInPx();
-		const vath::Vector2f viewportDimensions(2.0f * m_camera.GetAspectRatio(), 2.0f);
+		const vath::Vector2u32 viewportDimsInPx = m_camera.GetViewportDimensionsInPx();
+		const vath::Vector2f viewportDims(2.0f * m_camera.GetAspectRatio(), -2.0f); //#Note: y-axis inversion is happening here, not at image writing.
 		const fp32 focalLength = m_camera.GetFocalLength();
 
-		//#Todo: simplify this math, it's confusing to use vectors like this, with SIMD performance would be equivalent, though from a programmer's POV it's hard to read.
 		//Calculating the image plane to shoot rays through.
-		const vath::Vector3f viewportU(viewportDimensions.x, 0.0f, 0.0f);
-		const vath::Vector3f viewportV(0.0f, -viewportDimensions.y, 0.0f);
-		const vath::Vector3f pixelDeltaU(viewportU / static_cast<fp32>(viewportDimensionsInPx.x));
-		const vath::Vector3f pixelDeltaV(viewportV / static_cast<fp32>(viewportDimensionsInPx.y));
-
-		const vath::Vector3f viewportUpperLeft = cameraPosition - vath::Vector3f(0.0f, 0.0f, focalLength) - viewportU / 2.0f - viewportV / 2.0f;
-		const vath::Vector3f pixelCenter = 0.5f * (pixelDeltaU + pixelDeltaV);
+		const vath::Vector2f pixelDelta(viewportDims.x / static_cast<fp32>(viewportDimsInPx.x), viewportDims.y / static_cast<fp32>(viewportDimsInPx.y));
+		const vath::Vector2f viewportUpperLeft = vath::Vector2f(-viewportDims.x / 2.0f, -viewportDims.y / 2.0f);
+		const vath::Vector2f pixelCenter = pixelDelta * 0.5f;
 
 		const u8 sampleSize = m_pipelineConfiguration.AASampleCount;
 		const fp32 sampleReciprocal = 1.0f / static_cast<fp32>(sampleSize * sampleSize);
+
+        DXRAY_INFO("=================================");
+        DXRAY_INFO("Loaded render pipeline:");
+        DXRAY_INFO("Image dimensions: {}, {}", viewportDimsInPx.x, viewportDimsInPx.y);
+        DXRAY_INFO("AA-SampleSize {}", sampleSize);
+        DXRAY_INFO("DoF-SampleSize {}", 0);
+        DXRAY_INFO("=================================");
+        DXRAY_INFO("Rendering...");
 
 		//Sample the pixel index provided, using the values defined above.
 		auto SamplePixel = [=](const vath::Vector2u32& a_pixelIndex)
@@ -34,13 +37,19 @@ namespace dxray::riow
                 {
                     const fp32 r = vath::RandomNumber<fp32>();
                     const vath::Vector2f sampleOffset((sx + r) / sampleSize, (sy + r) / sampleSize);
+					
+					const vath::Vector2f pixelOffset(
+                        pixelCenter.x + (a_pixelIndex.x + sampleOffset.x) * pixelDelta.x,
+						pixelCenter.y + (a_pixelIndex.y + sampleOffset.y) * pixelDelta.y
+                    );
 
-                    const vath::Vector3f pixelPosition = viewportUpperLeft + pixelCenter +
-                        ((a_pixelIndex.x + sampleOffset.x) * pixelDeltaU) +
-                        ((a_pixelIndex.y + sampleOffset.y) * pixelDeltaV);
-                    const vath::Vector3f rayDirection = pixelPosition - cameraPosition;
+					const vath::Vector3f pixelPosition(
+                        viewportUpperLeft.x + pixelOffset.x,
+                        viewportUpperLeft.y + pixelOffset.y,
+						-focalLength
+					);
 
-                    const riow::Ray camRay(cameraPosition, rayDirection);
+                    const riow::Ray camRay(cameraPosition, pixelPosition - cameraPosition);
                     pixelColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
                 }
             }
@@ -49,13 +58,14 @@ namespace dxray::riow
 		};
 
         //Render the pixel data into the provided output buffer.
-        const u32 pixelCount = viewportDimensionsInPx.y * viewportDimensionsInPx.x;
-        for (u32 pixelIndex = 0, pixely = 0; pixely < viewportDimensionsInPx.y; pixely++)
+        for (u32 pixelIndex = 0, pixely = 0; pixely < viewportDimsInPx.y; pixely++)
         {
-            for (u32 pixelx = 0; pixelx < viewportDimensionsInPx.x; pixelx++, pixelIndex++)
+            for (u32 pixelx = 0; pixelx < viewportDimsInPx.x; pixelx++, pixelIndex++)
             {
-				const Color rgb = SamplePixel(vath::Vector2u32(pixelx, pixely));
-				a_colorDataBuffer[pixelIndex] = LinearToSrgb(rgb);
+				//#Todo: msvc64_x64 seems to optimize this lambda away by possibly inlining it, which is providing a different outcome than without. Investigate this.
+
+				//const Color rgb = SamplePixel(vath::Vector2u32(pixelx, pixely));
+				a_colorDataBuffer[pixelIndex] = LinearToSrgb(SamplePixel(vath::Vector2u32(pixelx, pixely)));
             }
         }
 	}
