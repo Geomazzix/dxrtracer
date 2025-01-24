@@ -16,7 +16,7 @@ namespace dxray::riow
 		const fp32 c = vath::SqrMagnitude(rayFromCenter) - m_radius * m_radius;
 
 		const fp32 discriminant = h * h - a * c;
-		if (discriminant < 0)
+		if (discriminant < 0.0f)
 		{
 			return false;
 		}

@@ -109,7 +109,8 @@ namespace dxray::vath
 	template <typename T> requires std::arithmetic<T>
 	inline T RandomNumber()
 	{
-		static std::mt19937 generator;
+		std::random_device dev;
+		static std::mt19937 generator(dev());
 		static std::uniform_real_distribution<T> distribution(static_cast<T>(0.0), static_cast<T>(1.0));
 		return distribution(generator);
 	}

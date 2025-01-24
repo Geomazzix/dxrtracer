@@ -54,7 +54,7 @@ namespace dxray::riow
                 }
             }
 
-			return pixelColor * sampleReciprocal;
+			return pixelColor *sampleReciprocal;
 		};
 
         //Render the pixel data into the provided output buffer.
@@ -62,10 +62,10 @@ namespace dxray::riow
         {
             for (u32 pixelx = 0; pixelx < viewportDimsInPx.x; pixelx++, pixelIndex++)
             {
-				//#Todo: msvc64_x64 seems to optimize this lambda away by possibly inlining it, which is providing a different outcome than without. Investigate this.
+				//#Todo: msvc64_x64 seems to optimize this lambda away by possibly in-lining it, which is providing a different outcome than without. Investigate this.
 
-				//const Color rgb = SamplePixel(vath::Vector2u32(pixelx, pixely));
-				a_colorDataBuffer[pixelIndex] = LinearToSrgb(SamplePixel(vath::Vector2u32(pixelx, pixely)));
+				const Color rgb = SamplePixel(vath::Vector2u32(pixelx, pixely));
+				a_colorDataBuffer[pixelIndex] = LinearToSrgb(rgb);
             }
         }
 	}
