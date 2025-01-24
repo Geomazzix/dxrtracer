@@ -22,6 +22,7 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vector4.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/quaternion.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathUtility.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/rect.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathTemplate.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vath.h"
 )

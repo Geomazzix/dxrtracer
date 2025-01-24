@@ -10,7 +10,6 @@ int main(int argc, char** argv)
     DXRAY_INFO("= CPU RAYTRACER =");
     DXRAY_INFO("=================================\n");
 
-
 	Stopwatchf timer;
 	timer.Start();
 
@@ -23,7 +22,8 @@ int main(int argc, char** argv)
 	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
 	camera.SetZNear(0.001f);
 	camera.SetZFar(1000.0f);
-	camera.SetFocalLength(1.0f);
+	camera.SetVerticalFov(vath::DegToRad(90.0f));
+	camera.LookAt(vath::Vector3f(-2.0f, 2.0f, 1.0f), vath::Vector3f(0.0f, 0.0f, -1.0f));
 
 	//Scene
 	riow::Scene scene;
@@ -32,8 +32,8 @@ int main(int argc, char** argv)
 	std::shared_ptr<riow::Lambertian> center = std::make_shared<riow::Lambertian>(riow::Color(0.1f, 0.2f, 0.5f));
 	std::shared_ptr<riow::Dialectric> left = std::make_shared<riow::Dialectric>(1.5f);
 	std::shared_ptr<riow::Dialectric> bubble = std::make_shared<riow::Dialectric>(1.0f / 1.5f);
-	std::shared_ptr<riow::Metalic> right = std::make_shared<riow::Metalic>(riow::Color(0.8f, 0.6f, 0.2f), 1.0f);
-
+	std::shared_ptr<riow::Metalic> right = std::make_shared<riow::Metalic>(riow::Color(0.8f, 0.6f, 0.2f), 0.3f);
+	
 	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -100.5f, -1.0f), 100.0f, ground));	//Ground
 	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 0.0f, -1.2f), 0.5f, center));		//Middle sphere
 	scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(-1.0f, 0.0f, -1.0f), 0.5f, left));			//Left (inner sphere)
@@ -43,8 +43,8 @@ int main(int argc, char** argv)
 	//Renderer
 	riow::RendererPipeline renderPipeline =
 	{
-		.MaxTraceDepth = 25, //In simple scenes this will mostly affect dialectics.
-		.AASampleCount = 4,
+		.MaxTraceDepth = 10, //In simple scenes this will mostly affect dialectics.
+		.AASampleCount = 1,
 	};
 
 	riow::Renderer renderer;

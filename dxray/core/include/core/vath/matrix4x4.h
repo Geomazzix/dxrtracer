@@ -253,6 +253,7 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<4, T> operator*(const Matrix<4, 4, T>& a_lhs, const Vector<4, T>& a_vector)
 	{
+
 		return Vector<4, T>(
 			a_lhs[0][0] * a_vector[0] + a_lhs[0][1] * a_vector[1] + a_lhs[0][2] * a_vector[2] + a_lhs[0][3] * a_vector[3],
 			a_lhs[1][0] * a_vector[0] + a_lhs[1][1] * a_vector[1] + a_lhs[1][2] * a_vector[2] + a_lhs[1][3] * a_vector[3],
@@ -376,10 +377,10 @@ namespace dxray::vath
 		const Vector<3, T> u(Cross(s, f));
 
 		Matrix<4, 4, T> lookAt(
-			s[0], u[0], -f[0], 0,
-			s[1], u[1], -f[1], 0,
-			s[2], u[2], -f[2], 0,
-			-Dot(s, a_position), -Dot(u, a_position), Dot(f, a_position), 1
+            s[0], u[0], -f[0], 0,
+            s[1], u[1], -f[1], 0,
+            s[2], u[2], -f[2], 0,
+			-Dot(s, a_position), -Dot(u, a_position), -Dot(f, a_position), 1
 		);
 
 		return lookAt;

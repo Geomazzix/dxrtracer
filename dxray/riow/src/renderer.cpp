@@ -8,12 +8,14 @@ namespace dxray::riow
 		//Retrieving all data needed for render.
 		const vath::Vector3f cameraPosition = m_camera.GetPosition();
 		const vath::Vector2u32 viewportDimsInPx = m_camera.GetViewportDimensionsInPx();
-		const vath::Vector2f viewportDims(2.0f * m_camera.GetAspectRatio(), -2.0f); //#Note: y-axis inversion is happening here, not at image writing.
-		const fp32 focalLength = m_camera.GetFocalLength();
+		const vath::Rect<fp32> viewportRect = m_camera.GetViewportRect();
+        const fp32 focalLength = m_camera.GetFocalLength();
 
 		//Calculating the image plane to shoot rays through.
-		const vath::Vector2f pixelDelta(viewportDims.x / static_cast<fp32>(viewportDimsInPx.x), viewportDims.y / static_cast<fp32>(viewportDimsInPx.y));
-		const vath::Vector2f viewportUpperLeft = vath::Vector2f(-viewportDims.x / 2.0f, -viewportDims.y / 2.0f);
+		const vath::Vector2f pixelDelta(
+			viewportRect.Width / static_cast<fp32>(viewportDimsInPx.x), 
+			viewportRect.Height / static_cast<fp32>(viewportDimsInPx.y)
+		);
 		const vath::Vector2f pixelCenter = pixelDelta * 0.5f;
 
 		const u8 sampleSize = m_pipelineConfiguration.AASampleCount;
@@ -35,21 +37,22 @@ namespace dxray::riow
             {
                 for (u8 sx = 0; sx < sampleSize; sx++)
                 {
-                    const fp32 r = vath::RandomNumber<fp32>();
-                    const vath::Vector2f sampleOffset((sx + r) / sampleSize, (sy + r) / sampleSize);
+                    //const fp32 r = vath::RandomNumber<fp32>();
+                    //const vath::Vector2f sampleOffset((sx + r) / sampleSize, (sy + r) / sampleSize);
 					
 					const vath::Vector2f pixelOffset(
-                        pixelCenter.x + (a_pixelIndex.x + sampleOffset.x) * pixelDelta.x,
-						pixelCenter.y + (a_pixelIndex.y + sampleOffset.y) * pixelDelta.y
+                        pixelCenter.x + a_pixelIndex.x * pixelDelta.x,
+						pixelCenter.y + a_pixelIndex.y * pixelDelta.y
                     );
 
-					const vath::Vector3f pixelPosition(
-                        viewportUpperLeft.x + pixelOffset.x,
-                        viewportUpperLeft.y + pixelOffset.y,
-						-focalLength
-					);
+					vath::Vector3f rayDirection = vath::Vector3f(m_camera.GetWorldTransform() * vath::Vector4f(
+						viewportRect.x + pixelOffset.x,
+						viewportRect.y + pixelOffset.y,
+						-focalLength,
+						1.0f
+					));
 
-                    const riow::Ray camRay(cameraPosition, pixelPosition - cameraPosition);
+                    const riow::Ray camRay(cameraPosition, rayDirection);
                     pixelColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
                 }
             }
@@ -58,12 +61,11 @@ namespace dxray::riow
 		};
 
         //Render the pixel data into the provided output buffer.
-        for (u32 pixelIndex = 0, pixely = 0; pixely < viewportDimsInPx.y; pixely++)
+		//#Note: the image is rendered inversed on the y-axis.
+        for (u32 pixelIndex = 0, pixely = viewportDimsInPx.y; pixely > 0 ; pixely--)
         {
             for (u32 pixelx = 0; pixelx < viewportDimsInPx.x; pixelx++, pixelIndex++)
             {
-				//#Todo: msvc64_x64 seems to optimize this lambda away by possibly in-lining it, which is providing a different outcome than without. Investigate this.
-
 				const Color rgb = SamplePixel(vath::Vector2u32(pixelx, pixely));
 				a_colorDataBuffer[pixelIndex] = LinearToSrgb(rgb);
             }

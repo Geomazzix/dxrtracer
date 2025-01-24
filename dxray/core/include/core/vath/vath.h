@@ -4,6 +4,7 @@
 //#Todo: Add Simd to vector4 and matrix4 when the time arises, vector3 and matrix3x3 *could* perhaps use them, though with padded registers.
 
 #include "core/vath/vathUtility.h"
+#include "core/vath/rect.h"
 #include "core/vath/vector4.h"
 #include "core/vath/vector3.h"
 #include "core/vath/vector2.h"
@@ -92,6 +93,18 @@ namespace dxray::vath
 	//Quaternion
 	using Quaternionf = Quat<fp32>;
 	using Quaterniond = Quat<fp64>;
+
+	//Rect
+	using Rectu8 = Rect<u8>;
+	using Rectu16 = Rect<u16>;
+	using Rectu32 = Rect<u32>;
+	using Rectu64 = Rect<u64>;
+	using Recti8 = Rect<i8>;
+	using Recti16 = Rect<i16>;
+	using Recti32 = Rect<i32>;
+	using Recti64 = Rect<i64>;
+	using Rectf = Rect<fp32>;
+	using Rectd = Rect<fp64>;
 
 	//Generalize the usage of the math library.
 	using Vector2 = Vector2f;

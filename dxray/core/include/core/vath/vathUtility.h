@@ -11,6 +11,7 @@ namespace std
 
 namespace dxray::vath
 {
+
 	//--- General Utility ---
 
 	template<typename T> requires std::arithmetic<T>
