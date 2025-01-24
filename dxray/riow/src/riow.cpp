@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 	camera.SetZNear(0.001f);
 	camera.SetZFar(1000.0f);
 	camera.SetVerticalFov(vath::DegToRad(90.0f));
-	camera.LookAt(vath::Vector3f(-2.0f, 2.0f, 1.0f), vath::Vector3f(0.0f, 0.0f, -1.0f));
+	camera.LookAt(vath::Vector3f(-1.0f, 1.0f, 1.0f), vath::Vector3f(0.0f, 0.0f, -1.0f));
 
 	//Scene
 	riow::Scene scene;
@@ -43,8 +43,8 @@ int main(int argc, char** argv)
 	//Renderer
 	riow::RendererPipeline renderPipeline =
 	{
-		.MaxTraceDepth = 10, //In simple scenes this will mostly affect dialectics.
-		.AASampleCount = 1,
+		.MaxTraceDepth = 100, //In simple scenes this will mostly affect dialectics.
+		.AASampleCount = 4,
 	};
 
 	riow::Renderer renderer;

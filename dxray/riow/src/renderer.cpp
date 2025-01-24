@@ -19,7 +19,9 @@ namespace dxray::riow
 		const vath::Vector2f pixelCenter = pixelDelta * 0.5f;
 
 		const u8 sampleSize = m_pipelineConfiguration.AASampleCount;
-		const fp32 sampleReciprocal = 1.0f / static_cast<fp32>(sampleSize * sampleSize);
+		const u8 sampleCount = sampleSize * sampleSize;
+        const fp32 pixelSampleSize = static_cast<fp32>(sampleSize) / sampleCount;
+		const fp32 sampleReciprocal = 1.0f / static_cast<fp32>(sampleCount);
 
         DXRAY_INFO("=================================");
         DXRAY_INFO("Loaded render pipeline:");
@@ -33,23 +35,26 @@ namespace dxray::riow
 		auto SamplePixel = [=](const vath::Vector2u32& a_pixelIndex)
 		{
             Color pixelColor(0.0f);
-            for (u8 sy = 0; sy < sampleSize; sy++)
+            for (u32 sy = 1; sy <= sampleSize; ++sy)
             {
-                for (u8 sx = 0; sx < sampleSize; sx++)
+                for (u32 sx = 1; sx <= sampleSize; ++sx)
                 {
-                    //const fp32 r = vath::RandomNumber<fp32>();
-                    //const vath::Vector2f sampleOffset((sx + r) / sampleSize, (sy + r) / sampleSize);
-					
+                    const fp32 r = vath::RandomNumber<fp32>();
+                    const vath::Vector2f sampleOffset(
+						static_cast<fp32>(sx) / sampleSize - pixelSampleSize * r,
+						static_cast<fp32>(sy) / sampleSize - pixelSampleSize * r
+					);
+
 					const vath::Vector2f pixelOffset(
-                        pixelCenter.x + a_pixelIndex.x * pixelDelta.x,
-						pixelCenter.y + a_pixelIndex.y * pixelDelta.y
+						a_pixelIndex.x * pixelDelta.x + sampleOffset.x * pixelDelta.x,
+						a_pixelIndex.y * pixelDelta.y + sampleOffset.y * pixelDelta.y
                     );
 
-					vath::Vector3f rayDirection = vath::Vector3f(m_camera.GetWorldTransform() * vath::Vector4f(
+					const vath::Vector3f rayDirection = vath::Vector3f(m_camera.GetWorldTransform() * vath::Vector4f(
 						viewportRect.x + pixelOffset.x,
 						viewportRect.y + pixelOffset.y,
-						-focalLength,
-						1.0f
+						focalLength,
+						0.0f
 					));
 
                     const riow::Ray camRay(cameraPosition, rayDirection);
@@ -57,7 +62,7 @@ namespace dxray::riow
                 }
             }
 
-			return pixelColor *sampleReciprocal;
+			return pixelColor * sampleReciprocal;
 		};
 
         //Render the pixel data into the provided output buffer.

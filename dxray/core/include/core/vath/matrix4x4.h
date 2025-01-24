@@ -372,15 +372,15 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Matrix<4, 4, T> LookAtRH(const Vector<3, T>& a_position, const Vector<3, T>& a_lookAt, const Vector<3, T>& a_worldUp)
 	{
-		const Vector<3, T> f(Normalize(a_lookAt - a_position));	
-		const Vector<3, T> s(Normalize(Cross(f, a_worldUp)));
-		const Vector<3, T> u(Cross(s, f));
+		const Vector<3, T> forward(Normalize(a_position - a_lookAt));	
+		const Vector<3, T> right(Normalize(Cross(a_worldUp, forward)));
+		const Vector<3, T> up(Cross(forward, right));
 
 		Matrix<4, 4, T> lookAt(
-            s[0], u[0], -f[0], 0,
-            s[1], u[1], -f[1], 0,
-            s[2], u[2], -f[2], 0,
-			-Dot(s, a_position), -Dot(u, a_position), -Dot(f, a_position), 1
+            right[0], up[0], -forward[0], static_cast<T>(0),
+            right[1], up[1], -forward[1], static_cast<T>(0),
+            right[2], up[2], -forward[2], static_cast<T>(0),
+			a_position.x, a_position.y, a_position.z, static_cast<T>(1)
 		);
 
 		return lookAt;
