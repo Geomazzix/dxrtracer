@@ -112,10 +112,10 @@ namespace dxray::riow
     /// <summary>
     /// Material that representing glossy material scattering.
     /// </summary>
-    class Metalic final : public Material
+    class Metallic final : public Material
     {
     public:
-        Metalic(const Color& a_albedoColor, const fp32 a_glossynessFactor) :
+        Metallic(const Color& a_albedoColor, const fp32 a_glossynessFactor) :
             m_albedo(a_albedoColor),
             m_glossyness(vath::Min<fp32>(a_glossynessFactor, 1.0f))
         {}

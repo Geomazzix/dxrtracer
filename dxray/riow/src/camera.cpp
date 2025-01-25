@@ -8,6 +8,7 @@ namespace dxray::riow
 		m_depthLimits(0.0f, 0.0f),
 		m_aspectRatio(0.0f),
 		m_focalLength(1.0f),
+		m_aperture(0.0f),
 		m_fov(90.0f)
 	{}
 
@@ -25,7 +26,7 @@ namespace dxray::riow
         const fp32 imagePlaneScale = std::tanf(m_fov / 2.0f);
 
 		//Calculate the viewport rect based on the look at position. It's always centered on the camera position.
-		m_viewportRect.Height = 2.0f * imagePlaneScale * m_focalLength;
+		m_viewportRect.Height = 2.0f * imagePlaneScale;
         m_viewportRect.Width = m_viewportRect.Height * m_aspectRatio;
 		m_viewportRect.x = -m_viewportRect.Width * 0.5f;
 		m_viewportRect.y = -m_viewportRect.Height * 0.5f;

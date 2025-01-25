@@ -12,6 +12,7 @@ namespace dxray::riow
 	{
 		u8 MaxTraceDepth = 8;
 		u8 AASampleCount = 2;
+		u8 DoFSamplecount = 2;
 	};
 
 	/// <summary>

@@ -16,11 +16,13 @@ namespace dxray::riow
 		~Camera() = default;
 
 		void SetViewportDimensionInPx(const vath::Vector2u32& a_viewportDimensionInPx);
+		void LookAt(const vath::Vector3& a_position, const vath::Vector3f a_focusPoint, const vath::Vector3f& a_worldNormal = vath::Vector3f(0.0f, 1.0f, 0.0f));
 		void SetDepthLimits(const vath::Vector2f& a_depthLimit);
 		void SetZNear(const fp32 a_zNear);
 		void SetZFar(const fp32 a_zFar);
 		void SetVerticalFov(const fp32 a_vfovInRad);
-		void LookAt(const vath::Vector3& a_position, const vath::Vector3f a_focusPoint, const vath::Vector3f& a_worldNormal = vath::Vector3f(0.0f, 1.0f, 0.0f));
+		void SetFocalLength(const fp32 a_focusDistance);
+		void SetAperture(const fp32 a_focusDistance);
 
 		const vath::Vector3f GetPosition() const;
 		const vath::Vector2u32 GetViewportDimensionsInPx() const;
@@ -31,6 +33,7 @@ namespace dxray::riow
 		const fp32 GetZFar() const;
 		const fp32 GetAspectRatio() const;
 		const fp32 GetFocalLength() const;
+		const fp32 GetAperture() const;
 		const fp32 GetFov() const;
 		const vath::Rect<fp32> GetViewportRect() const;
 		const vath::Matrix4x4f GetWorldTransform() const;
@@ -42,6 +45,7 @@ namespace dxray::riow
 		vath::Vector2f m_depthLimits;
 		fp32 m_aspectRatio;
 		fp32 m_focalLength;
+		fp32 m_aperture;
 		fp32 m_fov;
 	};
 
@@ -64,6 +68,16 @@ namespace dxray::riow
 	inline void Camera::SetVerticalFov(const fp32 a_vfovInRad)
 	{
 		m_fov = a_vfovInRad;
+	}
+
+	inline void Camera::SetFocalLength(const fp32 a_focalLength)
+	{
+		m_focalLength = a_focalLength;
+	}
+
+	inline void Camera::SetAperture(const fp32 a_aperture)
+	{
+		m_aperture = a_aperture;
 	}
 
 	inline const vath::Vector3f Camera::GetPosition() const
@@ -110,6 +124,11 @@ namespace dxray::riow
 	inline const fp32 Camera::GetFocalLength() const
 	{
 		return m_focalLength;
+	}
+
+	inline const fp32 Camera::GetAperture() const
+	{
+		return m_aperture;
 	}
 
 	inline const fp32 Camera::GetFov() const
