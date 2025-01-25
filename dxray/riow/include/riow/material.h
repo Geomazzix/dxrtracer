@@ -8,7 +8,7 @@ namespace dxray::riow
 
     inline bool IsVectorNearZero(const vath::Vector3f& a_vector)
     {
-        const fp32 eps = 1e-8f;
+        const fp32 eps = vath::Epsilon<fp32>();
         return (std::fabsf(a_vector.x) < eps && std::fabsf(a_vector.y) < eps && std::fabsf(a_vector.z) < eps);
     }
 
@@ -61,6 +61,7 @@ namespace dxray::riow
         return r0 + (1.0f - r0) * std::powf(1.0f - a_cosTheta, 5);
     }
 
+
     //--- Material definitions ---
 
     /// <summary>
@@ -92,9 +93,11 @@ namespace dxray::riow
 
         bool Scatter(const Ray& a_ray, const IntersectionInfo& a_hitInfo, Color& a_attenuation, Ray& a_scatteredRay) const override
         {
-            const vath::Vector3f scatterDirection = IsVectorNearZero(scatterDirection)
-                ? a_hitInfo.Normal 
-                : a_hitInfo.Normal + RandomUnitVector();
+            vath::Vector3f scatterDirection = a_hitInfo.Normal + RandomUnitVector();
+			if (IsVectorNearZero(scatterDirection))
+            {
+                scatterDirection = a_hitInfo.Normal;
+            }
 
             a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection);
             a_attenuation = m_albedo;
