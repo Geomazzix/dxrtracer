@@ -106,11 +106,11 @@ int main(int argc, char** argv)
 	BuildFinalSphereSceneComposition(camera, scene);
 #endif
 
-	riow::RendererPipeline renderPipeline =
+	const riow::RendererPipeline renderPipeline =
 	{
-		.MaxTraceDepth = 100, //In simple scenes this will mostly affect dialectics.
-		.AASampleCount = 4,
-		.DoFSamplecount = 4
+		.MaxTraceDepth = 100,
+		.SuperSampleFactor = 4,
+		.DepthOfFieldSampleCount = 4
 	};
 
 	riow::Renderer renderer;

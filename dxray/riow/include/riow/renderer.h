@@ -11,8 +11,8 @@ namespace dxray::riow
 	struct RendererPipeline final
 	{
 		u8 MaxTraceDepth = 8;
-		u8 AASampleCount = 2;
-		u8 DoFSamplecount = 2;
+		u8 SuperSampleFactor = 2;
+		u8 DepthOfFieldSampleCount = 4;
 	};
 
 	/// <summary>

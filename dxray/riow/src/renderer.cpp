@@ -5,27 +5,24 @@ namespace dxray::riow
 {
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{
-		//Camera data.
+		//Ray image plane.
 		const vath::Vector3f cameraPosition = m_camera.GetPosition();
 		const vath::Vector2u32 viewportDimsInPx = m_camera.GetViewportDimensionsInPx();
 		const vath::Rect<fp32> viewportRect = m_camera.GetViewportRect();
-
-		//Ray image plane.
 		const vath::Vector2f pixelDelta(viewportRect.Width / static_cast<fp32>(viewportDimsInPx.x), viewportRect.Height / static_cast<fp32>(viewportDimsInPx.y));
 		const vath::Vector2f pixelCenter = pixelDelta * 0.5f;
 
 		//Anti-aliasing.
-		const u8 sampleSize = m_pipelineConfiguration.AASampleCount;
+		const u8 sampleSize = m_pipelineConfiguration.SuperSampleFactor;
 		const u8 sampleCount = sampleSize * sampleSize;
         const fp32 pixelSampleSize = static_cast<fp32>(sampleSize) / sampleCount;
+		const fp32 superSampleReciprocal = 1.0f / sampleCount;
 
 		//Depth of field.
-		const u8 dofSampleCount = m_pipelineConfiguration.DoFSamplecount * m_pipelineConfiguration.DoFSamplecount;
 		const fp32 focalLength = m_camera.GetFocalLength();
 		const fp32 lensRadius = m_camera.GetAperture() / 2.0f;
-
-		//Stochastically sampled rays.
-		const fp32 sampleReciprocal = 1.0f / (static_cast<fp32>(sampleCount) * dofSampleCount);
+		const u8 dofSampleCount = m_pipelineConfiguration.DepthOfFieldSampleCount;
+		const fp32 dofReciprocal = 1.0f / dofSampleCount;
 
         DXRAY_INFO("=================================");
         DXRAY_INFO("Loaded render pipeline:");
@@ -35,23 +32,29 @@ namespace dxray::riow
         DXRAY_INFO("=================================");
         DXRAY_INFO("Rendering...");
 
-		//Retrieves a random direction on a spherical disk.
-		auto GetAperatureShift = [=]() 
+		//Sample the depth of field of a super-sampled pixel.
+		auto SampleDepthOfField = [=](const vath::Vector3f a_rayDirection)
 		{
-			vath::Vector3f offset(0.0f);
-			while (true)
+			Color sampleColor(0.0f);
+			const vath::Vector3f focalPoint = cameraPosition + a_rayDirection * focalLength;
+			for (u32 si = 0; si < dofSampleCount; ++si)
 			{
-				offset = vath::Vector3f(vath::RandomNumber<fp32>(-1.0f, 1.0f), vath::RandomNumber<fp32>(-1.0f, 1.0f), 0.0f);
-				if (vath::SqrMagnitude(offset) < 1.0f)
-				{
-					offset *= lensRadius;
-					return offset;
-				}
+				const vath::Vector3f apertureShift(
+					vath::RandomNumber<fp32>(-1.0, 1.0f) * lensRadius,
+					vath::RandomNumber<fp32>(-1.0, 1.0f) * lensRadius,
+					0.0f
+				);
+
+				const vath::Vector3 rayOrigin = cameraPosition + apertureShift;
+				const riow::Ray camRay(rayOrigin, focalPoint - rayOrigin);
+				sampleColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
 			}
+
+			return sampleColor * dofReciprocal;
 		};
 
-		//Sample the pixel index provided, using the values defined above.
-		auto SampleJitteredPixel = [=](const vath::Vector2u32& a_pixelIndex)
+		//Super sample a pixel location.
+		auto SuperSamplePixel = [=](const vath::Vector2u32& a_pixelIndex)
 		{
             Color pixelColor(0.0f);
             for (u32 sy = 1; sy <= sampleSize; ++sy)
@@ -77,37 +80,25 @@ namespace dxray::riow
 						0.0f
 					));
 
-					//DoF.
-					const vath::Vector3f focalPoint = cameraPosition + rayDirection * focalLength;
-					for (u32 di = 0; di < dofSampleCount; ++di)
-					{
-						const vath::Vector3f apertureShift(
-							vath::RandomNumber<fp32>(-1.0, 1.0f) * lensRadius,
-							vath::RandomNumber<fp32>(-1.0, 1.0f) * lensRadius,
-							0.0f
-						);
-
-						const vath::Vector3 rayOrigin = cameraPosition + apertureShift;
-						const riow::Ray camRay(rayOrigin, focalPoint - rayOrigin);
-						pixelColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
-					}
+					pixelColor += SampleDepthOfField(rayDirection);
                 }
             }
 
-			return pixelColor * sampleReciprocal;
+			return pixelColor * superSampleReciprocal;
 		};
 
         //Render the pixel data into the provided output buffer.
 		//#Note: the image is rendered inversed on the y-axis.
-        for (u32 pixelIndex = 0, pixely = viewportDimsInPx.y; pixely > 0 ; pixely--)
+        for (u32 pi = 0, py = viewportDimsInPx.y; py > 0 ; py--)
         {
-            for (u32 pixelx = 0; pixelx < viewportDimsInPx.x; pixelx++, pixelIndex++)
+            for (u32 px = 0; px < viewportDimsInPx.x; px++, pi++)
             {
-				const Color rgb = SampleJitteredPixel(vath::Vector2u32(pixelx, pixely));
-				a_colorDataBuffer[pixelIndex] = LinearToSrgb(rgb);
+				const Color rgb = SuperSamplePixel(vath::Vector2u32(px, py));
+				a_colorDataBuffer[pi] = LinearToSrgb(rgb);
             }
 
-			DXRAY_TRACE("y: {} / {}", pixely, viewportDimsInPx.y);
+			//#Note: Turn on for progress, though blocks the main thread when printing, thereby invalidating the render timer.
+			//DXRAY_TRACE("PixelY: {} / {}", py, viewportDimsInPx.y);
         }
 	}
 
