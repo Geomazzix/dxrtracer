@@ -3,6 +3,10 @@
 #include "riow/camera.h"
 #include "riow/color.h"
 
+//#Todo: motion blur.
+//#Todo: BVH.
+//#Todo: Volumetric.
+
 namespace dxray::riow
 {
 	/// <summary>

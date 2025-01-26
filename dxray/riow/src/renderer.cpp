@@ -3,6 +3,13 @@
 
 namespace dxray::riow
 {
+	inline vath::Vector2f GetRandom2dUnitDirection()
+	{
+		const fp32 angle = vath::RandomNumber<fp32>() * 2.0f * vath::Pi<fp32>();
+		const vath::Vector2f direction(std::cosf(angle), std::sinf(angle));
+		return direction * std::sqrtf(vath::RandomNumber<fp32>());
+	}
+
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{
 		//Ray image plane.
@@ -39,13 +46,8 @@ namespace dxray::riow
 			const vath::Vector3f focalPoint = cameraPosition + a_rayDirection * focalLength;
 			for (u32 si = 0; si < dofSampleCount; ++si)
 			{
-				const vath::Vector3f apertureShift(
-					vath::RandomNumber<fp32>(-1.0, 1.0f) * lensRadius,
-					vath::RandomNumber<fp32>(-1.0, 1.0f) * lensRadius,
-					0.0f
-				);
-
-				const vath::Vector3 rayOrigin = cameraPosition + apertureShift;
+				const vath::Vector2f diskSample = GetRandom2dUnitDirection();
+				const vath::Vector3 rayOrigin = cameraPosition + vath::Vector3f(diskSample.x, diskSample.y, 0.0f) * lensRadius;
 				const riow::Ray camRay(rayOrigin, focalPoint - rayOrigin);
 				sampleColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
 			}
@@ -123,9 +125,10 @@ namespace dxray::riow
 			}
 
 			return Color(0.0f);
-        }
+		}
 
-		//If no intersection took place return a blue gradient, because of the trace depth this will result in color contribution from the sky onto objects.
+		//Current serves as ambient light source, as the scene has no light sources *yet* - turning this to black results in black output.
+		//#Todo: replace this with an *ambient/emissive* light source once lights come into the picture.
 		const fp32 a = 0.5f * (Normalize(a_ray.GetDirection()).y + 1.0f);
 		return (1.0f - a) * Color(1.0f) + a * Color(0.5f, 0.7f, 1.0f);
 	}

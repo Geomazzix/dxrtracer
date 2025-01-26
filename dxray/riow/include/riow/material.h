@@ -8,13 +8,12 @@ namespace dxray::riow
 
     inline bool IsVectorNearZero(const vath::Vector3f& a_vector)
     {
-        const fp32 eps = vath::Epsilon<fp32>();
-        return (std::fabsf(a_vector.x) < eps && std::fabsf(a_vector.y) < eps && std::fabsf(a_vector.z) < eps);
-    }
+        return (std::fabsf(a_vector.x) < vath::Epsilon<fp32>() && std::fabsf(a_vector.y) < vath::Epsilon<fp32>() && std::fabsf(a_vector.z) < vath::Epsilon<fp32>());
+	}
 
-    inline vath::Vector3f RandomUnitVector()
+    inline vath::Vector3f Random3dUnitDirection()
     {
-        //Generate a random unit vector.
+        //#Note: While riow uses this approach to get a 3d unit vector I believe this could result in long stalls. No research into a better approach has been conducted as of yet.
         while (true)
         {
             const vath::Vector3 randomDirection(
@@ -23,22 +22,13 @@ namespace dxray::riow
                 vath::RandomNumber<fp32>(-1.0f, 1.0f)
             );
 
+			//Checks if the point falls inside the sphere inside the box - if so return the normalized result.
             const fp32 directionSqrMagnitude = vath::SqrMagnitude(randomDirection);
             if (1e-160 < directionSqrMagnitude && directionSqrMagnitude <= 1.0f)
             {
                 return randomDirection / std::sqrt(directionSqrMagnitude);
             }
         }
-    }
-
-    inline vath::Vector3f RandomHemisphereReflection(const vath::Vector3f a_normal)
-    {
-        vath::Vector3 randomUnitVector = RandomUnitVector();
-
-        //Invert the unit direction if it's pointing towards the correct hemisphere, based on the normal.
-        return vath::Dot(randomUnitVector, a_normal) > 0.0f
-            ? randomUnitVector
-            : -randomUnitVector;
     }
 
     inline vath::Vector3f Reflect(const vath::Vector3f& a_vector, const vath::Vector3f a_normal)
@@ -49,8 +39,8 @@ namespace dxray::riow
     inline vath::Vector3f Refract(const vath::Vector3f& a_unitVector, const vath::Vector3f& a_normal, const fp32 a_eta)
     {
         const fp32 cosTheta = vath::Min<fp32>(vath::Dot(-a_unitVector, a_normal), 1.0f);
-        vath::Vector3f perpendicular = a_eta * (a_unitVector + cosTheta * a_normal);
-        vath::Vector3f parallel = -std::sqrt(vath::Abs<fp32>(1.0f - SqrMagnitude(perpendicular))) * a_normal;
+        const vath::Vector3f perpendicular = a_eta * (a_unitVector + cosTheta * a_normal);
+        const vath::Vector3f parallel = -std::sqrt(vath::Abs<fp32>(1.0f - SqrMagnitude(perpendicular))) * a_normal;
         return perpendicular + parallel;
     }
 
@@ -58,7 +48,8 @@ namespace dxray::riow
     {
         fp32 r0 = (1.0f - a_refractionIndex) / (1.0f + a_refractionIndex);
         r0 *= r0;
-        return r0 + (1.0f - r0) * std::powf(1.0f - a_cosTheta, 5);
+        const fp32 x = 1.0f - a_cosTheta;
+        return r0 + (1.0f - r0) * (x * x * x * x * x); //replaced for (1.0 - a_cosTheta)^5 as std::powf is less efficient than raw math.
     }
 
 
@@ -93,7 +84,9 @@ namespace dxray::riow
 
         bool Scatter(const Ray& a_ray, const IntersectionInfo& a_hitInfo, Color& a_attenuation, Ray& a_scatteredRay) const override
         {
-            vath::Vector3f scatterDirection = a_hitInfo.Normal + RandomUnitVector();
+            //Instead of sampling from the hemi-sphere through a uniform distributed direction use a cosine weighted distribution, which results in a random direction
+            //thats more likely to shoot towards the normal than the edges - thereby abiding lamberts law of cosine.
+            vath::Vector3f scatterDirection = a_hitInfo.Normal + Random3dUnitDirection();
 			if (IsVectorNearZero(scatterDirection))
             {
                 scatterDirection = a_hitInfo.Normal;
@@ -123,7 +116,7 @@ namespace dxray::riow
         bool Scatter(const Ray& a_ray, const IntersectionInfo& a_hitInfo, Color& a_attenuation, Ray& a_scatteredRay) const override
         {
             vath::Vector3f reflected = Reflect(a_ray.GetDirection(), a_hitInfo.Normal);
-            reflected = Normalize(reflected) + m_glossyness * RandomUnitVector();
+            reflected = Normalize(reflected) + m_glossyness * Random3dUnitDirection();
 
             a_scatteredRay = Ray(a_hitInfo.Point, reflected);
             a_attenuation = m_albedo;
