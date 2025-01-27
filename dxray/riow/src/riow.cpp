@@ -97,15 +97,17 @@ int main(int argc, char** argv)
 	Stopwatchf timer;
 	timer.Start();
 
-	const vath::Vector2i32 imageDimensions(850, 450); //STB expects signed integers for image writing...
+	const vath::Vector2i32 imageDimensions(1600, 900); //STB expects signed integers for image writing...
 	const i32 imageChannelNum = 3;
+	const u32 clusterSize = 4;
+	DXRAY_ASSERT_WITH_MSG(imageDimensions.x % clusterSize == 0, "Image width should be divisible by the cluster size. Clamping is currently not implemented.");
+    DXRAY_ASSERT_WITH_MSG(imageDimensions.y % clusterSize == 0, "Image height should be divisible by the cluster size. Clamping is currently not implemented.");
 
 	riow::Camera camera;
 	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
 	camera.SetZNear(0.15f);
 	camera.SetZFar(1000.0f);
 	riow::Scene scene;
-
 #if COMPOSITION_CLASSIC
 	BuildClassicSphereSceneComposition(camera, scene);
 #elif COMPOSITION_FINAL
@@ -115,8 +117,9 @@ int main(int argc, char** argv)
 	const riow::RendererPipeline renderPipeline =
 	{
 		.MaxTraceDepth = 50,
-		.SuperSampleFactor = 4,
-		.DepthOfFieldSampleCount = 4
+		.SuperSampleFactor = 2,
+		.DepthOfFieldSampleCount = 2,
+		.ClusterSize = clusterSize
 	};
 
 	riow::Renderer renderer;

@@ -1,4 +1,5 @@
 #pragma once
+#include "core/thread/taskScheduler.h"
 #include "riow/scene.h"
 #include "riow/camera.h"
 #include "riow/color.h"
@@ -17,6 +18,7 @@ namespace dxray::riow
 		u8 MaxTraceDepth = 8;
 		u8 SuperSampleFactor = 2;
 		u8 DepthOfFieldSampleCount = 4;
+		u8 ClusterSize = 4;
 	};
 
 	/// <summary>
@@ -38,6 +40,7 @@ namespace dxray::riow
 
 		Camera m_camera;
 		RendererPipeline m_pipelineConfiguration;
+		TaskScheduler m_taskScheduler;
 	};
 
 	inline void Renderer::SetRenderPipeline(const RendererPipeline& a_pipeline)

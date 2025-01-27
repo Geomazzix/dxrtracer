@@ -9,6 +9,9 @@ set(HEADERS
 	#Time
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/time/stopwatch.h"
 
+	#Threading
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/thread/taskScheduler.h"
+
 	#IO
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/fileSystem/fileIO.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/fileSystem/stbIO.h"
@@ -30,6 +33,7 @@ set(HEADERS
 set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/fileSystem/fileIO.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/fileSystem/stbIO.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/thread/taskScheduler.cpp"
 )
 
 set(DEPS

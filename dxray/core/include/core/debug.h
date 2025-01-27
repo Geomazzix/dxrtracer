@@ -18,12 +18,12 @@
 						printf("%s\n", std::format("Assertion failed: {} in {} in {} at line {}.", #a_expr, __FUNCTION__, __FILE__, __LINE__).c_str());	\
 						__debugbreak();																													\
 					}
-#define DXRAY_ASSERT_WITH_MSG(a_expr, ...)																															\
-					if(a_expr){}																																	\
-					else																																			\
-					{																																				\
-						printf("%s\n", std::format("Assertion failed: {} in {} in {} at line {}.", #a_expr, __FUNCTION__, __FILE__, __LINE__, __VA_ARGS__).c_str());	\
-						__debugbreak();																																\
+#define DXRAY_ASSERT_WITH_MSG(a_expr, ...)																																	\
+					if(a_expr){}																																			\
+					else																																					\
+					{																																						\
+						printf("%s\n", std::format("Assertion failed: {} in {} in {} at line {}: {}.", #a_expr, __FUNCTION__, __FILE__, __LINE__, __VA_ARGS__).c_str());	\
+						__debugbreak();																																		\
 					}
 #else
 #define DXRAY_TRACE(...)

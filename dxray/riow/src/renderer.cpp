@@ -32,11 +32,18 @@ namespace dxray::riow
 		const u8 dofSampleCount = m_pipelineConfiguration.DepthOfFieldSampleCount;
 		const fp32 dofReciprocal = 1.0f / dofSampleCount;
 
+		//Task threading.
+		const vath::Vector2u8 clusterSize(m_pipelineConfiguration.ClusterSize, m_pipelineConfiguration.ClusterSize);
+
         DXRAY_INFO("=================================");
         DXRAY_INFO("Loaded render pipeline:");
         DXRAY_INFO("Image dimensions: {}, {}", viewportDimsInPx.x, viewportDimsInPx.y);
-        DXRAY_INFO("AA-SampleSize {}", sampleSize);
-        DXRAY_INFO("DoF-SampleSize {}", 0);
+        DXRAY_INFO("AA sample size {}", sampleSize);
+        DXRAY_INFO("DoF sampel count {}", dofSampleCount);
+        DXRAY_INFO("=================================");
+        DXRAY_INFO("Threading setup:");
+        DXRAY_INFO("Num worker threads: {}", m_taskScheduler.GetWorkerCount());
+        DXRAY_INFO("Ray Cluster size {}, {}", clusterSize.x, clusterSize.y);
         DXRAY_INFO("=================================");
         DXRAY_INFO("Rendering...");
 
@@ -94,19 +101,32 @@ namespace dxray::riow
 			return pixelColor * superSampleReciprocal;
 		};
 
-        //Render the pixel data into the provided output buffer.
-		//#Note: the image is rendered inversed on the y-axis.
-        for (u32 pi = 0, py = viewportDimsInPx.y; py > 0; py--)
+        //Render the pixel data into the provided output buffer using the task scheduler.
+        for (u16 py = 0; py < viewportDimsInPx.y; py += clusterSize.y)
         {
-            for (u32 px = 0; px < viewportDimsInPx.x; px++, pi++)
+            for (u16 px = 0; px < viewportDimsInPx.x; px += clusterSize.x)
             {
-				const Color rgb = SuperSamplePixel(vath::Vector2u32(px, py));
-				a_colorDataBuffer[pi] = LinearToSrgb(rgb);
+				//Spawn a task for the task scheduler in the form of a ray cluster.
+				TaskScheduler::Task task = [&, clusterSize, px, py]()
+				{
+					for (u8 cpy = 0; cpy < clusterSize.y; cpy++)
+					{
+						for (u8 cpx = 0; cpx < clusterSize.x; cpx++)
+						{
+                            const Color rgb = SuperSamplePixel(vath::Vector2u32(px + cpx, py + cpy));
+							const u32 pi = (px + cpx + (py + cpy) * viewportDimsInPx.x);
+                            a_colorDataBuffer[pi] = LinearToSrgb(rgb);
+						}
+					}
+				};
+
+                m_taskScheduler.Execute(task);
             }
 
-			//#Note: Turn on for progress, though blocks the main thread when printing, thereby invalidating the render timer.
 			DXRAY_TRACE("PixelY: {} / {}", py, viewportDimsInPx.y);
         }
+
+		m_taskScheduler.Wait();
 	}
 
 	Color Renderer::TraceRayColor(const Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth) const
