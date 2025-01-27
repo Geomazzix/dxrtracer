@@ -9,7 +9,8 @@ namespace dxray::riow
 		m_aspectRatio(0.0f),
 		m_focalLength(1.0f),
 		m_aperture(0.0f),
-		m_fov(90.0f)
+		m_fov(90.0f),
+		m_shutterSpeed(1.0f)
 	{}
 
 	void Camera::SetViewportDimensionInPx(const vath::Vector2u32& a_viewportDimensionInPx)

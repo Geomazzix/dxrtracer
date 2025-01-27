@@ -2,15 +2,22 @@
 
 namespace dxray::riow
 {
-	Sphere::Sphere(const vath::Vector3& a_center, fp32 a_radius, std::shared_ptr<Material> a_material) :
-		m_center(a_center),
+	Sphere::Sphere(const vath::Vector3& a_center, const fp32 a_radius, std::shared_ptr<Material> a_material) :
+		m_translation(a_center, vath::Vector3f(0.0f)),
 		m_radius(a_radius),
 		m_material(a_material)
 	{ }
 
-	bool Sphere::DoesIntersect(const Ray& a_ray, fp32 a_tMin, fp32 a_tMax, IntersectionInfo& a_info) const
+    Sphere::Sphere(const vath::Vector3& a_frameStartCenter, const vath::Vector3& a_frameEndCenter, const fp32 a_radius, std::shared_ptr<Material> a_material /*= nullptr*/) :
+		m_translation(a_frameStartCenter, a_frameEndCenter - a_frameStartCenter),
+		m_radius(std::fmaxf(0.0f, a_radius)),
+		m_material(a_material)
+    { }
+
+	bool Sphere::DoesIntersect(const Ray& a_ray, const fp32 a_tMin, fp32 const a_tMax, IntersectionInfo& a_info) const
 	{
-		vath::Vector3f rayFromCenter = m_center - a_ray.GetOrigin();
+		const vath::Vector3f centerAtTime = m_translation.At(a_ray.GetTime());
+		const vath::Vector3f rayFromCenter = centerAtTime - a_ray.GetOrigin();
 		const fp32 a = vath::SqrMagnitude(a_ray.GetDirection());
 		const fp32 h = vath::Dot(a_ray.GetDirection(), rayFromCenter);
 		const fp32 c = vath::SqrMagnitude(rayFromCenter) - m_radius * m_radius;
@@ -34,7 +41,7 @@ namespace dxray::riow
 
 		a_info.Point = a_ray.At(t);
 		a_info.Length = t;
-		vath::Vector3f outwardNormal = (a_info.Point - m_center) / m_radius;
+		vath::Vector3f outwardNormal = (a_info.Point - centerAtTime) / m_radius;
 		a_info.SetFaceNormal(a_ray, outwardNormal);
 		a_info.Mat = m_material;
 

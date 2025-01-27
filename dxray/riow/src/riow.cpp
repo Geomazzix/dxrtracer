@@ -17,8 +17,8 @@ void BuildClassicSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_s
 
 	std::shared_ptr<riow::Lambertian> ground = std::make_shared<riow::Lambertian>(riow::Color(0.8f, 0.8f, 0.0f));
 	std::shared_ptr<riow::Lambertian> center = std::make_shared<riow::Lambertian>(riow::Color(0.1f, 0.2f, 0.5f));
-	std::shared_ptr<riow::Dialectric> left = std::make_shared<riow::Dialectric>(1.5f);
-	std::shared_ptr<riow::Dialectric> bubble = std::make_shared<riow::Dialectric>(1.0f / 1.5f);
+	std::shared_ptr<riow::Dielectric> left = std::make_shared<riow::Dielectric>(1.5f);
+	std::shared_ptr<riow::Dielectric> bubble = std::make_shared<riow::Dielectric>(1.0f / 1.5f);
 	std::shared_ptr<riow::Metallic> right = std::make_shared<riow::Metallic>(riow::Color(0.8f, 0.6f, 0.2f), 1.0f);
 
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -100.5f, -1.0f), 100.0f, ground));	//Ground
@@ -32,8 +32,9 @@ void BuildFinalSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_sce
 {
 	//Camera.
 	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
-	a_camera.SetAperture(0.25f);
+	a_camera.SetAperture(0.001f);
 	a_camera.SetFocalLength(10.0f);
+	a_camera.SetShutterSpeed(1.0f); //Should result in 50% less motion blur than last image.
 	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
 
 	//Scene.
@@ -55,25 +56,30 @@ void BuildFinalSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_sce
 				{
 					const riow::Color albedo(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
 					sphereMat = std::make_shared<riow::Lambertian>(albedo);
+
+					const vath::Vector3f translation = center + vath::Vector3f(0.0f, vath::RandomNumber<fp32>(0.0f, 0.5f), 0.0f);
+                    a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, translation, 0.2f, sphereMat));
+					continue;
 				}
 				else if (randomMat < 0.95f)
 				{
+					//Metallic.
 					const riow::Color metallic(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
 					const fp32 fuzzy = vath::RandomNumber<fp32>();
 					sphereMat = std::make_shared<riow::Metallic>(metallic, fuzzy);
-				}
-				else
-				{
-					sphereMat = std::make_shared<riow::Dialectric>(1.5f);
+                    a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, 0.2f, sphereMat));
+					continue;
 				}
 
-				a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, 0.2f, sphereMat));
+				//Dielectric.
+				sphereMat = std::make_shared<riow::Dielectric>(1.5f);
+                a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, 0.2f, sphereMat));
 			}
 		}
 	}
 
-	std::shared_ptr<riow::Dialectric> largeDialectric = std::make_shared<riow::Dialectric>(1.5f);
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0, 1, 0), 1.0f, largeDialectric));
+	std::shared_ptr<riow::Dielectric> largeDielectric = std::make_shared<riow::Dielectric>(1.5f);
+	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0, 1, 0), 1.0f, largeDielectric));
 
 	std::shared_ptr<riow::Lambertian> largeLambert = std::make_shared<riow::Lambertian>(riow::Color(0.4f, 0.2f, 0.1f));
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(-4, 1, 0), 1.0f, largeLambert));
@@ -91,12 +97,12 @@ int main(int argc, char** argv)
 	Stopwatchf timer;
 	timer.Start();
 
-	const vath::Vector2i32 imageDimensions(1600, 900);
+	const vath::Vector2i32 imageDimensions(850, 450); //STB expects signed integers for image writing...
 	const i32 imageChannelNum = 3;
 
 	riow::Camera camera;
 	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
-	camera.SetZNear(0.001f);
+	camera.SetZNear(0.15f);
 	camera.SetZFar(1000.0f);
 	riow::Scene scene;
 
@@ -108,7 +114,7 @@ int main(int argc, char** argv)
 
 	const riow::RendererPipeline renderPipeline =
 	{
-		.MaxTraceDepth = 100,
+		.MaxTraceDepth = 50,
 		.SuperSampleFactor = 4,
 		.DepthOfFieldSampleCount = 4
 	};

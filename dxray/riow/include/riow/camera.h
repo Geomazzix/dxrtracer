@@ -23,6 +23,7 @@ namespace dxray::riow
 		void SetVerticalFov(const fp32 a_vfovInRad);
 		void SetFocalLength(const fp32 a_focusDistance);
 		void SetAperture(const fp32 a_focusDistance);
+		void SetShutterSpeed(const fp32 a_shutterSpeedInSec);
 
 		const vath::Vector3f GetPosition() const;
 		const vath::Vector2u32 GetViewportDimensionsInPx() const;
@@ -35,6 +36,7 @@ namespace dxray::riow
 		const fp32 GetFocalLength() const;
 		const fp32 GetAperture() const;
 		const fp32 GetFov() const;
+		const fp32 GetShutterSpeed() const;
 		const vath::Rect<fp32> GetViewportRect() const;
 		const vath::Matrix4x4f GetWorldTransform() const;
 
@@ -47,6 +49,7 @@ namespace dxray::riow
 		fp32 m_focalLength;
 		fp32 m_aperture;
 		fp32 m_fov;
+		fp32 m_shutterSpeed;
 	};
 
 
@@ -78,6 +81,11 @@ namespace dxray::riow
 	inline void Camera::SetAperture(const fp32 a_aperture)
 	{
 		m_aperture = a_aperture;
+	}
+
+	inline void Camera::SetShutterSpeed(const fp32 a_shutterSpeedInSec)
+	{
+		m_shutterSpeed = a_shutterSpeedInSec;
 	}
 
 	inline const vath::Vector3f Camera::GetPosition() const
@@ -134,6 +142,11 @@ namespace dxray::riow
 	inline const fp32 Camera::GetFov() const
 	{
 		return m_fov;
+	}
+
+	inline const fp32 Camera::GetShutterSpeed() const
+	{
+		return m_shutterSpeed;
 	}
 
 	inline const vath::Rect<fp32> Camera::GetViewportRect() const

@@ -92,7 +92,7 @@ namespace dxray::riow
                 scatterDirection = a_hitInfo.Normal;
             }
 
-            a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection);
+            a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection, a_ray.GetTime());
             a_attenuation = m_albedo;
             return true;
         }
@@ -118,7 +118,7 @@ namespace dxray::riow
             vath::Vector3f reflected = Reflect(a_ray.GetDirection(), a_hitInfo.Normal);
             reflected = Normalize(reflected) + m_glossyness * Random3dUnitDirection();
 
-            a_scatteredRay = Ray(a_hitInfo.Point, reflected);
+            a_scatteredRay = Ray(a_hitInfo.Point, reflected, a_ray.GetTime());
             a_attenuation = m_albedo;
             
             return (vath::Dot(reflected, a_hitInfo.Normal) > 0.0f);
@@ -133,10 +133,10 @@ namespace dxray::riow
     /// <summary>
     /// Material that representing refractive mediums.
     /// </summary>
-    class Dialectric final : public Material
+    class Dielectric final : public Material
     {
     public:
-        Dialectric(const fp32 a_refractiveIndex) :
+        Dielectric(const fp32 a_refractiveIndex) :
             m_refractiveIndex(a_refractiveIndex)
         {
         }
@@ -155,7 +155,7 @@ namespace dxray::riow
                 ? Reflect(unitDirection, a_hitInfo.Normal)
                 : Refract(unitDirection, a_hitInfo.Normal, ri);
 
-            a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection);
+            a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection, a_ray.GetTime());
             return true;
         }
 

@@ -16,6 +16,7 @@ namespace dxray::riow
 		const vath::Vector3f cameraPosition = m_camera.GetPosition();
 		const vath::Vector2u32 viewportDimsInPx = m_camera.GetViewportDimensionsInPx();
 		const vath::Rect<fp32> viewportRect = m_camera.GetViewportRect();
+		const fp32 cameraShutterSpeed = m_camera.GetShutterSpeed();
 		const vath::Vector2f pixelDelta(viewportRect.Width / static_cast<fp32>(viewportDimsInPx.x), viewportRect.Height / static_cast<fp32>(viewportDimsInPx.y));
 		const vath::Vector2f pixelCenter = pixelDelta * 0.5f;
 
@@ -48,7 +49,11 @@ namespace dxray::riow
 			{
 				const vath::Vector2f diskSample = GetRandom2dUnitDirection();
 				const vath::Vector3 rayOrigin = cameraPosition + vath::Vector3f(diskSample.x, diskSample.y, 0.0f) * lensRadius;
-				const riow::Ray camRay(rayOrigin, focalPoint - rayOrigin);
+
+				//#Note: Shutter speed is randomly sampled so all motion is visible on the image - a real camera needs 1/100 samples to capture a full second of motion,
+				//which is way over the speed of what a CPU path tracer can do, games have a target framerate of 1/60 (most often).
+				const fp32 shutterSpeed = vath::RandomNumber<fp32>(0.0f, cameraShutterSpeed);
+				const riow::Ray camRay(rayOrigin, focalPoint - rayOrigin, shutterSpeed);
 				sampleColor += TraceRayColor(camRay, a_scene, m_pipelineConfiguration.MaxTraceDepth);
 			}
 
@@ -91,7 +96,7 @@ namespace dxray::riow
 
         //Render the pixel data into the provided output buffer.
 		//#Note: the image is rendered inversed on the y-axis.
-        for (u32 pi = 0, py = viewportDimsInPx.y; py > 0 ; py--)
+        for (u32 pi = 0, py = viewportDimsInPx.y; py > 0; py--)
         {
             for (u32 px = 0; px < viewportDimsInPx.x; px++, pi++)
             {
@@ -100,11 +105,11 @@ namespace dxray::riow
             }
 
 			//#Note: Turn on for progress, though blocks the main thread when printing, thereby invalidating the render timer.
-			//DXRAY_TRACE("PixelY: {} / {}", py, viewportDimsInPx.y);
+			DXRAY_TRACE("PixelY: {} / {}", py, viewportDimsInPx.y);
         }
 	}
 
-	Color Renderer::TraceRayColor(const riow::Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth) const
+	Color Renderer::TraceRayColor(const Ray& a_ray, const riow::Scene& a_scene, const u8 a_maxTraceDepth) const
 	{
 		//When max depth is reached return black.
 		if (a_maxTraceDepth <= 0)
