@@ -7,6 +7,7 @@ set(HEADERS
 
 	#Application
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/color.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/texture.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/material.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/scene.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/camera.h"

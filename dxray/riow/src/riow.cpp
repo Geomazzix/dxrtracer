@@ -2,6 +2,7 @@
 #include "riow/camera.h"
 #include "riow/renderer.h"
 #include "riow/material.h"
+#include "riow/texture.h"
 
 #define COMPOSITION_CLASSIC 0
 #define COMPOSITION_FINAL 1
@@ -34,11 +35,12 @@ void BuildFinalSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_sce
 	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
 	a_camera.SetAperture(0.001f);
 	a_camera.SetFocalLength(10.0f);
-	a_camera.SetShutterSpeed(1.0f); //Should result in 50% less motion blur than last image.
+	a_camera.SetShutterSpeed(1.0f);
 	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
 
 	//Scene.
-	std::shared_ptr<riow::Lambertian> groundMat = std::make_shared<riow::Lambertian>(riow::Color(0.5f));
+	std::shared_ptr<riow::CheckerBoard> checkerboardTex = std::make_shared<riow::CheckerBoard>(0.32f, riow::Color(0.1f), riow::Color(0.9f));
+	std::shared_ptr<riow::Lambertian> groundMat = std::make_shared<riow::Lambertian>(checkerboardTex);
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -1000.0f, 0.0f), 1000.0f, groundMat));
 
 	for (i32 i = -11; i < 11; i++)

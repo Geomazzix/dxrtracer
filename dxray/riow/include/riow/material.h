@@ -1,6 +1,6 @@
 #pragma once
 #include "riow/traceable/raytraceable.h"
-#include "riow/color.h"
+#include "riow/texture.h"
 
 namespace dxray::riow
 {
@@ -72,6 +72,7 @@ namespace dxray::riow
         }
     };
 
+
     /// <summary>
     /// Material that shades using a lambertian diffuse reflection: meaning fully matte.
     /// </summary>
@@ -79,8 +80,12 @@ namespace dxray::riow
     {
     public:
         Lambertian(const Color& a_albedoColor) :
-            m_albedo(a_albedoColor)
-        {}
+            m_albedo(std::make_shared<SolidColor>(a_albedoColor))
+        { }
+
+        Lambertian(std::shared_ptr<Texture> a_texture) :
+            m_albedo(a_texture)
+        { }
 
         bool Scatter(const Ray& a_ray, const IntersectionInfo& a_hitInfo, Color& a_attenuation, Ray& a_scatteredRay) const override
         {
@@ -93,12 +98,12 @@ namespace dxray::riow
             }
 
             a_scatteredRay = Ray(a_hitInfo.Point, scatterDirection, a_ray.GetTime());
-            a_attenuation = m_albedo;
+            a_attenuation = m_albedo->Sample(a_hitInfo.UvCoord, a_hitInfo.Point);
             return true;
         }
 
     private:
-        Color m_albedo;
+        std::shared_ptr<Texture> m_albedo;
     };
 
 

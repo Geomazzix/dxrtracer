@@ -15,6 +15,7 @@ namespace dxray::riow
 		std::shared_ptr<Material> Mat = nullptr;
 		fp32 Length = 0.0f;
 		bool FrontFace = false;
+		vath::Vector2f UvCoord = vath::Vector2f(0.0f, 0.0f);
 
 		//#Todo: move this to where applicable - probably only in refractive/volumetric volumes.
 		void SetFaceNormal(const Ray& a_ray, const vath::Vector3& a_outwardNormal);
