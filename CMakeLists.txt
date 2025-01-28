@@ -4,9 +4,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 #Project options - setting default cmake options as well.
 if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
-	option(BUILD_SHARED_LIBS "Builds Eruption as a shared library" OFF)
 	option(BUILD_TESTS "Enable unit testing" ON)
-	#option(BUILD_DOCUMENTATION "Build documentation" OFF)
 endif()
 
 #Project setup.

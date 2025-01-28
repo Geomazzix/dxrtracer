@@ -1,9 +1,12 @@
 #pragma once
 #include "core/valueTypes.h"
 #include "riow/color.h"
+#include "riow/image.h"
 
 namespace dxray::riow
 {
+    inline const Color InvalidTexture = Color(1.0f, 0.0f, 1.0f);
+
     /// <summary>
     /// Base class for any image that can be sampled 
     /// </summary>
@@ -70,5 +73,42 @@ namespace dxray::riow
         fp32 m_scaleReciprocal;
         std::shared_ptr<Texture> m_evenTileTexture;
         std::shared_ptr<Texture> m_oddTileTexture;
+    };
+
+
+    /// <summary>
+    /// Texture based on image data.
+    /// </summary>
+    class ImageTexture final : public Texture
+    {
+    public:
+        ImageTexture(std::shared_ptr<Image> a_image) :
+            m_image(a_image)
+        { }
+
+        Color Sample(const vath::Vector2f& a_uvCoord, const vath::Vector3f& a_point) const override
+        {
+            if (m_image == nullptr)
+            {
+                return InvalidTexture;
+            }
+
+            const u8* pixel = m_image->ReadPixel(vath::Vector2i32(
+                static_cast<i32>(vath::Clamp<fp32>(a_uvCoord.x, 0.0f, 1.0f) * m_image->GetWidth()),
+                static_cast<i32>(vath::Clamp<fp32>(a_uvCoord.y, 0.0f, 1.0f) * m_image->GetHeight())
+            ));
+
+            Color sampledColor = Color(0.0f);
+            const fp32 unitColorReciprocal = 1.0f / 255.0f;
+            for (u8 ci = 0; ci < m_image->GetChannelCount(); ++ci)
+            {
+                sampledColor[ci] = static_cast<fp32>(pixel[ci] * unitColorReciprocal);
+            }
+
+            return sampledColor;
+        }
+
+    private:
+        std::shared_ptr<Image> m_image;
     };
 }

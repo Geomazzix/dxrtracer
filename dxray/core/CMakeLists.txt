@@ -14,7 +14,6 @@ set(HEADERS
 
 	#IO
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/fileSystem/fileIO.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/fileSystem/stbIO.h"
 
 	#Math
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/matrix2x2.h"
@@ -32,12 +31,7 @@ set(HEADERS
 
 set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/fileSystem/fileIO.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/fileSystem/stbIO.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/thread/taskScheduler.cpp"
-)
-
-set(DEPS
-	"stb"
 )
 
 project_add_target(
@@ -54,4 +48,5 @@ target_compile_definitions("core"
 PUBLIC
 	ENGINE_ROOT_DIRECTORY="${CMAKE_SOURCE_DIR}"
 	PROJECT_NAME="${CMAKE_PROJECT_NAME}"
+	ASSET_ROOT_DIRECTORY="${ASSET_ROOT_DIRECTORY}"
 )

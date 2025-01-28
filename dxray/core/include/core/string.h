@@ -15,4 +15,7 @@ namespace dxray
 	using IfStream = std::fstream;
 	using StringView = std::basic_string_view<char>;
 	using StringStream = std::basic_stringstream<char>;
+
+	//File system paths.
+	using Path = std::filesystem::path;
 }

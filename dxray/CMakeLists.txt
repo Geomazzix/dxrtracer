@@ -6,6 +6,10 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/dxray/cmake)
 include(utility/targetUtility)
 include(external/findExternals)
 
+#Define global directories
+message("Asset directory pointing to: ${CMAKE_SOURCE_DIR}/dxray/assets/")
+set(ASSET_ROOT_DIRECTORY "${CMAKE_SOURCE_DIR}/dxray/assets/")
+
 #Now include subdirectories.
 add_subdirectory("core")
 add_subdirectory("riow")

@@ -51,8 +51,8 @@ namespace dxray::vath
 
 	template<typename T>
 	Vector<2, T>::Vector() :
-		x(0.0f),
-		y(0.0f)
+		x(static_cast<T>(0)),
+		y(static_cast<T>(0))
 	{}
 
 	template<typename T>
@@ -69,8 +69,8 @@ namespace dxray::vath
 
 	template<typename T>
 	Vector<2, T>::Vector(T* a_pData) :
-		x(0.0f),
-		y(0.0f)
+		x(static_cast<T>(0)),
+		y(static_cast<T>(0))
 	{
 		memcpy(Data, a_pData, 2 * sizeof(T));
 	}

@@ -3,6 +3,7 @@
 #include "riow/renderer.h"
 #include "riow/material.h"
 #include "riow/texture.h"
+#include "riow/image.h"
 
 using namespace dxray;
 
@@ -11,15 +12,14 @@ using namespace dxray;
 /// </summary>
 enum class EScene : u8
 {
-	BouncingSpheres,
-	CheckerboardSpheres
+	BouncingSpheres = 0
 };
 
 void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
 {
 	//Camera.
 	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
-	a_camera.SetAperture(0.25f);
+	a_camera.SetAperture(0.001f);
 	a_camera.SetFocalLength(10.0f);
 	a_camera.SetShutterSpeed(0.001f);
 	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
@@ -28,6 +28,7 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 	std::shared_ptr<riow::CheckerBoard> checkerboardTex = std::make_shared<riow::CheckerBoard>(0.32f, riow::Color(0.1f), riow::Color(0.9f));
 	std::shared_ptr<riow::Lambertian> groundMat = std::make_shared<riow::Lambertian>(checkerboardTex);
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -1000.0f, 0.0f), 1000.0f, groundMat));
+    std::shared_ptr<riow::ImageTexture> moonTexture = std::make_shared<riow::ImageTexture>(riow::Image::LoadFromFile(riow::AssetRootDirectory / "textures/diffuseMoon.jpg", riow::Image::ELoadOptions::FlipVertically, 3));
 
 	for (i32 i = -11; i < 11; i++)
 	{
@@ -43,8 +44,8 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 				if (randomMat < 0.8f)
 				{
 					//Lambertian.
-					const riow::Color albedo(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
-					sphereMat = std::make_shared<riow::Lambertian>(albedo);
+					//const riow::Color albedo(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
+					sphereMat = std::make_shared<riow::Lambertian>(moonTexture);
 
 					const vath::Vector3f translation = center + vath::Vector3f(0.0f, vath::RandomNumber<fp32>(0.0f, 0.5f), 0.0f);
                     a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, translation, 0.2f, sphereMat));
@@ -77,21 +78,6 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(4, 1, 0), 1.0f, largeMetal));
 }
 
-void BuildCheckerboardSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
-{
-	//Camera
-	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
-	a_camera.SetAperture(0.001f);
-	a_camera.SetShutterSpeed(1.0f / 4000.0f);
-	a_camera.SetFocalLength(1.0f);
-	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
-
-	//Scene
-	std::shared_ptr<riow::CheckerBoard> checkerboardTex = std::make_shared<riow::CheckerBoard>(0.32f, riow::Color(0.1f), riow::Color(0.9f));
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -10.0f, 0.0f), 10.0f, std::make_shared<riow::Lambertian>(checkerboardTex)));
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 10.0f, 0.0f), 10.0f, std::make_shared<riow::Lambertian>(checkerboardTex)));
-}
-
 int main(int argc, char** argv)
 {
     DXRAY_INFO("=================================");
@@ -114,7 +100,7 @@ int main(int argc, char** argv)
 	camera.SetZFar(1000.0f);
 
 	//#Todo: can potentially make the selected scene be a commandline argument.
-	const EScene selectedScene = EScene::CheckerboardSpheres;
+	const EScene selectedScene = EScene::BouncingSpheres;
 	riow::Scene scene;
 	switch (selectedScene)
 	{
@@ -122,12 +108,6 @@ int main(int argc, char** argv)
 	{
 		DXRAY_INFO("Scene: Bouncing spheres");
 		BuildBouncingSpheresSceneComposition(camera, scene);
-		break;
-	}
-	case EScene::CheckerboardSpheres:
-	{
-		DXRAY_INFO("Scene: Checkerboard spheres");
-		BuildCheckerboardSphereSceneComposition(camera, scene);
 		break;
 	}
 	default:
@@ -139,9 +119,9 @@ int main(int argc, char** argv)
 
 	const riow::RendererPipeline renderPipeline =
 	{
-		.MaxTraceDepth = 50,
+		.MaxTraceDepth = 25,
 		.SuperSampleFactor = 2,
-		.DepthOfFieldSampleCount = 2,
+		.DepthOfFieldSampleCount = 1,
 		.ClusterSize = clusterSize
 	};
 
@@ -165,7 +145,7 @@ int main(int argc, char** argv)
     DXRAY_INFO("=================================");
     DXRAY_INFO("Storing results to file...");
 	timer.Reset();
-	StorePNG("riowOutput", imageDimensions.x, imageDimensions.y, imageChannelNum, static_cast<vath::Vector3f*>(imageData.data()), true);
+	riow::SaveColorBufferToFile("riowOutput", riow::Image::EFileExtension::png, imageDimensions.x, imageDimensions.y, imageChannelNum, static_cast<riow::Color*>(imageData.data()), true);
 	DXRAY_INFO("Saving results took {} ms.", timer.GetElapsedMs());
     DXRAY_INFO("=================================");
 	

@@ -49,10 +49,10 @@ namespace dxray::vath
 
 	template<typename T>
 	Vector<4, T>::Vector() :
-		x(0.0f),
-		y(0.0f),
-		z(0.0f),
-		w(0.0f)
+		x(static_cast<T>(0)),
+		y(static_cast<T>(0)),
+		z(static_cast<T>(0)),
+		w(static_cast<T>(0))
 	{}
 
 	template<typename T>

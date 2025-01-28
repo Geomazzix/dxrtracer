@@ -8,6 +8,7 @@ set(HEADERS
 	#Application
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/color.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/texture.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/image.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/material.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/scene.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/camera.h"
@@ -19,12 +20,14 @@ set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/traceable/sphere.cpp"
 
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/scene.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/image.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/camera.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/riow.cpp"
 )
 
 set(DEPS
+	"stb"
 	"core"
 )
 

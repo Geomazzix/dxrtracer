@@ -5,7 +5,7 @@ namespace dxray::riow
 	Camera::Camera() :
 		m_worldTransform(),
 		m_viewportPixelDims(0u, 0u),
-		m_depthLimits(0.0f, 0.0f),
+		m_depthLimits(0.001f, 1000.0f),
 		m_aspectRatio(0.0f),
 		m_focalLength(1.0f),
 		m_aperture(0.0f),

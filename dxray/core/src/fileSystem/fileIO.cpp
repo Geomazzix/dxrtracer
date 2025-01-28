@@ -2,7 +2,7 @@
 
 namespace dxray
 {
-	void GetFilesInDirectory(const std::filesystem::path& a_directory, std::vector<String>& a_fileBuffer)
+	void GetFilesInDirectory(const Path& a_directory, std::vector<String>& a_fileBuffer)
 	{
 		if (!std::filesystem::exists(a_directory))
 		{
@@ -10,19 +10,19 @@ namespace dxray
 			return;
 		}
 
-		std::vector<std::filesystem::path> filePaths;
+		std::vector<Path> filePaths;
 		for (const std::filesystem::directory_entry& file : std::filesystem::directory_iterator(a_directory))
 		{
 			filePaths.push_back(file);
 		}
 
-		for (const std::filesystem::path& file : filePaths)
+		for (const Path& file : filePaths)
 		{
 			a_fileBuffer.push_back(file.filename().string());
 		}
 	}
 
-	String Read(const std::filesystem::path& a_filePath, bool a_bIsBinary /*= false*/)
+	String Read(const Path& a_filePath, bool a_bIsBinary /*= false*/)
 	{
 		String content("");
 		IfStream fileStream(a_filePath, a_bIsBinary
@@ -41,7 +41,7 @@ namespace dxray
 		return content;
 	}
 
-	bool Write(const std::filesystem::path& a_filePath, const String& a_content)
+	bool Write(const Path& a_filePath, const String& a_content)
 	{
 		if (std::filesystem::exists(a_filePath))
 		{
@@ -60,7 +60,7 @@ namespace dxray
 		return true;
 	}
 
-	bool WriteBinary(const std::filesystem::path& a_file, const void* a_pSource, usize a_sizeInBytes)
+	bool WriteBinary(const Path& a_file, const void* a_pSource, usize a_sizeInBytes)
 	{
 		OfStream fileStream(a_file, std::ios::out | std::ios::binary);
 		if (!fileStream.is_open())
