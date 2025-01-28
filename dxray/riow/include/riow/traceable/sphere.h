@@ -17,6 +17,8 @@ namespace dxray::riow
 		bool DoesIntersect(const Ray& a_ray, const fp32 a_tMin, const fp32 a_tMax, IntersectionInfo& a_info) const override;
 		void SetMaterial(std::shared_ptr<Material> a_material);
 
+		static vath::Vector2f PointToUv(const vath::Vector3f& a_point);
+
 	private:
 		Ray m_translation;
 		fp32 m_radius;

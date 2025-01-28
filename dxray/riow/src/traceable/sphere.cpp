@@ -41,10 +41,22 @@ namespace dxray::riow
 
 		a_info.Point = a_ray.At(t);
 		a_info.Length = t;
-		vath::Vector3f outwardNormal = (a_info.Point - centerAtTime) / m_radius;
-		a_info.SetFaceNormal(a_ray, outwardNormal);
 		a_info.Mat = m_material;
+		const vath::Vector3f outwardNormal = (a_info.Point - centerAtTime) / m_radius;
+		a_info.SetFaceNormal(a_ray, outwardNormal);
+		a_info.UvCoord = Sphere::PointToUv(outwardNormal);
 
 		return true;
+	}
+
+	vath::Vector2f Sphere::PointToUv(const vath::Vector3f& a_point)
+	{
+		const fp32 theta = std::acos(-a_point.y);
+		const fp32 phi = std::atan2(-a_point.z, a_point.x) + vath::Pi<fp32>();
+
+		return vath::Vector2f(
+			phi / (2.0f * vath::Pi<fp32>()),
+			theta / vath::Pi<fp32>()
+		);
 	}
 }

@@ -4,38 +4,24 @@
 #include "riow/material.h"
 #include "riow/texture.h"
 
-#define COMPOSITION_CLASSIC 0
-#define COMPOSITION_FINAL 1
-
 using namespace dxray;
 
-void BuildClassicSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
+/// <summary>
+/// Type defined to identify scenes.
+/// </summary>
+enum class EScene : u8
 {
-	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
-	a_camera.SetAperture(1.0f);
-	a_camera.SetFocalLength(3.4f);
-	a_camera.LookAt(vath::Vector3f(-2.0f, 2.0f, 1.0f), vath::Vector3f(0.0f, 0.0f, -1.0f));
+	BouncingSpheres,
+	CheckerboardSpheres
+};
 
-	std::shared_ptr<riow::Lambertian> ground = std::make_shared<riow::Lambertian>(riow::Color(0.8f, 0.8f, 0.0f));
-	std::shared_ptr<riow::Lambertian> center = std::make_shared<riow::Lambertian>(riow::Color(0.1f, 0.2f, 0.5f));
-	std::shared_ptr<riow::Dielectric> left = std::make_shared<riow::Dielectric>(1.5f);
-	std::shared_ptr<riow::Dielectric> bubble = std::make_shared<riow::Dielectric>(1.0f / 1.5f);
-	std::shared_ptr<riow::Metallic> right = std::make_shared<riow::Metallic>(riow::Color(0.8f, 0.6f, 0.2f), 1.0f);
-
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -100.5f, -1.0f), 100.0f, ground));	//Ground
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 0.0f, -1.2f), 0.5f, center));		//Middle sphere
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(-1.0f, 0.0f, -1.0f), 0.5f, left));		//Left (inner sphere)
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(-1.0f, 0.0f, -1.0f), 0.4f, bubble));		//bubble (outer sphere)
-	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(1.0f, 0.0f, -1.0f), 0.5f, right));		//Right
-}
-
-void BuildFinalSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
+void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
 {
 	//Camera.
 	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
-	a_camera.SetAperture(0.001f);
+	a_camera.SetAperture(0.25f);
 	a_camera.SetFocalLength(10.0f);
-	a_camera.SetShutterSpeed(1.0f);
+	a_camera.SetShutterSpeed(0.001f);
 	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
 
 	//Scene.
@@ -56,6 +42,7 @@ void BuildFinalSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_sce
 
 				if (randomMat < 0.8f)
 				{
+					//Lambertian.
 					const riow::Color albedo(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
 					sphereMat = std::make_shared<riow::Lambertian>(albedo);
 
@@ -90,6 +77,21 @@ void BuildFinalSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_sce
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(4, 1, 0), 1.0f, largeMetal));
 }
 
+void BuildCheckerboardSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
+{
+	//Camera
+	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
+	a_camera.SetAperture(0.001f);
+	a_camera.SetShutterSpeed(1.0f / 4000.0f);
+	a_camera.SetFocalLength(1.0f);
+	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
+
+	//Scene
+	std::shared_ptr<riow::CheckerBoard> checkerboardTex = std::make_shared<riow::CheckerBoard>(0.32f, riow::Color(0.1f), riow::Color(0.9f));
+	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -10.0f, 0.0f), 10.0f, std::make_shared<riow::Lambertian>(checkerboardTex)));
+	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 10.0f, 0.0f), 10.0f, std::make_shared<riow::Lambertian>(checkerboardTex)));
+}
+
 int main(int argc, char** argv)
 {
     DXRAY_INFO("=================================");
@@ -99,7 +101,8 @@ int main(int argc, char** argv)
 	Stopwatchf timer;
 	timer.Start();
 
-	const vath::Vector2i32 imageDimensions(1600, 900); //STB expects signed integers for image writing...
+	//STB expects signed integers for image writing, the values will never be negative regardless within the framework, so use unsigned integers onwards.
+	const vath::Vector2i32 imageDimensions(1600, 900);
 	const i32 imageChannelNum = 3;
 	const u32 clusterSize = 4;
 	DXRAY_ASSERT_WITH_MSG(imageDimensions.x % clusterSize == 0, "Image width should be divisible by the cluster size. Clamping is currently not implemented.");
@@ -107,14 +110,32 @@ int main(int argc, char** argv)
 
 	riow::Camera camera;
 	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
-	camera.SetZNear(0.15f);
+	camera.SetZNear(0.001f);
 	camera.SetZFar(1000.0f);
+
+	//#Todo: can potentially make the selected scene be a commandline argument.
+	const EScene selectedScene = EScene::CheckerboardSpheres;
 	riow::Scene scene;
-#if COMPOSITION_CLASSIC
-	BuildClassicSphereSceneComposition(camera, scene);
-#elif COMPOSITION_FINAL
-	BuildFinalSphereSceneComposition(camera, scene);
-#endif
+	switch (selectedScene)
+	{
+	case EScene::BouncingSpheres:
+	{
+		DXRAY_INFO("Scene: Bouncing spheres");
+		BuildBouncingSpheresSceneComposition(camera, scene);
+		break;
+	}
+	case EScene::CheckerboardSpheres:
+	{
+		DXRAY_INFO("Scene: Checkerboard spheres");
+		BuildCheckerboardSphereSceneComposition(camera, scene);
+		break;
+	}
+	default:
+	{
+		DXRAY_ERROR("Non-recognized scene.");
+		return 1;//exit application.
+	}
+	}
 
 	const riow::RendererPipeline renderPipeline =
 	{
