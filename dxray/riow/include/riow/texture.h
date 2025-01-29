@@ -2,6 +2,7 @@
 #include "core/valueTypes.h"
 #include "riow/color.h"
 #include "riow/image.h"
+#include "riow/perlin.h"
 
 namespace dxray::riow
 {
@@ -110,5 +111,36 @@ namespace dxray::riow
 
     private:
         std::shared_ptr<Image> m_image;
+    };
+
+
+    /// <summary>
+    /// Texture able to sample perlin noise.
+    /// </summary>
+    class NoiseTexture final : public Texture
+    {
+    public:
+        NoiseTexture(const fp32 a_noiseScalar, const u32 a_accumilationDepth = 7) :
+            m_perlin(),
+            m_noiseScalar(a_noiseScalar),
+            m_accumilationDepth(a_accumilationDepth)
+        {}
+
+        ~NoiseTexture() = default;
+
+        Color Sample(const vath::Vector2f& a_uvCoord, const vath::Vector3f& a_point) const override
+        {
+            //As perlin noise returns values between -1 and 1 due to directions being fully random they are mapped to 0 and 1.
+            const fp32 noiseValue = m_perlin.Turbulence(a_point, m_accumilationDepth);
+
+            //Marble like noise.
+            //const fp32 noiseValue = 0.5f * (1.0f + std::sin(m_noiseScalar * a_point.x + 10.0f * m_perlin.Turbulence(a_point, m_accumilationDepth)));
+            return vath::Vector3f(noiseValue);
+        }
+
+    private:
+        Perlin m_perlin;
+        fp32 m_noiseScalar;
+        u32 m_accumilationDepth;
     };
 }

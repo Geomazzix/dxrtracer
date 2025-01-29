@@ -47,6 +47,7 @@ namespace dxray::vath
 			T Data[3];
 			struct { T x, y, z; };
 			struct { T r, g, b; };
+			struct { T u, v, w; };
 		};
 	};
 

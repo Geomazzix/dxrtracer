@@ -12,7 +12,8 @@ using namespace dxray;
 /// </summary>
 enum class EScene : u8
 {
-	BouncingSpheres = 0
+	BouncingSpheres = 0,
+	PerlinSpheres
 };
 
 void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
@@ -78,6 +79,22 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(4, 1, 0), 1.0f, largeMetal));
 }
 
+void BuildPerlinSphereSceneComposition(riow::Camera& a_camera, riow::Scene& a_scene)
+{
+    //Camera.
+    a_camera.SetVerticalFov(vath::DegToRad(20.0f));
+    a_camera.SetAperture(0.001f);
+    a_camera.SetFocalLength(10.0f);
+    a_camera.SetShutterSpeed(0.001f);
+    a_camera.LookAt(vath::Vector3f(12.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
+
+	//Scene.
+	std::shared_ptr<riow::NoiseTexture> noiseTex = std::make_shared<riow::NoiseTexture>(4.0f);
+	std::shared_ptr<riow::Lambertian> lambertian = std::make_shared<riow::Lambertian>(noiseTex);
+	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, -1000.0f, 0.0f), 1000.0f, lambertian));
+	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0.0f, 2.0f, 0.0f), 2.0f, lambertian));
+}
+
 int main(int argc, char** argv)
 {
     DXRAY_INFO("=================================");
@@ -100,7 +117,7 @@ int main(int argc, char** argv)
 	camera.SetZFar(1000.0f);
 
 	//#Todo: can potentially make the selected scene be a commandline argument.
-	const EScene selectedScene = EScene::BouncingSpheres;
+	const EScene selectedScene = EScene::PerlinSpheres;
 	riow::Scene scene;
 	switch (selectedScene)
 	{
@@ -109,6 +126,12 @@ int main(int argc, char** argv)
 		DXRAY_INFO("Scene: Bouncing spheres");
 		BuildBouncingSpheresSceneComposition(camera, scene);
 		break;
+	}
+	case EScene::PerlinSpheres:
+    {
+        DXRAY_INFO("Scene: Perlin spheres");
+        BuildPerlinSphereSceneComposition(camera, scene);
+        break;
 	}
 	default:
 	{
@@ -120,7 +143,7 @@ int main(int argc, char** argv)
 	const riow::RendererPipeline renderPipeline =
 	{
 		.MaxTraceDepth = 25,
-		.SuperSampleFactor = 2,
+		.SuperSampleFactor = 4,
 		.DepthOfFieldSampleCount = 1,
 		.ClusterSize = clusterSize
 	};

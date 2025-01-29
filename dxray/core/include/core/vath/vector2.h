@@ -39,10 +39,9 @@ namespace dxray::vath
 		union
 		{
 			T Data[2];
-			struct
-			{
-				T x, y;
-			};
+			struct { T x, y; };
+			struct { T r, g; };
+			struct { T u, v; };
 		};
 	};
 

@@ -7,6 +7,7 @@ set(HEADERS
 
 	#Application
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/color.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/perlin.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/texture.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/image.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/riow/material.h"
@@ -20,6 +21,7 @@ set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/traceable/sphere.cpp"
 
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/scene.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/perlin.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/image.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/camera.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp"

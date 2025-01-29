@@ -9,7 +9,7 @@
 
 namespace dxray::vath
 {
-    template<typename T> requires std::arithmetic<T>
+    template<Arithmetic T>
     class Rect final
     {
     public:
@@ -27,7 +27,7 @@ namespace dxray::vath
         };
     };
 
-    template<typename T> requires std::arithmetic<T>
+    template<Arithmetic T>
     Rect<T>::Rect() :
         x(0),
         y(0),
@@ -35,7 +35,7 @@ namespace dxray::vath
         Height(0)
     {}
 
-    template<typename T> requires std::arithmetic<T>
+    template<Arithmetic T>
     Rect<T>::Rect(const T a_x, const T a_y, const T a_width, const T a_height) :
         x(a_x),
         y(a_y),
