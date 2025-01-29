@@ -27,11 +27,12 @@ namespace dxray::riow
 	class Renderer final
 	{
 	public:
-		Renderer() = default;
+		Renderer();
 		~Renderer() = default;
 
 		void SetRenderPipeline(const RendererPipeline& a_pipeline);
 		void SetCamera(const Camera& a_camera);
+		void SetBackgroundColor(const Color& a_color);
 
 		void Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer);
 
@@ -41,6 +42,7 @@ namespace dxray::riow
 		Camera m_camera;
 		RendererPipeline m_pipelineConfiguration;
 		TaskScheduler m_taskScheduler;
+		Color m_backgroundColor;
 	};
 
 	inline void Renderer::SetRenderPipeline(const RendererPipeline& a_pipeline)
@@ -52,4 +54,9 @@ namespace dxray::riow
 	{
 		m_camera = a_camera;
 	}
+
+    inline void Renderer::SetBackgroundColor(const Color& a_color)
+    {
+		m_backgroundColor = a_color;
+    }
 }

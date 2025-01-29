@@ -10,6 +10,11 @@ namespace dxray::riow
 		return direction * std::sqrtf(vath::RandomNumber<fp32>());
 	}
 
+    Renderer::Renderer() :
+		m_taskScheduler(2),
+		m_backgroundColor(0.0f)
+    { }
+
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{
 		//Ray image plane.
@@ -139,22 +144,22 @@ namespace dxray::riow
 
 		//Otherwise keep tracing.
 		riow::IntersectionInfo hitInfo;
-		if (a_scene.DoesIntersect(a_ray, m_camera.GetZNear(), m_camera.GetZFar(), hitInfo))
+		if (!a_scene.DoesIntersect(a_ray, m_camera.GetZNear(), m_camera.GetZFar(), hitInfo))
 		{
-			Ray scattered;
-			Color attenuation;
-
-			if (hitInfo.Mat->Scatter(a_ray, hitInfo, attenuation, scattered))
-			{
-				return attenuation * TraceRayColor(scattered, a_scene, a_maxTraceDepth - 1);
-			}
-
-			return Color(0.0f);
+			//#Todo: Potentially add a skysphere here, which would replace the solid color.
+			return m_backgroundColor;
 		}
 
-		//Current serves as ambient light source, as the scene has no light sources *yet* - turning this to black results in black output.
-		//#Todo: replace this with an *ambient/emissive* light source once lights come into the picture.
-		const fp32 a = 0.5f * (Normalize(a_ray.GetDirection()).y + 1.0f);
-		return (1.0f - a) * Color(1.0f) + a * Color(0.5f, 0.7f, 1.0f);
+        Ray scattered;
+        Color attenuation;
+
+		const Color emissiveLight = hitInfo.Mat->Emitted(hitInfo.UvCoord, hitInfo.Point);
+        if (!hitInfo.Mat->Scatter(a_ray, hitInfo, attenuation, scattered))
+        {
+			return emissiveLight; //An emissive material does not scatter, it emits, hence scatter returns false.
+        }
+
+		Color diffuseReflectance = attenuation * TraceRayColor(scattered, a_scene, a_maxTraceDepth - 1);
+        return emissiveLight + diffuseReflectance;
 	}
 }

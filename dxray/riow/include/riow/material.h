@@ -70,6 +70,11 @@ namespace dxray::riow
         {
             return false;
         }
+
+        virtual Color Emitted(const vath::Vector2f& a_uvCoord, const vath::Vector3f& a_point) const
+        {
+            return Color(0.0);
+        }
     };
 
 
@@ -166,5 +171,34 @@ namespace dxray::riow
 
     private:
         fp32 m_refractiveIndex;
+    };
+
+
+    /// <summary>
+    /// The diffuse light presents itself as a light emitting surface, this can use a texture regardless to display surface-like features.
+    /// </summary>
+    class DiffuseLight final : public Material
+    {
+    public:
+        //#Todo: Implement a proper non-arbitrary strength using SE units.
+        DiffuseLight(std::shared_ptr<Texture> a_albedo, const fp32 a_strength = 1.0f) :
+            m_albedo(a_albedo),
+            m_strength(a_strength)
+        { }
+
+        DiffuseLight(Color a_lightColor, const fp32 a_strength = 1.0f) :
+            m_albedo(std::make_shared<SolidColor>(a_lightColor)),
+            m_strength(a_strength)
+        { }
+
+        Color Emitted(const vath::Vector2f& a_uvCoord, const vath::Vector3f& a_point) const override
+        {
+            DXRAY_ASSERT(m_albedo != nullptr);
+            return m_albedo->Sample(a_uvCoord, a_point) * m_strength;
+        }
+
+    private:
+        std::shared_ptr<Texture> m_albedo;
+        fp32 m_strength;
     };
 }

@@ -20,7 +20,7 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 {
 	//Camera.
 	a_camera.SetVerticalFov(vath::DegToRad(20.0f));
-	a_camera.SetAperture(0.001f);
+	a_camera.SetAperture(0.35f);
 	a_camera.SetFocalLength(10.0f);
 	a_camera.SetShutterSpeed(0.001f);
 	a_camera.LookAt(vath::Vector3f(13.0f, 2.0f, 3.0f), vath::Vector3f(0.0f, 0.0f, 0.0f));
@@ -41,20 +41,35 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 			if (vath::Magnitude(center - vath::Vector3f(4.0f, 0.2f, 0.0f)) > 0.9f)
 			{
 				std::shared_ptr<riow::Material> sphereMat;
+                const vath::Vector3f translation = center + vath::Vector3f(0.0f, vath::RandomNumber<fp32>(0.0f, 1.0f), 0.0f);
 
-				if (randomMat < 0.8f)
+				if (randomMat < 0.25f)
 				{
-					//Lambertian.
-					//const riow::Color albedo(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
-					sphereMat = std::make_shared<riow::Lambertian>(moonTexture);
+					//5% chance on moon
+                    if (randomMat < 0.05f)
+                    {
+                        //Emissive moon lights.
+                        sphereMat = std::make_shared<riow::DiffuseLight>(moonTexture, 1.0f);
+                        a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, translation, 0.2f, sphereMat));
+						continue;
+                    }
 
-					const vath::Vector3f translation = center + vath::Vector3f(0.0f, vath::RandomNumber<fp32>(0.0f, 0.5f), 0.0f);
+					//20% - Emissive - emitting light.
+                    const riow::Color albedo(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
+                    sphereMat = std::make_shared<riow::DiffuseLight>(albedo, vath::RandomNumber<fp32>(0.5f, 1.0));
+                    a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, translation, 0.2f, sphereMat));
+					continue;
+				}
+				else if (randomMat < 0.8f)
+				{
+                    //55% - Lambertian.
+					sphereMat = std::make_shared<riow::Lambertian>(riow::Color(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>()));
                     a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, translation, 0.2f, sphereMat));
 					continue;
 				}
 				else if (randomMat < 0.95f)
 				{
-					//Metallic.
+					//15% - Metallic.
 					const riow::Color metallic(vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>(), vath::RandomNumber<fp32>());
 					const fp32 fuzzy = vath::RandomNumber<fp32>();
 					sphereMat = std::make_shared<riow::Metallic>(metallic, fuzzy);
@@ -62,7 +77,7 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 					continue;
 				}
 
-				//Dielectric.
+				//5% - Dielectric.
 				sphereMat = std::make_shared<riow::Dielectric>(1.5f);
                 a_scene.AddTraceable(std::make_shared<riow::Sphere>(center, 0.2f, sphereMat));
 			}
@@ -72,7 +87,7 @@ void BuildBouncingSpheresSceneComposition(riow::Camera& a_camera, riow::Scene& a
 	std::shared_ptr<riow::Dielectric> largeDielectric = std::make_shared<riow::Dielectric>(1.5f);
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(0, 1, 0), 1.0f, largeDielectric));
 
-	std::shared_ptr<riow::Lambertian> largeLambert = std::make_shared<riow::Lambertian>(riow::Color(0.4f, 0.2f, 0.1f));
+	std::shared_ptr<riow::DiffuseLight> largeLambert = std::make_shared<riow::DiffuseLight>(riow::Color(0.4f, 0.2f, 0.1f));
 	a_scene.AddTraceable(std::make_shared<riow::Sphere>(vath::Vector3f(-4, 1, 0), 1.0f, largeLambert));
 
 	std::shared_ptr<riow::Metallic> largeMetal = std::make_shared<riow::Metallic>(riow::Color(0.4f, 0.2f, 0.1f), 0.0f);
@@ -105,7 +120,7 @@ int main(int argc, char** argv)
 	timer.Start();
 
 	//STB expects signed integers for image writing, the values will never be negative regardless within the framework, so use unsigned integers onwards.
-	const vath::Vector2i32 imageDimensions(1600, 900);
+	const vath::Vector2i32 imageDimensions(2560, 1440);
 	const i32 imageChannelNum = 3;
 	const u32 clusterSize = 4;
 	DXRAY_ASSERT_WITH_MSG(imageDimensions.x % clusterSize == 0, "Image width should be divisible by the cluster size. Clamping is currently not implemented.");
@@ -113,11 +128,9 @@ int main(int argc, char** argv)
 
 	riow::Camera camera;
 	camera.SetViewportDimensionInPx(vath::Vector2u32(imageDimensions.x, imageDimensions.y));
-	camera.SetZNear(0.001f);
-	camera.SetZFar(1000.0f);
 
 	//#Todo: can potentially make the selected scene be a commandline argument.
-	const EScene selectedScene = EScene::PerlinSpheres;
+	const EScene selectedScene = EScene::BouncingSpheres;
 	riow::Scene scene;
 	switch (selectedScene)
 	{
@@ -142,14 +155,15 @@ int main(int argc, char** argv)
 
 	const riow::RendererPipeline renderPipeline =
 	{
-		.MaxTraceDepth = 25,
+		.MaxTraceDepth = 100,
 		.SuperSampleFactor = 4,
-		.DepthOfFieldSampleCount = 1,
+		.DepthOfFieldSampleCount = 16,
 		.ClusterSize = clusterSize
 	};
 
 	riow::Renderer renderer;
 	renderer.SetCamera(camera);
+	renderer.SetBackgroundColor(riow::Color(0.01f));
 	renderer.SetRenderPipeline(renderPipeline);
 
     DXRAY_INFO("=================================");
