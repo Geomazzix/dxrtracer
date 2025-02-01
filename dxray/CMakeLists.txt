@@ -13,9 +13,7 @@ set(ASSET_ROOT_DIRECTORY "${CMAKE_SOURCE_DIR}/dxray/assets/")
 #Now include subdirectories.
 add_subdirectory("core")
 add_subdirectory("riow")
-
-#Todo: add shader directory.
-#add_subdirectory(shaders)
+add_subdirectory("dxrtracer")
 
 #Testing framework setup (only if enabled)
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTS)
