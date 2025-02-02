@@ -8,11 +8,11 @@ namespace dxray
 		m_className("winApiWindow"),
 		m_handle(nullptr),
 		m_windowRect(a_createInfo.Rect),
-		m_isMinimized(false),
-		m_isMaximized(true),
-		m_isFocused(true),
-		m_isResizing(false),
-		m_isFlaggedForClosing(false)
+		m_bIsMinimized(false),
+		m_bIsMaximized(true),
+		m_bIsFocused(true),
+		m_bIsResizing(false),
+		m_bIsFlaggedForClosing(false)
 	{
 		const HINSTANCE& appModule = static_cast<HINSTANCE>(GetModuleHandle(NULL));
 		const WNDCLASSEX windowClass =
@@ -74,14 +74,14 @@ namespace dxray
 	{
 		ShowWindow(m_handle, SW_SHOW);
 		SetFocus(m_handle);
-		m_isFocused = true;
+		m_bIsFocused = true;
 	}
 
 	void WinApiWindow::Hide()
 	{
 		ShowWindow(m_handle, SW_HIDE);
 		SetFocus(nullptr);
-		m_isFocused = false;
+		m_bIsFocused = false;
 	}
 
 	bool WinApiWindow::PollEvents()
@@ -91,7 +91,7 @@ namespace dxray
 		{
 			if (msg.message == WM_QUIT)
 			{
-				m_isFlaggedForClosing = true;
+				m_bIsFlaggedForClosing = true;
 				return false;
 			}
 			else
@@ -147,7 +147,7 @@ namespace dxray
 		//Called once the window regains focus.
 		case WM_ACTIVATE:
 		{
-			m_isFocused = LOWORD(a_wParam) == WA_ACTIVE;
+			m_bIsFocused = LOWORD(a_wParam) == WA_ACTIVE;
 			return 0;
 		}
 		//The size of the window changed.
@@ -158,25 +158,25 @@ namespace dxray
 
 			if (a_wParam == SIZE_MINIMIZED)
 			{
-				m_isMinimized = true;
-				m_isMaximized = false;
+				m_bIsMinimized = true;
+				m_bIsMaximized = false;
 			}
 			else if (a_wParam == SIZE_MAXIMIZED)
 			{
-				m_isMinimized = false;
-				m_isMaximized = true;
+				m_bIsMinimized = false;
+				m_bIsMaximized = true;
 			}
 			else if (a_wParam == SIZE_RESTORED)
 			{
-				if (m_isMinimized) // Restoring from minimized state?
+				if (m_bIsMinimized) // Restoring from minimized state?
 				{
-					m_isMinimized = false;
+					m_bIsMinimized = false;
 				}
-				else if (m_isMaximized) // Restoring from maximized state?
+				else if (m_bIsMaximized) // Restoring from maximized state?
 				{
-					m_isMaximized = false;
+					m_bIsMaximized = false;
 				}
-				else if (!m_isResizing)
+				else if (!m_bIsResizing)
 				{
 					//size move.
 				}
@@ -187,13 +187,13 @@ namespace dxray
 		//Called when the window bars are hold onto to.
 		case WM_ENTERSIZEMOVE:
 		{
-			m_isResizing = true;
+			m_bIsResizing = true;
 			return 0;
 		}
 		//Triggered when the window bars are released.
 		case WM_EXITSIZEMOVE:
 		{
-			m_isResizing = false;
+			m_bIsResizing = false;
 			return 0;
 		}
 
@@ -211,7 +211,7 @@ namespace dxray
 		}
 		case WM_DESTROY:
 		{
-			m_isFlaggedForClosing = true;
+			m_bIsFlaggedForClosing = true;
 			PostQuitMessage(0);
 			return 0;
 		}
@@ -221,4 +221,5 @@ namespace dxray
 		}
 		}
 	}
+
 }

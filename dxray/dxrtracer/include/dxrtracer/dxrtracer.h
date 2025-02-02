@@ -4,11 +4,12 @@
 namespace dxray
 {
 	class WinApiWindow;
+	class D3D12Device;
 
 	struct ApplicationCreateInfo
 	{
 		String Title = String(PROJECT_NAME);
-		vath::Rect<u32> Rect = vath::Rect<u32>(0, 0, 1600, 900);
+		vath::Rectu32 Rect = vath::Rectu32(0, 0, 1600, 900);
 	};
 
 	class DxrTracer final
@@ -21,5 +22,6 @@ namespace dxray
 		void EngineLoop();
 
 		std::unique_ptr<WinApiWindow> m_window;
+		std::unique_ptr<D3D12Device> m_graphicsDevice;
 	};
 }

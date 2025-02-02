@@ -12,6 +12,7 @@ set(FETCHCONTENT_BASE_DIR ${PROJECT_SOURCE_DIR}/dxray/thirdparty CACHE PATH "Thi
 #Find global cmake thirdparty dependencies - platforms should be checked in this file.
 find_package(Threads REQUIRED)
 include(findStb)
+include(findD3dx12)
 
 if(BUILD_TESTS)
 	include(findGoogleTest)

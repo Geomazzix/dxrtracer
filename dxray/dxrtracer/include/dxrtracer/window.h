@@ -26,6 +26,7 @@ namespace dxray
 		bool IsMinimized() const;
 		bool IsMaximized() const;
 		bool PollEvents();
+		void* GetNativeHandle() const;
 
 	private:
 		void Show();
@@ -40,11 +41,11 @@ namespace dxray
 		HWND m_handle;
 		vath::Rect<u32> m_windowRect;
 
-		bool m_isMinimized;
-		bool m_isMaximized;
-		bool m_isFocused;
-		bool m_isResizing;
-		bool m_isFlaggedForClosing;
+		bool m_bIsMinimized;
+		bool m_bIsMaximized;
+		bool m_bIsFocused;
+		bool m_bIsResizing;
+		bool m_bIsFlaggedForClosing;
 	};
 
 	inline void WinApiWindow::SetWindowTitle(const String& a_title)
@@ -69,11 +70,16 @@ namespace dxray
 
 	inline bool WinApiWindow::IsMinimized() const
 	{
-		return m_isMinimized;
+		return m_bIsMinimized;
 	}
 
 	inline bool WinApiWindow::IsMaximized() const
 	{
-		return m_isMaximized;
+		return m_bIsMaximized;
+	}
+
+	inline void* WinApiWindow::GetNativeHandle() const
+	{
+		return m_handle;
 	}
 }
