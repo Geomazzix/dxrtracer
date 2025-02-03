@@ -1,8 +1,5 @@
 #pragma once
 
-using Microsoft::WRL::ComPtr;
-#define D3D12_CHECK(hr) DXRAY_ASSERT(SUCCEEDED(hr))
-
 namespace dxray
 {
 	struct SwapchainCreateInfo
