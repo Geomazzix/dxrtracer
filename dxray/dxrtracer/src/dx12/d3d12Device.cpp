@@ -1,4 +1,5 @@
 #include "dxrtracer/dx12/d3d12Device.h"
+#include <dxgidebug.h>
 
 namespace dxray
 {
@@ -7,32 +8,26 @@ namespace dxray
 	{
 		u32 dxgiFactoryFlags = 0;
 #ifndef CONFIG_RELEASE
-		//Debug utility.
 		{
+            //Debug layers.
 			ComPtr<ID3D12Debug> debugController;
-			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-			{
-				debugController->EnableDebugLayer();
-				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-			}
+			D3D12_CHECK(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+			debugController->EnableDebugLayer();
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 
 			//For "Device Removed Extended Data".
 			ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dredSettings;
-			if (D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings)))
-			{
-				dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-				dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-			}
+			D3D12_CHECK(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings)));
+			dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 		}
 #endif
 
 		//Device creation.
 		D3D12_CHECK(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
-
-		ComPtr<IDXGIAdapter> warpAdapter;
 		if (m_bUseWarp)
 		{
-			ComPtr<IDXGIAdapter> warpAdapter;
+			ComPtr<IDXGIAdapter> warpAdapter = nullptr;
 			D3D12_CHECK(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 			D3D12_CHECK(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
 		}
@@ -44,12 +39,21 @@ namespace dxray
 		}
 
 #ifndef CONFIG_RELEASE
-		ComPtr<ID3D12InfoQueue> pInfoQueue;
-		if (SUCCEEDED(m_device.As(&pInfoQueue)))
 		{
-			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+            //DXGI info queue.
+            ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
+            D3D12_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiInfoQueue.GetAddressOf())));
+            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true);
+            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+
+			//Device info queue.
+            ComPtr<ID3D12InfoQueue> pInfoQueue;
+            D3D12_CHECK(m_device.As(&pInfoQueue));
+
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 
 			// Suppress messages based on their severity level
 			D3D12_MESSAGE_SEVERITY Severities[] =
@@ -74,7 +78,7 @@ namespace dxray
 #endif
 
 		//Create the command queue and allocator.
-		D3D12_COMMAND_QUEUE_DESC queueDesc =
+		const D3D12_COMMAND_QUEUE_DESC queueDesc =
 		{
 			.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
 			.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE
@@ -101,7 +105,7 @@ namespace dxray
 			.SampleDesc = { 1, 0 },
 			.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
 			.BufferCount = static_cast<u32>(m_renderTargets.size()),
-			.Scaling = DXGI_SCALING_ASPECT_RATIO_STRETCH, //#Note: Could be configurable...?
+			.Scaling = DXGI_SCALING_NONE, //#Note: Could be configurable...?
 			.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
 			.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
 			.Flags = 0

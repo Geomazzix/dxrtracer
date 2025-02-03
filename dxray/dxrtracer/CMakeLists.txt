@@ -15,6 +15,7 @@ set(SOURCE
 set(DEPS
 	"stb"
 	"core"
+	"dxguid"
 	"d3dx12::headers"
 	"d3dx12::guids"
 	"d3d12"
