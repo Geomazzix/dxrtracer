@@ -1,6 +1,6 @@
 #include "dxrtracer/dxrtracer.h"
 #include "dxrtracer/window.h"
-#include "dxrtracer/dx12/d3d12Device.h"
+#include "dxrtracer/renderer.h"
 
 namespace dxray
 {
@@ -14,17 +14,14 @@ namespace dxray
 
 		m_window = std::make_unique<WinApiWindow>(windowInfo);
 
-		const DeviceCreateInfo gfxDeviceInfo =
+		const RendererCreateInfo rendererInfo =
 		{
-			.SwapchainInfo = 
-			{
-				.RenderTargetRect = vath::Rectu32(0, 0, 1600, 900),
-				.WindowHandle = m_window->GetNativeHandle()
-			},
+			.WindowRect = vath::Rectu32(0u, 0u, 1600u, 900u),
+			.WindowHandle = m_window->GetNativeHandle(),
 			.bUseWarp = false
 		};
 
-		m_graphicsDevice = std::make_unique<D3D12Device>(gfxDeviceInfo);
+		m_renderer = std::make_unique<Renderer>();
 
 		EngineLoop();
 	}

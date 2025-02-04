@@ -1,5 +1,4 @@
 #include "dxrtracer/dx12/d3d12Device.h"
-#include <dxgidebug.h>
 
 namespace dxray
 {
@@ -77,29 +76,31 @@ namespace dxray
 		}
 #endif
 
-		//Create the command queue and allocator.
-		const D3D12_COMMAND_QUEUE_DESC queueDesc =
-		{
-			.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-			.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE
-		};
-		D3D12_CHECK(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-		D3D12_CHECK(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
+		m_presentQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Present);
+		m_graphicsQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Graphics);
+		m_graphicsQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Compute);
+		m_graphicsQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Copy);
 
 		CreateSwapchain(a_info.SwapchainInfo);
 	}
 
 	D3D12Device::~D3D12Device()
 	{
-
+		
 	}
 
-	void D3D12Device::CreateSwapchain(const SwapchainCreateInfo& a_swapchainInfo)
+    void D3D12Device::WaitIdle()
+    {
+		m_graphicsQueue->WaitForIdle();
+		m_presentQueue->WaitForIdle();
+    }
+
+    void D3D12Device::CreateSwapchain(const SwapchainCreateInfo& a_swapchainInfo)
 	{
 		const DXGI_SWAP_CHAIN_DESC1 swapChainDesc =
 		{
-			.Width = static_cast<u32>(a_swapchainInfo.RenderTargetRect.Width),
-			.Height = static_cast<u32>(a_swapchainInfo.RenderTargetRect.Height),
+			.Width = static_cast<u32>(a_swapchainInfo.SwapchainRect.Width),
+			.Height = static_cast<u32>(a_swapchainInfo.SwapchainRect.Height),
 			.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
 			.Stereo = false,
 			.SampleDesc = { 1, 0 },
@@ -113,7 +114,7 @@ namespace dxray
 
 		ComPtr<IDXGISwapChain1> swapChain;
 		D3D12_CHECK(m_factory->CreateSwapChainForHwnd(
-			m_commandQueue.Get(),
+			m_presentQueue->GetPresentQueue().Get(),
 			static_cast<HWND>(a_swapchainInfo.WindowHandle),
 			&swapChainDesc,
 			nullptr,
@@ -122,12 +123,12 @@ namespace dxray
 		));
 
 		//#Todo: full screen support.
-		//Disable full screening for now - true fullscreen is often skipped and faked as borderless fullscreen.
+		//Disable full screening for now - true full screen is often skipped and faked as border-less full-screen.
 		D3D12_CHECK(m_factory->MakeWindowAssociation(static_cast<HWND>(a_swapchainInfo.WindowHandle), DXGI_MWA_NO_ALT_ENTER));
 		D3D12_CHECK(swapChain.As(&m_swapChain));
 		m_swapchainIndex = m_swapChain->GetCurrentBackBufferIndex();
 
-		//Create swapchain descriptor heaps.
+		//Create swap chain descriptor heaps.
 		{
 			// Describe and create a render target view (RTV) descriptor heap.
 			const D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc =
@@ -141,7 +142,7 @@ namespace dxray
 			m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		}
 
-		//Retrieve the swapchain render targets.
+		//Retrieve the swap chain render targets.
 		{
 			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 			for (u32 i = 0; i < FrameCount; i++)

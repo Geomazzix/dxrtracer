@@ -17,11 +17,16 @@
 #include <array>
 #include <vector>
 
-//Undefine any overlapping functionality from 3rd party dependencies/platforms - colliding with winapi definitions, future-proof.
-#if defined(max)
-#undef max
-#endif
+#if PLATFORM_WINDOWS
 
-#if defined(min)
-#undef min
-#endif
+#ifdef _MSC_VER
+#define WIN32_LEAN_AND_MEAN
+#define VC_EXTRALEAN
+#endif //_MSC_VER
+
+#define NOMINMAX
+#include <windows.h>
+#include <wrl.h>
+#include <shellapi.h>
+
+#endif //PLATFORM_WINDOWS

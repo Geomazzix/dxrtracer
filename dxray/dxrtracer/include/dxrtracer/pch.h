@@ -8,6 +8,7 @@
 #include <vector>
 #include <format>
 #include <memory>
+#include <queue>
 
 #if defined(PLATFORM_WINDOWS)
 

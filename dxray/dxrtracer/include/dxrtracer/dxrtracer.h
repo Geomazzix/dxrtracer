@@ -4,7 +4,7 @@
 namespace dxray
 {
 	class WinApiWindow;
-	class D3D12Device;
+	class Renderer;
 
 	struct ApplicationCreateInfo
 	{
@@ -22,6 +22,6 @@ namespace dxray
 		void EngineLoop();
 
 		std::unique_ptr<WinApiWindow> m_window;
-		std::unique_ptr<D3D12Device> m_graphicsDevice;
+		std::unique_ptr<Renderer> m_renderer;
 	};
 }
