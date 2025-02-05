@@ -20,6 +20,7 @@ namespace dxray
 
 	private:
 		void EngineLoop();
+        static Stopwatchf s_appTime;
 
 		std::unique_ptr<WinApiWindow> m_window;
 		std::unique_ptr<Renderer> m_renderer;

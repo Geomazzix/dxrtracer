@@ -14,7 +14,7 @@ namespace dxray
         Process = D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS,
         Encode = D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE,
         Present = D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1, //Custom present queue type for the swap chain and deferred presentation.
-        Invalid = -1
+        Invalid = D3D12_COMMAND_LIST_TYPE_NONE
     };
 
 
@@ -26,14 +26,15 @@ namespace dxray
     class D3D12CommandAllocatorPool
     {
     public:
+        D3D12CommandAllocatorPool();
         D3D12CommandAllocatorPool(const ComPtr<ID3D12Device>& a_pDevice, const D3D12_COMMAND_LIST_TYPE a_type, u32 a_initialAllocatorCount = 4);
         ~D3D12CommandAllocatorPool();
 
-        const ComPtr<ID3D12CommandAllocator>& RequestAllocator(const u64 a_completedFenceValue);
+        ComPtr<ID3D12CommandAllocator> RequestAllocator(const u64 a_completedFenceValue);
         void DiscardAllocator(const u64 a_fenceValue, const ComPtr<ID3D12CommandAllocator>& a_pAllocator);
 
     private:
-        const D3D12_COMMAND_LIST_TYPE m_type;
+        D3D12_COMMAND_LIST_TYPE m_type;
         ComPtr<ID3D12Device> m_device;
 
         std::vector<ComPtr<ID3D12CommandAllocator>> m_allocatorPool;
@@ -51,16 +52,18 @@ namespace dxray
         D3D12CommandQueue(const ComPtr<ID3D12Device>& a_pDevice, const ECommandQueueType a_type);
         ~D3D12CommandQueue();
 
-        u64 IncrementFence();
-        bool IsFenceComplete(const u64 a_fenceValue);
-
         void WaitForFence(const u64 a_fenceValue);
-        void WaitForIdle();
-
+        void WaitIdle();
+        bool IsFenceComplete(const u64 a_fenceValue);
+        u64 IncrementFence();
         u64 GetFenceValue() const;
-        u64 ExecuteCommandList(const ComPtr<ID3D12CommandList>& a_pCmdList);
 
         ComPtr<ID3D12CommandQueue> GetPresentQueue();
+        
+        //#Todo: Decide on what is responsible for the commandlist pooling.
+        //ComPtr<ID3D12CommandList> CreateCommandList();
+        //u64 ExecuteCommandList(const ComPtr<ID3D12CommandList>& a_pCmdList);
+        //u64 ExecuteCommandList(const std::vector<ComPtr<ID3D12CommandList>>& a_ppCmdLists);
 
     private:
         D3D12CommandAllocatorPool m_allocatorPool;
@@ -68,9 +71,8 @@ namespace dxray
         ComPtr<ID3D12CommandQueue> m_commandQueue;
         const ECommandQueueType m_type;
 
-        ComPtr<ID3D12Fence> m_pFence;
+        ComPtr<ID3D12Fence> m_fence;
         u64 m_nextFenceValue;
-        u64 m_lastCompletedFenceValue;
         HANDLE m_fenceEventHandle;
     };
 
@@ -80,7 +82,7 @@ namespace dxray
         return m_type == ECommandQueueType::Present ? m_commandQueue : nullptr;
     }
 
-    inline void D3D12CommandQueue::WaitForIdle()
+    inline void D3D12CommandQueue::WaitIdle()
     {
         WaitForFence(IncrementFence());
     }

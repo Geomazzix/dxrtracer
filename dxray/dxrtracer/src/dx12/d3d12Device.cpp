@@ -29,44 +29,39 @@ namespace dxray
 			ComPtr<IDXGIAdapter> warpAdapter = nullptr;
 			D3D12_CHECK(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 			D3D12_CHECK(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
+            D3D12_NAME_OBJECT(m_device, WString(L"D3D12WarpDevice"));
 		}
 		else
 		{
 			ComPtr<IDXGIAdapter1> hardwareAdapter = nullptr;
 			//#Todo: Could possibly query for specific GPUs - if the wrong GPU is ever selected.
 			D3D12_CHECK(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
+            D3D12_NAME_OBJECT(m_device, WString(L"D3D12Device"));
 		}
 
 #ifndef CONFIG_RELEASE
 		{
-            //DXGI info queue.
-            ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
-            D3D12_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiInfoQueue.GetAddressOf())));
-            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true);
-            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
-            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
-
 			//Device info queue.
             ComPtr<ID3D12InfoQueue> pInfoQueue;
             D3D12_CHECK(m_device.As(&pInfoQueue));
-
+			
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-
+			
 			// Suppress messages based on their severity level
 			D3D12_MESSAGE_SEVERITY Severities[] =
 			{
 				D3D12_MESSAGE_SEVERITY_INFO
 			};
-
+			
 			// Suppress individual messages by their ID
 			D3D12_MESSAGE_ID DenyIds[] = {
 				D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
 				D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
 				D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
 			};
-
+			
 			D3D12_INFO_QUEUE_FILTER newFilter = {};
 			newFilter.DenyList.NumSeverities = _countof(Severities);
 			newFilter.DenyList.pSeverityList = Severities;
@@ -78,21 +73,40 @@ namespace dxray
 
 		m_presentQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Present);
 		m_graphicsQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Graphics);
-		m_graphicsQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Compute);
-		m_graphicsQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Copy);
+		m_computeQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Compute);
+		m_copyQueue = std::make_unique<D3D12CommandQueue>(m_device, ECommandQueueType::Copy);
 
 		CreateSwapchain(a_info.SwapchainInfo);
 	}
 
 	D3D12Device::~D3D12Device()
 	{
+		WaitIdle();
+
+	}
+
+	void D3D12Device::BeginFrame()
+	{
+
+	}
+
+	void D3D12Device::EndFrame()
+	{
 		
 	}
 
+    void D3D12Device::Present()
+    {
+		D3D12_CHECK(m_swapchain->Present(1, 0));
+		m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();
+    }
+
     void D3D12Device::WaitIdle()
     {
-		m_graphicsQueue->WaitForIdle();
-		m_presentQueue->WaitForIdle();
+		m_presentQueue->WaitIdle();
+		m_graphicsQueue->WaitIdle();
+		m_computeQueue->WaitIdle();
+		m_copyQueue->WaitIdle();
     }
 
     void D3D12Device::CreateSwapchain(const SwapchainCreateInfo& a_swapchainInfo)
@@ -112,21 +126,21 @@ namespace dxray
 			.Flags = 0
 		};
 
-		ComPtr<IDXGISwapChain1> swapChain;
+		ComPtr<IDXGISwapChain1> swapchain;
 		D3D12_CHECK(m_factory->CreateSwapChainForHwnd(
 			m_presentQueue->GetPresentQueue().Get(),
 			static_cast<HWND>(a_swapchainInfo.WindowHandle),
 			&swapChainDesc,
 			nullptr,
 			nullptr,
-			&swapChain
+			&swapchain
 		));
 
 		//#Todo: full screen support.
 		//Disable full screening for now - true full screen is often skipped and faked as border-less full-screen.
 		D3D12_CHECK(m_factory->MakeWindowAssociation(static_cast<HWND>(a_swapchainInfo.WindowHandle), DXGI_MWA_NO_ALT_ENTER));
-		D3D12_CHECK(swapChain.As(&m_swapChain));
-		m_swapchainIndex = m_swapChain->GetCurrentBackBufferIndex();
+		D3D12_CHECK(swapchain.As(&m_swapchain));
+		m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();
 
 		//Create swap chain descriptor heaps.
 		{
@@ -147,7 +161,7 @@ namespace dxray
 			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 			for (u32 i = 0; i < FrameCount; i++)
 			{
-				D3D12_CHECK(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
+				D3D12_CHECK(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
 				m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
 				rtvHandle.Offset(1, m_rtvDescriptorSize);
 			}

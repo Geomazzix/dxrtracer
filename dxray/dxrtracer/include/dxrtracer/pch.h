@@ -30,9 +30,11 @@ using Microsoft::WRL::ComPtr;
 
 #ifndef CONFIG_RELEASE
 #define D3D12_CHECK(hr) DXRAY_ASSERT(SUCCEEDED(hr))
+#define D3D12_NAME_OBJECT(pObject, nameString)  pObject->SetName(nameString.c_str())
 #include <dxgidebug.h>
 #else
 #define D3D12_CHECK(hr) //Added for readability, would get resolved regardless.
+#define D3D12_NAME_OBJECT(pObject, nameString)
 #endif
 
 #else

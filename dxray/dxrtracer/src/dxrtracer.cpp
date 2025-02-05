@@ -1,11 +1,16 @@
 #include "dxrtracer/dxrtracer.h"
 #include "dxrtracer/window.h"
 #include "dxrtracer/renderer.h"
+#include <core/time/stopwatch.h>
 
 namespace dxray
 {
+	Stopwatchf DxrTracer::DxrTracer::s_appTime;
+
 	DxrTracer::DxrTracer(const ApplicationCreateInfo& a_info)
 	{
+        s_appTime.Start();
+
 		const WindowCreationInfo windowInfo =
 		{
 			.Title = a_info.Title,
@@ -20,20 +25,33 @@ namespace dxray
 			.WindowHandle = m_window->GetNativeHandle(),
 			.bUseWarp = false
 		};
-
-		m_renderer = std::make_unique<Renderer>();
+		
+		m_renderer = std::make_unique<Renderer>(rendererInfo);
 
 		EngineLoop();
 	}
 
 	void DxrTracer::EngineLoop()
 	{
-		u64 framecounter = 0;
+		fp32 elapsedInterval = 0.0f;
+		u64 fps = 0u;
+
 		while (m_window->PollEvents())
 		{
-			m_window->SetWindowTitle("dxrtracer - framecount: " + std::to_string(framecounter));
+			//m_renderer->Render();
 
-			framecounter++;
+			++fps;
+			if (s_appTime.GetElapsedSeconds() - elapsedInterval > 1.0f)
+			{
+				m_window->SetWindowTitle(std::format("{} fps: {} - mspf: {}", 
+					PROJECT_NAME, 
+					static_cast<fp32>(fps), 
+					static_cast<fp32>(1000.0f / fps))
+				);
+
+				elapsedInterval += 1.0f;
+				fps = 0;
+			}
 		}
 	}
 }
@@ -47,5 +65,12 @@ int main(int argc, char** argv)
 	};
 
 	dxray::DxrTracer m_application(appInfo);
+
+#ifndef CONFIG_RELEASE
+    ComPtr<IDXGIDebug1> dxgiDebug;
+    D3D12_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiDebug.GetAddressOf())));
+    dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_ALL));
+#endif
+
 	return 0;
 }
