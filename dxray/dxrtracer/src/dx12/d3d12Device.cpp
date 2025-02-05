@@ -41,27 +41,26 @@ namespace dxray
 
 #ifndef CONFIG_RELEASE
 		{
-			//Device info queue.
-            ComPtr<ID3D12InfoQueue> pInfoQueue;
-            D3D12_CHECK(m_device.As(&pInfoQueue));
-			
+			ComPtr<ID3D12InfoQueue> pInfoQueue;
+			D3D12_CHECK(m_device.As(&pInfoQueue));
+
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
 			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-			
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
+
 			// Suppress messages based on their severity level
 			D3D12_MESSAGE_SEVERITY Severities[] =
 			{
 				D3D12_MESSAGE_SEVERITY_INFO
 			};
-			
+
 			// Suppress individual messages by their ID
 			D3D12_MESSAGE_ID DenyIds[] = {
 				D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
 				D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
 				D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
 			};
-			
+
 			D3D12_INFO_QUEUE_FILTER newFilter = {};
 			newFilter.DenyList.NumSeverities = _countof(Severities);
 			newFilter.DenyList.pSeverityList = Severities;
@@ -83,6 +82,11 @@ namespace dxray
 	{
 		WaitIdle();
 
+#ifndef CONFIG_RELEASE
+		ComPtr<IDXGIDebug1> dxgiDebug;
+		D3D12_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiDebug.GetAddressOf())));
+		dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+#endif
 	}
 
 	void D3D12Device::BeginFrame()
