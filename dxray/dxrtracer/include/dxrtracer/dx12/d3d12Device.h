@@ -34,6 +34,9 @@ namespace dxray
 		std::shared_ptr<D3D12CommandQueue> GetCopyQueue();
 		std::shared_ptr<D3D12CommandQueue> GetQueue(const ECommandQueueType a_type);
 
+		std::shared_ptr<D3D12CommandBuffer> GetCommandBuffer();
+		void SubmitCommandBuffers(std::shared_ptr<D3D12CommandBuffer>* const a_pCommandBuffers, const u32 a_numCommandBuffers);
+
 		void BeginFrame();
 		void EndFrame();
 

@@ -2,20 +2,22 @@
 
 namespace dxray
 {
-    /// <summary>
+	/// <summary>
     /// Custom definition for the command queue to identify which queue can be used to initialize the swapchain.
+    /// #Note: can be casted between ECommandBufferType as long as the names alias one another (e.g. ECommandBufferType::Graphics <-> ECommandQueueType::Graphics).
     /// </summary>
-    enum class ECommandQueueType : i8
-    {
-        Graphics = D3D12_COMMAND_LIST_TYPE_DIRECT,
-        Compute = D3D12_COMMAND_LIST_TYPE_COMPUTE,
-        Copy = D3D12_COMMAND_LIST_TYPE_COPY,
-        Decode = D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE,
-        Process = D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS,
-        Encode = D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE,
-        Present = D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1, //Custom present queue type for the swap chain and deferred presentation.
-        Invalid = D3D12_COMMAND_LIST_TYPE_NONE
-    };
+	enum class ECommandQueueType : i8
+	{
+		Graphics = D3D12_COMMAND_LIST_TYPE_DIRECT,
+		Compute = D3D12_COMMAND_LIST_TYPE_COMPUTE,
+		Copy = D3D12_COMMAND_LIST_TYPE_COPY,
+		Decode = D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE,
+		Process = D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS,
+		Encode = D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE,
+		Present = D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1, //Custom present queue type for the swap chain and deferred presentation.
+		Invalid = D3D12_COMMAND_LIST_TYPE_NONE,
+		Count = Present
+	};
 
 
     /// <summary>
@@ -23,7 +25,7 @@ namespace dxray
     /// Uses the queue to retrieve available allocators, while storing them in the vector to prevent them from destructing.
     /// #Note: Currently not thread safe.
     /// </summary>
-    class D3D12CommandAllocatorPool
+    class D3D12CommandAllocatorPool final
     {
     public:
         D3D12CommandAllocatorPool();
@@ -46,7 +48,7 @@ namespace dxray
     /// The command queue manages command buffer submission and ensures synchronization between CPU and GPU between submissions.
     /// #Note: Currently not thread safe.
     /// </summary>
-    class D3D12CommandQueue
+    class D3D12CommandQueue final
     {
     public:
         D3D12CommandQueue(const ComPtr<ID3D12Device>& a_pDevice, const ECommandQueueType a_type);

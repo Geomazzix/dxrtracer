@@ -171,4 +171,15 @@ namespace dxray
 			}
 		}
 	}
+
+	std::shared_ptr<dxray::D3D12CommandBuffer> D3D12Device::GetCommandBuffer()
+	{
+		std::shared_ptr<D3D12CommandBuffer> cmdBuffer = std::make_shared<D3D12CommandBuffer>();
+	}
+
+	void D3D12Device::SubmitCommandBuffers(std::shared_ptr<D3D12CommandBuffer>* const a_pCommandBuffers, const u32 a_numCommandBuffers)
+	{
+
+	}
+
 }
