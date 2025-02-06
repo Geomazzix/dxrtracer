@@ -32,10 +32,31 @@ namespace dxray
         const u32 currentFrameIndex = m_device->GetFrameIndex();
 
         m_device->GetGraphicsQueue()->WaitForFence(frameFenceValues[currentFrameIndex]);
+        std::shared_ptr<D3D12CommandBuffer> cmdBuffer = m_device->RequestCommandBuffer(ECommandBufferType::Graphics);
 
-        //Record commandlists.
+        //const ComPtr<ID3D12GraphicsCommandList>& s = cmdBuffer->GetCommandBuffer();
+        //
+        //D3D12_VIEWPORT viewport =
+        //{
+        //    .TopLeftX = 0,
+        //    .TopLeftY = 0,
+        //    .Width = 1600,
+        //    .Height = 900,
+        //    .MinDepth = 0.001f,
+        //    .MaxDepth = 1000.0f
+        //};
+        //s->RSSetViewports(1, &viewport);
+        //
+        //RECT scissorRect =
+        //{
+        //    .left = 0,
+        //    .top = 0,
+        //    .right = 1600,
+        //    .bottom = 900
+        //};
+        //s->RSSetScissorRects(1, &scissorRect);
 
+        frameFenceValues[currentFrameIndex] = m_device->ExecuteCommandLIst(cmdBuffer);
         m_device->Present();
-        frameFenceValues[currentFrameIndex] = m_device->GetGraphicsQueue()->IncrementFence();
     }
 }

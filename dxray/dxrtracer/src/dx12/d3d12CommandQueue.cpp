@@ -5,33 +5,6 @@ namespace dxray
 {
     //--- D3D12CommandAlloctorPool ---
 
-    inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
-    {
-        switch (a_type)
-        {
-        case D3D12_COMMAND_LIST_TYPE_DIRECT:
-        {
-            return L"Direct"; 
-        }
-        case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-        { 
-            return L"Compute";
-        }
-        case D3D12_COMMAND_LIST_TYPE_BUNDLE:
-        {
-            return L"Bundle";
-        }
-        case D3D12_COMMAND_LIST_TYPE_COPY:
-        {
-            return L"Copy";
-        }
-        default:
-            return L"Unidentified";
-        }
-
-        return L"Unidentified";
-    }
-
     D3D12CommandAllocatorPool::D3D12CommandAllocatorPool() :
         m_type(D3D12_COMMAND_LIST_TYPE_NONE),
         m_device(nullptr)
@@ -102,6 +75,7 @@ namespace dxray
             : static_cast<D3D12_COMMAND_LIST_TYPE>(a_type);
 
         m_allocatorPool = D3D12CommandAllocatorPool(a_pDevice, apiType, 4);
+        m_bufferPool = D3D12CommandBufferPool(a_pDevice, static_cast<ECommandBufferType>(a_type), 4); //#Todo: The ECommandBuffer cast works *for now*, but will break when video encoding becomes important.
 
         const D3D12_COMMAND_QUEUE_DESC queueInfo =
         {
@@ -124,6 +98,33 @@ namespace dxray
         WaitIdle();
         CloseHandle(m_fenceEventHandle);
         m_nextFenceValue = 0;
+    }
+
+    std::shared_ptr<D3D12CommandBuffer> D3D12CommandQueue::RequestCommandBuffer()
+    {
+        u64 completedFenceValue = m_fence->GetCompletedValue();
+
+        const ComPtr<ID3D12CommandAllocator>& cmdAllocator = m_allocatorPool.RequestAllocator(m_nextFenceValue);
+        const std::shared_ptr<D3D12CommandBuffer>& cmdBuffer = m_bufferPool.RequestCommandBuffer(m_nextFenceValue, cmdAllocator);
+        return cmdBuffer;
+    }
+
+    u64 D3D12CommandQueue::ExecuteCommandList(std::shared_ptr<D3D12CommandBuffer> a_cmdBuffer)
+    {   
+        a_cmdBuffer->Close();
+        
+        ID3D12CommandList* cmdsBuffers[] =
+        {
+            a_cmdBuffer->GetCommandBuffer().Get()
+        };
+
+        m_commandQueue->ExecuteCommandLists(1, cmdsBuffers);
+        D3D12_CHECK(m_commandQueue->Signal(m_fence.Get(), m_nextFenceValue));
+        m_nextFenceValue++;
+
+        m_allocatorPool.DiscardAllocator(m_nextFenceValue, a_cmdBuffer->GetCommandAllocator());
+        m_bufferPool.DiscardCommandList(m_nextFenceValue, a_cmdBuffer);
+        return m_nextFenceValue;
     }
 
     void D3D12CommandQueue::WaitForFence(const u64 a_fenceValue)

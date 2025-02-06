@@ -1,4 +1,5 @@
 #pragma once
+#include "dxrtracer/dx12/d3d12CommandBuffer.h"
 
 namespace dxray
 {
@@ -47,6 +48,7 @@ namespace dxray
     /// <summary>
     /// The command queue manages command buffer submission and ensures synchronization between CPU and GPU between submissions.
     /// #Note: Currently not thread safe.
+    /// #Todo: CommandBuffer batching for interleaved GPU execution.
     /// </summary>
     class D3D12CommandQueue final
     {
@@ -61,13 +63,12 @@ namespace dxray
         u64 GetFenceValue() const;
 
         ComPtr<ID3D12CommandQueue> GetPresentQueue();
-        
-        //#Todo: Decide on what is responsible for the commandlist pooling.
-        //ComPtr<ID3D12CommandList> CreateCommandList();
-        //u64 ExecuteCommandList(const ComPtr<ID3D12CommandList>& a_pCmdList);
-        //u64 ExecuteCommandList(const std::vector<ComPtr<ID3D12CommandList>>& a_ppCmdLists);
+
+        std::shared_ptr<D3D12CommandBuffer> RequestCommandBuffer();
+        u64 ExecuteCommandList(std::shared_ptr<D3D12CommandBuffer> a_cmdBuffer);
 
     private:
+        D3D12CommandBufferPool m_bufferPool;
         D3D12CommandAllocatorPool m_allocatorPool;
         ComPtr<ID3D12Device> m_device;
         ComPtr<ID3D12CommandQueue> m_commandQueue;

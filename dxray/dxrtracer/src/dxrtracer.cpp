@@ -38,7 +38,7 @@ namespace dxray
 
 		while (m_window->PollEvents())
 		{
-			//m_renderer->Render();
+			m_renderer->Render();
 
 			++fps;
 			if (s_appTime.GetElapsedSeconds() - elapsedInterval > 1.0f)

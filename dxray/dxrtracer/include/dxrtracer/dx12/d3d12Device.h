@@ -34,8 +34,8 @@ namespace dxray
 		std::shared_ptr<D3D12CommandQueue> GetCopyQueue();
 		std::shared_ptr<D3D12CommandQueue> GetQueue(const ECommandQueueType a_type);
 
-		std::shared_ptr<D3D12CommandBuffer> GetCommandBuffer();
-		void SubmitCommandBuffers(std::shared_ptr<D3D12CommandBuffer>* const a_pCommandBuffers, const u32 a_numCommandBuffers);
+        std::shared_ptr<D3D12CommandBuffer> RequestCommandBuffer(const ECommandBufferType a_type);
+        u64 ExecuteCommandLIst(const std::shared_ptr<D3D12CommandBuffer>& a_cmdBuffer);
 
 		void BeginFrame();
 		void EndFrame();
@@ -62,7 +62,6 @@ namespace dxray
         ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<IDXGISwapChain3> m_swapchain;
 		std::array<ComPtr<ID3D12Resource>, FrameCount> m_renderTargets;
-
 
 		bool m_bUseWarp;
 	};
