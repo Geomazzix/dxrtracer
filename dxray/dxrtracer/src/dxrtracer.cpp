@@ -56,41 +56,36 @@ namespace dxray
 	}
 }
 
+//--- DX12 primitives ---
 
 using namespace dxray;
 
-
-
-
-
-
-
-
-
-static const u32 SwapchainBackbufferCount = 2;
-
-
-struct FrameResources
-{
-    
-};
-std::vector<FrameResources, SwapchainBackbufferCount> m_frameResources;
-
+Stopwatchf m_time;
 std::unique_ptr<WinApiWindow> m_window;
 
 bool m_bUseWarp;
 ComPtr<IDXGIFactory4> m_factory;
 ComPtr<ID3D12Device> m_device;
 
-u32 m_rtvDescriptorSize;
-u32 m_swapchainIndex;
-ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-ComPtr<IDXGISwapChain3> m_swapchain;
-std::array<ComPtr<ID3D12Resource>, 2> m_swapchainBackBuffer;
-
+HANDLE m_commandQueueFenceEvent;
+u64 m_commandQueueFenceValue;
+ComPtr<ID3D12Fence> m_commandQueueFence;
 ComPtr<ID3D12CommandQueue> m_commandQueue;
-ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
+struct FrameResources
+{
+	ComPtr<ID3D12CommandAllocator> CommandAllocator;
+	u64 FenceValue;
+};
+
+inline constexpr u32 SwapchainBackbufferCount = 3;
+std::array<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
+std::array<FrameResources, SwapchainBackbufferCount> m_frameResources;
+u32 m_swapchainIndex = 0;
+u32 m_rtvDescriptorSize = 0;
+ComPtr<ID3D12DescriptorHeap> m_rtvHeap = nullptr;
+ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
 
 inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
 {
@@ -118,6 +113,9 @@ inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
 
     return L"Unidentified";
 }
+
+
+//--- Creating primitives ---
 
 void CreateDevice(ComPtr<ID3D12Device>& a_device)
 {
@@ -192,13 +190,19 @@ void CreateCommandQueue(ComPtr<ID3D12CommandQueue>& a_queue, const D3D12_COMMAND
     const D3D12_COMMAND_QUEUE_DESC queueInfo =
     {
         .Type = a_type,
-        .Priority = 0,
+        .Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
         .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
         .NodeMask = 0
     };
 
     D3D12_CHECK(m_device->CreateCommandQueue(&queueInfo, IID_PPV_ARGS(&a_queue)));
     D3D12_NAME_OBJECT(m_commandQueue, std::format(L"D3D12{}CommandQueue", CommandListTypeToUnicode(a_type)));
+
+    D3D12_CHECK(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_commandQueueFence)));
+    D3D12_NAME_OBJECT(m_commandQueueFence, std::format(L"D3D12{}CommandQueueFence", CommandListTypeToUnicode(a_type)));
+
+    m_commandQueueFenceEvent = CreateEvent(nullptr, false, false, nullptr);
+    DXRAY_ASSERT(m_commandQueueFenceEvent);
 }
 
 void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, const u32 a_height)
@@ -211,7 +215,7 @@ void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, co
         .Stereo = false,
         .SampleDesc = { 1, 0 },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        .BufferCount = static_cast<u32>(m_swapchainBackBuffer.size()),
+        .BufferCount = static_cast<u32>(m_swapchainRenderTargets.size()),
         .Scaling = DXGI_SCALING_NONE, //#Note: Could be configurable...?
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
         .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
@@ -240,7 +244,7 @@ void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, co
         const D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc =
         {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-            .NumDescriptors = static_cast<u32>(m_swapchainBackBuffer.size()),
+            .NumDescriptors = static_cast<u32>(m_swapchainRenderTargets.size()),
             .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             .NodeMask = 0
         };
@@ -251,19 +255,115 @@ void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, co
     //Retrieve the swap chain render targets.
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-        for (u32 i = 0; i < m_swapchainBackBuffer.size(); i++)
+        for (u32 i = 0; i < m_swapchainRenderTargets.size(); i++)
         {
-            D3D12_CHECK(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_swapchainBackBuffer[i])));
-            m_device->CreateRenderTargetView(m_swapchainBackBuffer[i].Get(), nullptr, rtvHandle);
+            D3D12_CHECK(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_swapchainRenderTargets[i])));
+            m_device->CreateRenderTargetView(m_swapchainRenderTargets[i].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, m_rtvDescriptorSize);
         }
     }
 }
 
+void CreateFrameResources()
+{
+    for (u32 i = 0; i < SwapchainBackbufferCount; i++)
+    {
+        FrameResources& frameResources = m_frameResources[i];
+        D3D12_CHECK(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frameResources.CommandAllocator)));
+		D3D12_NAME_OBJECT(frameResources.CommandAllocator, std::format(L"D3D12{}CommandAllocator_{}", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT), std::to_wstring(i)));
+        frameResources.FenceValue = i;
+    }
 
+	D3D12_CHECK(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_frameResources[0].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+	D3D12_NAME_OBJECT(m_commandList, std::format(L"D3D12{}CommandList", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT)));
+    m_commandList->Close();
+}
+
+void WaitForCommandQueueFence(const u64 a_fenceValue)
+{
+    const u64 completedValue = m_commandQueueFence->GetCompletedValue();
+    if (completedValue < a_fenceValue)
+    {
+		D3D12_CHECK(m_commandQueueFence->SetEventOnCompletion(a_fenceValue, m_commandQueueFenceEvent));
+		WaitForSingleObject(m_commandQueueFenceEvent, static_cast<DWORD>(vath::Infinity<fp32>()));
+    }
+}
+
+
+//--- Engine loop ---
+
+void Tick()
+{
+
+}
+
+void Render()
+{
+    // -- Retrieve the data needed to render --
+    FrameResources& frameResources = m_frameResources[m_swapchainIndex];
+    WaitForCommandQueueFence(frameResources.FenceValue);
+
+    // -- Record the data --
+    D3D12_CHECK(frameResources.CommandAllocator->Reset());
+    D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
+
+    CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<fp32>(m_window->GetWidthInPx()), static_cast<fp32>(m_window->GetHeightInPx()), 0.001f, 1000.0f);
+    m_commandList->RSSetViewports(1, &viewport);
+    CD3DX12_RECT scissorRect(0, 0, static_cast<ULONG>(m_window->GetWidthInPx()), static_cast<ULONG>(m_window->GetHeightInPx()));
+    m_commandList->RSSetScissorRects(1, &scissorRect);
+
+    m_commandList->Close();
+
+    // -- Execute the data --
+    ID3D12CommandList* const lists[] =
+    {
+        m_commandList.Get()
+    };
+    m_commandQueue->ExecuteCommandLists(1, lists);
+
+    // -- End of render frame will present to the screen and signal the command queue --
+    D3D12_CHECK(m_swapchain->Present(1, 0));
+
+	D3D12_CHECK(m_commandQueue->Signal(m_commandQueueFence.Get(), ++m_commandQueueFenceValue));
+    frameResources.FenceValue = m_commandQueueFenceValue;
+	m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();
+}
+
+void FrameLoop()
+{
+	fp32 elapsedInterval = 0.0f;
+	u64 fps = 0u;
+
+	while (m_window->PollEvents())
+	{
+        Tick();
+        Render();
+
+		++fps;
+		if (m_time.GetElapsedSeconds() - elapsedInterval > 1.0f)
+		{
+			m_window->SetWindowTitle(std::format("{} fps: {} - mspf: {}",
+				PROJECT_NAME,
+				static_cast<fp32>(fps),
+				static_cast<fp32>(1000.0f / fps))
+			);
+        
+			elapsedInterval += 1.0f;
+			fps = 0;
+		}
+	}
+}
+
+void Terminate()
+{
+    WaitForCommandQueueFence(m_commandQueueFence->GetCompletedValue()); //Flush.
+    CloseHandle(m_commandQueueFenceEvent);
+}
 
 int main(int argc, char** argv)
 {
+    m_time.Start();
+
 	const dxray::ApplicationCreateInfo appInfo =
 	{
 		.Title = PROJECT_NAME,
@@ -276,12 +376,16 @@ int main(int argc, char** argv)
         .Title = appInfo.Title,
         .Rect = appInfo.Rect
     };
-
     m_window = std::make_unique<WinApiWindow>(windowInfo);
     
     CreateDevice(m_device);
+    CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
     CreateSwapchain(m_swapchain, appInfo.Rect.Width, appInfo.Rect.Height);
+    CreateFrameResources();
 
+    FrameLoop();
+
+    Terminate();
 
 	return 0;
 }
