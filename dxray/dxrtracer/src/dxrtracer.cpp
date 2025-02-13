@@ -79,7 +79,7 @@ struct FrameResources
 	u64 FenceValue;
 };
 
-inline constexpr u32 SwapchainBackbufferCount = 3;
+inline constexpr u32 SwapchainBackbufferCount = 2;
 std::array<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
 std::array<FrameResources, SwapchainBackbufferCount> m_frameResources;
 u32 m_swapchainIndex = 0;
@@ -285,7 +285,7 @@ void WaitForCommandQueueFence(const u64 a_fenceValue)
     if (completedValue < a_fenceValue)
     {
 		D3D12_CHECK(m_commandQueueFence->SetEventOnCompletion(a_fenceValue, m_commandQueueFenceEvent));
-		WaitForSingleObject(m_commandQueueFenceEvent, static_cast<DWORD>(vath::Infinity<fp32>()));
+		WaitForSingleObject(m_commandQueueFenceEvent, u32max);
     }
 }
 
@@ -303,16 +303,22 @@ void Render()
     FrameResources& frameResources = m_frameResources[m_swapchainIndex];
     WaitForCommandQueueFence(frameResources.FenceValue);
 
-    // -- Record the data --
-    D3D12_CHECK(frameResources.CommandAllocator->Reset());
+	// -- Record the data --
+	D3D12_CHECK(frameResources.CommandAllocator->Reset());
     D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
-    CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<fp32>(m_window->GetWidthInPx()), static_cast<fp32>(m_window->GetHeightInPx()), 0.001f, 1000.0f);
-    m_commandList->RSSetViewports(1, &viewport);
-    CD3DX12_RECT scissorRect(0, 0, static_cast<ULONG>(m_window->GetWidthInPx()), static_cast<ULONG>(m_window->GetHeightInPx()));
-    m_commandList->RSSetScissorRects(1, &scissorRect);
+    ID3D12Resource* rt = m_swapchainRenderTargets[m_swapchainIndex].Get();
+    CD3DX12_RESOURCE_BARRIER bar = CD3DX12_RESOURCE_BARRIER::Transition(m_swapchainRenderTargets[m_swapchainIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	m_commandList->ResourceBarrier(1, &bar);
 
-    m_commandList->Close();
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_swapchainIndex, m_rtvDescriptorSize);
+	const fp32 clearColor[] = { 200/255.0f, 96.0f/255.f, 24.0f/255.0f, 1.0f };
+	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+    CD3DX12_RESOURCE_BARRIER bar2 = CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	m_commandList->ResourceBarrier(1, &bar2);
+
+    D3D12_CHECK(m_commandList->Close());
 
     // -- Execute the data --
     ID3D12CommandList* const lists[] =
@@ -323,7 +329,6 @@ void Render()
 
     // -- End of render frame will present to the screen and signal the command queue --
     D3D12_CHECK(m_swapchain->Present(1, 0));
-
 	D3D12_CHECK(m_commandQueue->Signal(m_commandQueueFence.Get(), ++m_commandQueueFenceValue));
     frameResources.FenceValue = m_commandQueueFenceValue;
 	m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();

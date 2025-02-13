@@ -25,22 +25,22 @@ namespace dxray
 
 	using usize = std::size_t;
 
-	constexpr u8 u8max = std::numeric_limits<u8>::max();
-	constexpr u16 u16max = std::numeric_limits<u16>::max();
-	constexpr u32 u32max = std::numeric_limits<u32>::max();
-	constexpr u64 u64max = std::numeric_limits<u64>::max();
+	inline constexpr u8 u8max = std::numeric_limits<u8>::max();
+	inline constexpr u16 u16max = std::numeric_limits<u16>::max();
+	inline constexpr u32 u32max = std::numeric_limits<u32>::max();
+	inline constexpr u64 u64max = std::numeric_limits<u64>::max();
 
-	constexpr i8 i8min = std::numeric_limits<i8>::min();
-	constexpr i8 i8max = std::numeric_limits<i8>::max();
-	constexpr i16 i16min = std::numeric_limits<i16>::min();
-	constexpr i16 i16max = std::numeric_limits<i16>::max();
-	constexpr i32 i32min = std::numeric_limits<i32>::min();
-	constexpr i32 i32max = std::numeric_limits<i32>::max();
-	constexpr i64 i64min = std::numeric_limits<i64>::min();
-	constexpr i64 i64max = std::numeric_limits<i64>::max();
+	inline constexpr i8 i8min = std::numeric_limits<i8>::min();
+	inline constexpr i8 i8max = std::numeric_limits<i8>::max();
+	inline constexpr i16 i16min = std::numeric_limits<i16>::min();
+	inline constexpr i16 i16max = std::numeric_limits<i16>::max();
+	inline constexpr i32 i32min = std::numeric_limits<i32>::min();
+	inline constexpr i32 i32max = std::numeric_limits<i32>::max();
+	inline constexpr i64 i64min = std::numeric_limits<i64>::min();
+	inline constexpr i64 i64max = std::numeric_limits<i64>::max();
 
-	constexpr fp32 fp32min = std::numeric_limits<fp32>::lowest();
-	constexpr fp32 fp32max = std::numeric_limits<fp32>::max();
-	constexpr fp64 fp64min = std::numeric_limits<fp64>::lowest();
-	constexpr fp64 fp64max = std::numeric_limits<fp64>::max();
+	inline constexpr fp32 fp32min = std::numeric_limits<fp32>::lowest();
+	inline constexpr fp32 fp32max = std::numeric_limits<fp32>::max();
+	inline constexpr fp64 fp64min = std::numeric_limits<fp64>::lowest();
+	inline constexpr fp64 fp64max = std::numeric_limits<fp64>::max();
 }
