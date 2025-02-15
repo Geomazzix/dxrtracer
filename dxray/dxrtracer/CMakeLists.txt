@@ -1,20 +1,11 @@
 cmake_minimum_required(VERSION 3.27)
 
 set(HEADERS
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/dxrtracer.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/renderer.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/window.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/dx12/d3d12Device.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/dx12/d3d12CommandQueue.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/dx12/d3d12CommandBuffer.h"
 )
 
 set(SOURCE
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/dx12/d3d12Device.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/dx12/d3d12CommandQueue.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/dx12/d3d12CommandBuffer.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/dxrtracer.cpp"
 )
 
