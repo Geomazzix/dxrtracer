@@ -9,7 +9,8 @@ endif()
 
 #Project setup.
 set(PROJECT_NAME dxrRaytracer)
-message("Creating project [${PROJECT_NAME}] working environment with toolchain: ${CMAKE_TOOLCHAIN_FILE}")
+message("Creating [${PROJECT_NAME}]")
+message(STATUS "[Config] Selected configuration: ${CMAKE_BUILD_TYPE}") #Its unsure whether cmake integration in visual studio can generate more than one configuration at a time, therefore inform which is last configured.
 
 #Hardcoded version for now - not really important to keept track of as this is not a commercially released product.
 set(PROJECT_VERSION_MAJOR 0)
@@ -26,9 +27,9 @@ project(
 )
 
 #Set the build directories for all output to the same directory.
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 #Global includes.
-add_subdirectory(dxray)
+add_subdirectory(engine)

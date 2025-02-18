@@ -1,0 +1,20 @@
+@PACKAGE_INIT@
+
+#Look for installed dependencies.
+include(CMakeFindDependencyMacro)
+find_dependency(Threads)
+
+#Add cmake utility files.
+include(${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Exports.cmake)
+
+#Externals
+include(${CMAKE_CURRENT_LIST_DIR}/external/findD3dx12.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/external/findD3d12sdk.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/external/findExternals.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/external/findGoogleTest.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/external/findStb.cmake)
+
+#Utility
+include(${CMAKE_CURRENT_LIST_DIR}/utility/targetUtility.cmake)
+
+check_required_Components(@PROJECT_NAME@)
