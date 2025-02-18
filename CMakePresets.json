@@ -26,7 +26,7 @@
       "architecture": "x64",
       "environment": {
         "BASE_C_FLAGS": "",
-        "BASE_CXX_FLAGS": "/W3 /WX /MP /EHsc",
+        "BASE_CXX_FLAGS": "/W3 /WX /MP /EHsc", //#Todo: Investigate why certain config were complaining when exceptions were turned off.
         "BASE_LINKER_FLAGS": "/ENTRY:mainCRTStartup"
       },
       "cacheVariables": {
@@ -54,7 +54,7 @@
       "name": "msvc-x64-debug",
       "inherits": "msvc-x64",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "$env{BASE_CXX_FLAGS} /Od /Ob0 /Oi- /Z7",
+        "CMAKE_CXX_FLAGS_INIT": "$env{BASE_CXX_FLAGS} /Od /Ob0 /Oi- /Z7",
         "CMAKE_EXE_LINKER_FLAGS": "$env{BASE_LINKER_FLAGS} /DEBUG:FULL /SUBSYSTEM:CONSOLE",
         "CMAKE_BUILD_TYPE": "debug"
       }
@@ -63,7 +63,7 @@
       "name": "msvc-x64-development",
       "inherits": "msvc-x64",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "$env{BASE_CXX_FLAGS} /O2 /Ob1 /Ot /Oi /Z7",
+        "CMAKE_CXX_FLAGS_INIT": "$env{BASE_CXX_FLAGS} /O2 /Ob1 /Ot /Oi /Z7",
         "CMAKE_EXE_LINKER_FLAGS": "$env{BASE_LINKER_FLAGS} /DEBUG /SUBSYSTEM:CONSOLE",
         "CMAKE_BUILD_TYPE": "development"
       }
@@ -72,7 +72,7 @@
       "name": "msvc-x64-release",
       "inherits": "msvc-x64",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "$env{BASE_CXX_FLAGS} /O2 /Ob2 /Ot /Oi",
+        "CMAKE_CXX_FLAGS_INIT": "$env{BASE_CXX_FLAGS} /O2 /Ob2 /Ot /Oi",
         "CMAKE_EXE_LINKER_FLAGS": "$env{BASE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS",
         "CMAKE_BUILD_TYPE": "release"
       }
