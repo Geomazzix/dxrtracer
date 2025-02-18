@@ -5,7 +5,7 @@
 
 namespace dxray::riow
 {
-    inline Path AssetRootDirectory = Path(ASSET_ROOT_DIRECTORY);
+    inline Path AssetRootDirectory = Path(ENGINE_ASSET_DIRECTORY);
 
     /// <summary>
     /// Holds byte formatted image data.
