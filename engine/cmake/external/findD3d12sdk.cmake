@@ -13,12 +13,11 @@ else()
 endif()
 
 #Note: Reason for DXIL to be explicitly copied over is because it doesn't have an import library - so either copy it over or find a way to point to dll location to load.
-add_custom_command(
-    OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/dxil.dll"
-    DEPENDS "${WIN10_SDK_PATH}/bin/${WIN10_SDK_VERSION}/x64/dxil.dll"
-    COMMAND ${CMAKE_COMMAND} 
-    ARGS -E copy_if_different "${WIN10_SDK_PATH}/bin/${WIN10_SDK_VERSION}/x64/dxil.dll" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}"
+add_custom_target(copy_dxil ALL
+  COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+    "${WIN10_SDK_PATH}/bin/${WIN10_SDK_VERSION}/x64/dxil.dll"
+    $<$<CONFIG:debug>:"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/debug">
+    $<$<CONFIG:development>:"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/development">
+    $<$<CONFIG:release>:"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/release">
 )
-
-add_custom_target(copy_dxil ALL DEPENDS "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/dxil.dll")
 set_target_properties(copy_dxil PROPERTIES FOLDER "${THIRD_PARTY_FOLDER}/directx")

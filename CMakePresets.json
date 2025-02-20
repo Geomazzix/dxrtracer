@@ -1,33 +1,25 @@
 {
-  // --- Version ---
   "version": 3,
   "cmakeMinimumRequired": {
     "major": 3,
     "minor": 27,
     "patch": 0
   },
-
-  // --- Configuration ---
   "configurePresets": [
-
-    // -- Platform agnostic --
     {
-      "name": "base",
+      "name": "base-x64",
       "hidden": true,
+      "architecture": "x64",
       "binaryDir": "${sourceDir}/intermediate/"
     },
-
-    // -- Windows only --
     {
       "name": "msvc-x64",
-      "hidden": true,
-      "inherits": "base",
+      "inherits": "base-x64",
       "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
       "environment": {
-        "BASE_C_FLAGS": "",
-        "BASE_CXX_FLAGS": "/W3 /WX /MP /EHsc", //#Todo: Investigate why certain config were complaining when exceptions were turned off.
-        "BASE_LINKER_FLAGS": "/ENTRY:mainCRTStartup"
+        "MULTI_CONFIG_C_FLAGS": "",
+        "MULTI_CONFIG_CXX_FLAGS": "/W3 /WX /MP /EHsc",
+        "MULTI_CONFIG_LINKER_FLAGS": "/ENTRY:mainCRTStartup"
       },
       "cacheVariables": {
         "CMAKE_SYSTEM_NAME": "Windows",
@@ -39,71 +31,48 @@
         "CMAKE_C_STANDARD_REQUIRED": "ON",
         "CMAKE_C_EXTENSIONS": "OFF",
 
+        "CMAKE_C_FLAGS_DEBUG_INIT": "$env{MULTI_CONFIG_C_FLAGS}",
+        "CMAKE_C_FLAGS_DEVELOPMENT_INIT": "$env{MULTI_CONFIG_C_FLAGS}",
+        "CMAKE_C_FLAGS_RELEASE_INIT": "$env{MULTI_CONFIG_C_FLAGS}",
+
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_CXX_STANDARD": "20",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_CXX_EXTENSIONS": "OFF",
+
+        "CMAKE_CXX_FLAGS_DEBUG_INIT": "$env{MULTI_CONFIG_CXX_FLAGS} /Od /Ob0 /Oi- /Z7",
+        "CMAKE_CXX_FLAGS_DEVELOPMENT_INIT": "$env{MULTI_CONFIG_CXX_FLAGS} /O2 /Ob1 /Ot /Oi /Z7",
+        "CMAKE_CXX_FLAGS_RELEASE_INIT": "$env{MULTI_CONFIG_CXX_FLAGS} /O2 /Ob2 /Ot /Oi",
+
+        "CMAKE_EXE_LINKER_FLAGS_DEBUG_INIT": "$env{MULTI_CONFIG_LINKER_FLAGS} /DEBUG:FULL /SUBSYSTEM:CONSOLE",
+        "CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT_INIT": "$env{MULTI_CONFIG_LINKER_FLAGS} /DEBUG /SUBSYSTEM:CONSOLE",
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT": "$env{MULTI_CONFIG_LINKER_FLAGS} /SUBSYSTEM:WINDOWS"
       },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       }
-    },
-    {
-      "name": "msvc-x64-debug",
-      "inherits": "msvc-x64",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "$env{BASE_CXX_FLAGS} /Od /Ob0 /Oi- /Z7",
-        "CMAKE_EXE_LINKER_FLAGS": "$env{BASE_LINKER_FLAGS} /DEBUG:FULL /SUBSYSTEM:CONSOLE",
-        "CMAKE_BUILD_TYPE": "debug"
-      }
-    },
-    {
-      "name": "msvc-x64-development",
-      "inherits": "msvc-x64",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "$env{BASE_CXX_FLAGS} /O2 /Ob1 /Ot /Oi /Z7",
-        "CMAKE_EXE_LINKER_FLAGS": "$env{BASE_LINKER_FLAGS} /DEBUG /SUBSYSTEM:CONSOLE",
-        "CMAKE_BUILD_TYPE": "development"
-      }
-    },
-    {
-      "name": "msvc-x64-release",
-      "inherits": "msvc-x64",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "$env{BASE_CXX_FLAGS} /O2 /Ob2 /Ot /Oi",
-        "CMAKE_EXE_LINKER_FLAGS": "$env{BASE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS",
-        "CMAKE_BUILD_TYPE": "release"
-      }
     }
-
-    // -- <other platforms --
   ],
-
-  // --- Build ---
   "buildPresets": [
-
-    // -- Windows only --
     {
       "name": "msvc-x64-debug",
-      "configurePreset": "msvc-x64-debug",
+      "configurePreset": "msvc-x64",
       "configuration": "debug",
       "displayName": "msvc-x64-debug"
     },
     {
       "name": "msvc-x64-development",
-      "configurePreset": "msvc-x64-development",
+      "configurePreset": "msvc-x64",
       "configuration": "development",
       "displayName": "msvc-x64-development"
     },
     {
       "name": "msvc-x64-release",
-      "configurePreset": "msvc-x64-release",
+      "configurePreset": "msvc-x64",
       "configuration": "release",
       "displayName": "msvc-x64-release"
     }
-
-    // -- <other platforms --
   ]
 }
