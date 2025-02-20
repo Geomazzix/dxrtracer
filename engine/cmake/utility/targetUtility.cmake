@@ -1,19 +1,30 @@
 cmake_minimum_required(VERSION 3.27)
 
-#Maps the given sources to a filter in MSVC
+#Maps the given sources to a filter in Visual studio - 
 function(map_source_to_filter)
-    if(MSVC)
-        foreach(SOURCE_ITEM IN ITEMS ${ARGN})
-            if (IS_ABSOLUTE "${SOURCE_ITEM}")
-                file(RELATIVE_PATH RELATIVE_SOURCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${SOURCE_ITEM}")
+    cmake_parse_arguments(
+        SOURCE
+        ""
+        "STRIP_PREFIX;FILTER_ROOT"
+        "FILES"
+        ${ARGN}
+    )
+
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+        foreach(FILE_PATH IN ITEMS ${SOURCE_FILES})
+            if (IS_ABSOLUTE "${FILE_PATH}")
+                file(RELATIVE_PATH RELATIVE_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_STRIP_PREFIX}" "${FILE_PATH}")
             else()
-                set(RELATIVE_SOURCE_PATH "${SOURCE_ITEM}")
+                set(RELATIVE_FILE_PATH "${FILE_PATH}")
             endif()
 
-            get_filename_component(SOURCE_PATH "${RELATIVE_SOURCE_PATH}" PATH)
-            string(REPLACE "/" "\\" SOURCE_PATH_MSVC "${SOURCE_PATH}")
-            source_group("${SOURCE_PATH_MSVC}" FILES "${SOURCE_ITEM}")
+            get_filename_component(FILTER_PATH "${RELATIVE_FILE_PATH}" DIRECTORY)           
+            string(REPLACE "/" "\\" SOURCE_PATH_MSVC "${SOURCE_FILTER_ROOT}/${FILTER_PATH}")
+            source_group("${SOURCE_PATH_MSVC}" FILES "${FILE_PATH}")
+
         endforeach()
+    else()
+        message(FATAL_ERROR "The currently defined IDE does not have an implementation for source mappings. Ensure to define behaviour for this IDE.")
     endif()
 endfunction(map_source_to_filter)
 
@@ -29,9 +40,17 @@ function(target_set_ide_folders)
     )
 
     #Setup of the msvc filters.
-    if(MSVC)
-        map_source_to_filter(${TARGET_HEADERS})
-        map_source_to_filter(${TARGET_SOURCE})
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+        map_source_to_filter(
+            STRIP_PREFIX "include/${TARGET_NAME}"
+            FILTER_ROOT "Header Files"
+            FILES "${TARGET_HEADERS}"
+        )
+        map_source_to_filter(
+            STRIP_PREFIX "src" 
+            FILTER_ROOT "Source Files"
+            FILES "${TARGET_SOURCE}"
+        )
 
         #Append the target to the modules filter if its not an runnable instance.
         if("${TARGET_FILTER}" STREQUAL "")
@@ -67,7 +86,10 @@ function(project_add_interface)
 	    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/>
     )
 
-    target_link_libraries(${TARGET_NAME} INTERFACE ${TARGET_LINK_DEPS})
+    target_link_libraries(${TARGET_NAME} 
+    INTERFACE 
+        ${TARGET_LINK_DEPS}
+    )
     
     target_set_ide_folders(
         NAME ${TARGET_NAME}
@@ -138,7 +160,10 @@ function(project_add_target)
 	    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/>
     )
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ${TARGET_LINK_DEPS})
+    target_link_libraries(${TARGET_NAME} 
+    PUBLIC 
+        ${TARGET_LINK_DEPS}
+    )
     
     target_compile_definitions(${TARGET_NAME}
     PRIVATE
