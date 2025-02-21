@@ -73,15 +73,27 @@ void CreateDevice(ComPtr<ID3D12Device>& a_device)
     {
         //Debug layers.
         ComPtr<ID3D12Debug> debugController;
-        D3D12_CHECK(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-        debugController->EnableDebugLayer();
-        dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+        {
+		    debugController->EnableDebugLayer();
+		    dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+        }
+        else
+        {
+		    DXRAY_WARN("Could not retrieve DRED d3d12 debug interface, if this debugging layer is needed ensure that a compatible SDK and devtools are installed");
+        }
 
         //For "Device Removed Extended Data".
         ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dredSettings;
-        D3D12_CHECK(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings)));
-        dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings))))
+        {
+		    dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		    dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        }
+        else
+        {
+            DXRAY_WARN("Could not retrieve DRED d3d12 debug interface, if this debugging layer is needed ensure that a compatible SDK and devtools are installed");
+        }
     }
 #endif
 
@@ -91,6 +103,7 @@ void CreateDevice(ComPtr<ID3D12Device>& a_device)
     {
 		ComPtr<IDXGIAdapter1> hardwareAdapter = nullptr;
 		//#Todo: Could possibly query for specific GPUs - if the wrong GPU is ever selected.
+        //       Ensure that the selected GPU supports the REQUIRED feature set, excluding potential optional features.
 		D3D12_CHECK(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
         if (m_device != nullptr)
         {
@@ -109,31 +122,32 @@ void CreateDevice(ComPtr<ID3D12Device>& a_device)
 #ifndef CONFIG_RELEASE
     {
         ComPtr<ID3D12InfoQueue> pInfoQueue;
-        D3D12_CHECK(m_device.As(&pInfoQueue));
-
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
-
-        // Suppress messages based on their severity level
-        D3D12_MESSAGE_SEVERITY Severities[] =
+        if (SUCCEEDED(m_device.As(&pInfoQueue)))
         {
-            D3D12_MESSAGE_SEVERITY_INFO
-        };
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+			pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
 
-        // Suppress individual messages by their ID
-        D3D12_MESSAGE_ID DenyIds[] = {
-            D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
-            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
-            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
-        };
+			// Suppress messages based on their severity level
+			D3D12_MESSAGE_SEVERITY Severities[] =
+			{
+				D3D12_MESSAGE_SEVERITY_INFO
+			};
 
-        D3D12_INFO_QUEUE_FILTER newFilter = {};
-        newFilter.DenyList.NumSeverities = _countof(Severities);
-        newFilter.DenyList.pSeverityList = Severities;
-        newFilter.DenyList.NumIDs = _countof(DenyIds);
-        newFilter.DenyList.pIDList = DenyIds;
-        D3D12_CHECK(pInfoQueue->PushStorageFilter(&newFilter));
+			// Suppress individual messages by their ID
+			D3D12_MESSAGE_ID DenyIds[] = {
+				D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
+				D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
+				D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+			};
+
+			D3D12_INFO_QUEUE_FILTER newFilter = {};
+			newFilter.DenyList.NumSeverities = _countof(Severities);
+			newFilter.DenyList.pSeverityList = Severities;
+			newFilter.DenyList.NumIDs = _countof(DenyIds);
+			newFilter.DenyList.pIDList = DenyIds;
+			D3D12_CHECK(pInfoQueue->PushStorageFilter(&newFilter));
+        }
     }
 #endif
 }
@@ -312,12 +326,6 @@ void FrameLoop()
 	}
 }
 
-void Terminate()
-{
-    WaitForCommandQueueFence(m_commandQueueFence->GetCompletedValue()); //Flush.
-    CloseHandle(m_commandQueueFenceEvent);
-}
-
 
 // --- Entrypoint ---
 
@@ -350,7 +358,8 @@ int main(int argc, char** argv)
 
     FrameLoop();
 
-    Terminate();
+	WaitForCommandQueueFence(m_commandQueueFence->GetCompletedValue()); //Flush the gpu.
+	CloseHandle(m_commandQueueFenceEvent);
 
 	return 0;
 }
