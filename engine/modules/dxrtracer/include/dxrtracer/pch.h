@@ -26,6 +26,7 @@
 #include <dxgi1_6.h>
 #include <dxcapi.h>
 #include <d3dcompiler.h>
+#include <DirectXMath.h>
 
 using Microsoft::WRL::ComPtr;
 

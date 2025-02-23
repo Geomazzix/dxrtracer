@@ -2,11 +2,92 @@
 #include "dxrtracer/window.h"
 #include <core/time/stopwatch.h>
 
+using namespace dxray;
+
 //#Todo: no functions have proper error checking, add errors for different parts of the codebase.
+//#Todo: Implement something alike vk::ArrayProxy. This would serve as a wrapper for std::array, std::vector and std::initializer_list which prevents raw pointer arguments.
+
+/*#Todo: Abstract acceleration structures into a scalable world hierarchy:
+World (geometry data):
+- Tlas (main all-owning Tlas)
+    - Tlas (scene/chunk tlas - depending on whether world partitioning is a thing and whether depth based updating is a thing - see Cascaded Shadow Map update rates.)
+        - Blas (x-amount per Tlas *should* be reusable. Note that the way these are constructed is heavily dependant on the type of geometry, see D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS.)
+
+- Each Blas should be assigned to a mesh/model (or multiple, depending on the level of abstraction/optimization).
+- Each Tlas should be owned by the world and managed by the world, update on the CPU, rebuild on the GPU.
+- Each mesh/model has indices/handles that can be used to identify and set the PSO/rootsigs accordingly.
+*/
+
+//#Todo: When abstracting the CreateBlas into something class/data oriented ensure less arguments, this sucks :(
+
+
+/*
+!The last bits to get this to work:
+1. PSO + shader linking to PSO.
+2. Rewrite swapchain render target management -> this needs to use UAVs as the shader most likely won't allow non-UAV writing - raytracing shaders are considered compute shaders as far as I'm aware.
+3. Implement the render function correctly.
+*/
+
+
+// --- Asset data ---
+
+constexpr fp32 m_quadVertices[] = { 
+    -1, 0, -1, 
+    -1, 0,  1, 
+    1, 0, 1,
+    -1, 0, -1,  
+    1, 0, -1, 
+    1, 0, 1 
+};
+
+constexpr fp32 m_cubeVertices[] = {
+    -1, -1, -1, 
+    1, -1, -1, 
+    -1, 1, -1, 
+    1, 1, -1,
+    -1, -1,  1, 
+    1, -1,  1, 
+    -1, 1,  1, 
+    1, 1,  1 
+};
+
+constexpr u16 m_cubeIndicies[] = {
+    4, 6, 0, 
+    2, 0, 6, 
+    0, 1, 4, 
+    5, 4, 1,
+    0, 2, 1, 
+    3, 1, 2, 
+    1, 3, 5, 
+    7, 5, 3,
+    2, 6, 3, 
+    7, 3, 6, 
+    4, 5, 6, 
+    7, 6, 5 
+};
+
+ComPtr<ID3D12Resource> m_quadVertexBuffer;
+ComPtr<ID3D12Resource> m_cubeVertexBuffer;
+ComPtr<ID3D12Resource> m_cubeIndexBuffer;
+
+struct AccelerationStructure
+{
+	ComPtr<ID3D12Resource> Buffer;
+	ComPtr<ID3D12Resource> Scratch; //#Note: scratch memory is used during the building of the BVH. After this is can be reused for other purposes - source: do and don't from nvidia.
+};
+
+AccelerationStructure m_quadBlas;
+AccelerationStructure m_cubeBlas;
+
+u32 m_numBlas = 3; //3 objects, a cube, a mirror quad and the floor quad.
+ComPtr<ID3D12Resource> m_blasInstanceBuffer;
+void* m_blasInstanceBufferAddr;
+
+ComPtr<ID3D12RootSignature> m_rootSig;
+ComPtr<ID3D12PipelineLibrary> m_pipelineStateObject;
+
 
 // --- DX12 primitives ---
-
-using namespace dxray;
 
 Stopwatchf m_time;
 std::unique_ptr<WinApiWindow> m_window;
@@ -24,17 +105,21 @@ ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
 struct FrameResources
 {
-	ComPtr<ID3D12CommandAllocator> CommandAllocator;
-	u64 FenceValue;
+	AccelerationStructure WorldTlas;
+	ComPtr<ID3D12CommandAllocator> CommandAllocator = nullptr;
+	u64 FenceValue = 0;
 };
 
-inline constexpr u32 SwapchainBackbufferCount = 2;
+inline constexpr u32 SwapchainBackbufferCount = 3;
 std::array<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
 std::array<FrameResources, SwapchainBackbufferCount> m_frameResources;
 u32 m_swapchainIndex = 0;
 u32 m_rtvDescriptorSize = 0;
 ComPtr<ID3D12DescriptorHeap> m_rtvHeap = nullptr;
 ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
+
+std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAccelerationStructures;
+ComPtr<ID3D12Resource> m_topLevelAccelerationStructure = nullptr;
 
 inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
 {
@@ -64,7 +149,7 @@ inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
 }
 
 
-// --- Creating primitives ---
+// --- Creating D3D12 primitives ---
 
 void CreateDevice(ComPtr<ID3D12Device>& a_device)
 {
@@ -256,12 +341,309 @@ void WaitForCommandQueueFence(const u64 a_fenceValue)
     }
 }
 
+void CreateReadBackBuffer(ComPtr<ID3D12Resource>& a_resource, const void* a_pData, const u32 a_sizeInBytes)
+{
+    //#Todo: Horrendous non-optimized buffer, this needs proper upload management.
+
+    //A buffer in d3d12 is represented as a 1 dimensional aligned resource.
+    const D3D12_RESOURCE_DESC bufferDesc =
+    {
+        .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+        .Alignment = 0,
+        .Width = a_sizeInBytes,
+        .Height = 1,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_UNKNOWN,
+        .SampleDesc = { 1, 0 },
+        .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+        .Flags = D3D12_RESOURCE_FLAG_NONE
+    };
+
+    const D3D12_HEAP_PROPERTIES uploadHeapProperties =
+    {
+		.Type = D3D12_HEAP_TYPE_UPLOAD
+    };
+
+    D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&a_resource)));
+    if (a_resource != nullptr)
+    {
+		void* mappedAddr = nullptr;
+        a_resource->Map(0, nullptr, &mappedAddr);
+		memcpy(mappedAddr, a_pData, a_sizeInBytes);
+        a_resource->Unmap(0, nullptr);
+    }
+}
+
+void CreateSceneInstances()
+{
+	const D3D12_RESOURCE_DESC bufferDesc =
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+		.Alignment = 0,
+		.Width = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * m_numBlas,
+		.Height = 1,
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.SampleDesc = { 1, 0 },
+		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+		.Flags = D3D12_RESOURCE_FLAG_NONE
+	};
+
+	const D3D12_HEAP_PROPERTIES heapProps =
+	{
+		.Type = D3D12_HEAP_TYPE_UPLOAD
+	};
+
+	D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_blasInstanceBuffer)));
+	if (!m_blasInstanceBuffer)
+	{
+        return;
+	}
+
+	m_blasInstanceBuffer->Map(0, nullptr, &m_blasInstanceBufferAddr);
+	D3D12_RAYTRACING_INSTANCE_DESC* const instances = static_cast<D3D12_RAYTRACING_INSTANCE_DESC* const>(m_blasInstanceBufferAddr);
+	instances[0] =
+	{
+		.InstanceID = 0,
+		.InstanceMask = 1,
+		.AccelerationStructure = m_cubeBlas.Buffer->GetGPUVirtualAddress()
+	};
+
+	instances[1] =
+	{
+		.InstanceID = 1,
+		.InstanceMask = 1,
+		.AccelerationStructure = m_quadBlas.Buffer->GetGPUVirtualAddress()
+	};
+
+	instances[2] =
+	{
+		.InstanceID = 2,
+		.InstanceMask = 1,
+		.AccelerationStructure = m_quadBlas.Buffer->GetGPUVirtualAddress()
+	};
+}
+
+void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& a_asInputs)
+{
+	auto CreateGpuBuffer = [](u64 a_sizeInBytes, D3D12_RESOURCE_STATES a_initialState)
+    {
+		const D3D12_RESOURCE_DESC resourceDesc =
+		{
+			.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+			.Alignment = 0,
+			.Width = a_sizeInBytes,
+			.Height = 1,
+			.DepthOrArraySize = 1,
+			.MipLevels = 1,
+			.Format = DXGI_FORMAT_UNKNOWN,
+			.SampleDesc = { 1, 0 },
+			.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+			.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+		};
+
+		const D3D12_HEAP_PROPERTIES heapProps =
+		{
+			.Type = D3D12_HEAP_TYPE_DEFAULT
+		};
+        
+		ComPtr<ID3D12Resource> resource;
+		D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, a_initialState, nullptr, IID_PPV_ARGS(&resource)));
+		return resource;
+	};
+
+    ComPtr<ID3D12Device5> dxrDevice;
+    D3D12_CHECK(m_device.As(&dxrDevice));
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
+    dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&a_asInputs, &prebuildInfo);
+
+    a_as.Scratch = CreateGpuBuffer(prebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_STATE_COMMON);
+    a_as.Buffer = CreateGpuBuffer(prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+
+    const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc =
+    {
+        .DestAccelerationStructureData = a_as.Buffer->GetGPUVirtualAddress(),
+        .Inputs = a_asInputs,
+        .ScratchAccelerationStructureData = a_as.Scratch->GetGPUVirtualAddress()
+    };
+
+	ComPtr<ID3D12GraphicsCommandList5> cmdList;
+	D3D12_CHECK(a_cmdList.As(&cmdList));
+    cmdList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
+
+    //#Todo: once queuing for multiple builds ensure that multiple barriers are batched.
+	const D3D12_RESOURCE_BARRIER asbarrier =
+	{
+		.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
+		.UAV =
+		{
+			.pResource = a_as.Buffer.Get()
+		}
+	};
+    cmdList->ResourceBarrier(1, &asbarrier);
+}
+
+void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const u32 a_vsCount, ComPtr<ID3D12Resource> a_idBuffer = nullptr, const u32 a_idCount = 0)
+{
+    const D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE vertexBuffer =
+    {
+        .StartAddress = a_vsBuffer->GetGPUVirtualAddress(),
+        .StrideInBytes = sizeof(fp32) * 3
+    };
+
+    //#Todo: Could possibly be retrieved through shader reflection?
+    const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC triangleDesc =
+    {
+        .Transform3x4 = 0,
+        .IndexFormat = a_idCount > 0 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_UNKNOWN,
+        .VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,
+        .IndexCount = a_idCount > 0 ? a_idCount : 0,
+        .VertexCount = a_vsCount / 3, //#Note: Divide by 3 as the buffer is made up of raw floats.
+        .IndexBuffer = a_idBuffer ? a_idBuffer->GetGPUVirtualAddress() : 0,
+        .VertexBuffer = vertexBuffer
+    };
+
+    //#Todo: add translucency support.
+    const D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc =
+    {
+        .Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
+        .Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE,
+        .Triangles = triangleDesc
+    };
+
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS blasInputs =
+	{
+        .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL,
+        .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE,
+        .NumDescs = 1,
+        .DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
+        .pGeometryDescs = &geometryDesc
+	};
+
+    CreateAccelerationStructure(a_cmdList, a_as, blasInputs);
+}
+
+void CreateTlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as)
+{
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS tlasInputs =
+	{
+        .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
+        .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD,
+        .NumDescs = m_numBlas,
+        .DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
+        .InstanceDescs = m_blasInstanceBuffer->GetGPUVirtualAddress()
+	};
+
+    CreateAccelerationStructure(a_cmdList, a_as, tlasInputs);
+}
+
+void CreateGlobalResources()
+{
+	//#Note: Hack, current commandlist management is limited by the frameloop and does not use pooling, so the first *frame* is spend on resource initialization.
+	FrameResources& frameResources = m_frameResources[m_swapchainIndex];
+
+	D3D12_CHECK(frameResources.CommandAllocator->Reset());
+	D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
+
+    CreateReadBackBuffer(m_quadVertexBuffer, m_quadVertices, sizeof(m_quadVertices));
+	D3D12_NAME_OBJECT(m_quadVertexBuffer, std::format(L"Quad vertex buffer"));
+    CreateReadBackBuffer(m_cubeVertexBuffer, m_cubeVertices, sizeof(m_cubeVertices));
+	D3D12_NAME_OBJECT(m_cubeVertexBuffer, std::format(L"Cube vertex buffer"));
+    CreateReadBackBuffer(m_cubeIndexBuffer, m_cubeIndicies, sizeof(m_cubeIndicies));
+	D3D12_NAME_OBJECT(m_cubeIndexBuffer, std::format(L"Cube index buffer"));
+
+	CreateBlas(m_commandList, m_cubeBlas, m_cubeVertexBuffer, std::size(m_cubeVertices), m_cubeIndexBuffer, std::size(m_cubeIndicies));
+	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Cube Blas Scratch"));
+	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Cube Blas"));
+
+	CreateBlas(m_commandList, m_quadBlas, m_quadVertexBuffer, std::size(m_quadVertices));
+	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Quad Blas Scratch"));
+	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Quad Blas"));
+
+    CreateSceneInstances(); //Depends on the blas being ready to be read.
+
+	D3D12_CHECK(m_commandList->Close());
+	ID3D12CommandList* const lists[] = { m_commandList.Get() };
+	m_commandQueue->ExecuteCommandLists(1, lists);
+	D3D12_CHECK(m_commandQueue->Signal(m_commandQueueFence.Get(), ++m_commandQueueFenceValue));
+	WaitForCommandQueueFence(m_commandQueueFenceValue);
+}
+
+void CreateRayTraceDemoRootSig(ComPtr<ID3D12RootSignature>& a_rootSig)
+{
+	const D3D12_DESCRIPTOR_RANGE uavRange =
+	{
+		.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+		.NumDescriptors = 1,
+	};
+
+    std::array<D3D12_ROOT_PARAMETER, 2> params;
+    
+    //Render target binding.
+    params[0] =
+    {
+		.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+		.DescriptorTable =
+		{
+			.NumDescriptorRanges = 1,
+			.pDescriptorRanges = &uavRange
+		}
+    };
+
+    //TLas binding.
+    params[1] =
+    {
+		.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+		.Descriptor =
+		{
+			.ShaderRegister = 0,
+			.RegisterSpace = 0
+		}
+    };
+
+	const D3D12_ROOT_SIGNATURE_DESC desc =
+	{
+		.NumParameters = static_cast<u32>(params.size()),
+		.pParameters = params.data(),
+        .NumStaticSamplers = 0,
+        .pStaticSamplers = nullptr,
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE //#Todo: investigate which flags to use with a ray trace rootsig - as there are no mentions of dxil libs.
+	};
+
+    //#Todo: Add proper error checking on the return blob.
+	ComPtr<ID3DBlob> blob = nullptr;
+	D3D12_CHECK(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, nullptr));
+	D3D12_CHECK(m_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&a_rootSig)));
+}
+
 
 // --- Engine loop ---
 
-void Tick()
+void Tick(const fp32 a_dt)
 {
+	using namespace DirectX;
+	D3D12_RAYTRACING_INSTANCE_DESC* const instances = static_cast<D3D12_RAYTRACING_INSTANCE_DESC* const>(m_blasInstanceBufferAddr);
 
+    //Cube.
+	XMMATRIX cube = XMMatrixRotationRollPitchYaw(a_dt / 2, a_dt / 3, a_dt / 5);
+	cube *= XMMatrixTranslation(-1.5, 2, 2);
+    XMFLOAT3X4& ptr = reinterpret_cast<XMFLOAT3X4&>(instances[0].Transform);
+	XMStoreFloat3x4(&ptr, cube);
+
+    //Mirror.
+    XMMATRIX mirror = XMMatrixRotationX(-1.8f);
+	mirror *= XMMatrixRotationY(XMScalarSinEst(a_dt) / 8 + 1);
+	mirror *= XMMatrixTranslation(2, 2, 2);
+	ptr = reinterpret_cast<XMFLOAT3X4&>(instances[1].Transform);
+	XMStoreFloat3x4(&ptr, mirror);
+
+    //Floor.
+    XMMATRIX floor = XMMatrixScaling(5, 5, 5);
+	floor *= XMMatrixTranslation(0, 0, 2);
+	ptr = reinterpret_cast<XMFLOAT3X4&>(instances[2].Transform);
+	XMStoreFloat3x4(&ptr, floor);
 }
 
 void Render()
@@ -274,24 +656,27 @@ void Render()
 	D3D12_CHECK(frameResources.CommandAllocator->Reset());
     D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
-    ID3D12Resource* rt = m_swapchainRenderTargets[m_swapchainIndex].Get();
-    CD3DX12_RESOURCE_BARRIER bar = CD3DX12_RESOURCE_BARRIER::Transition(m_swapchainRenderTargets[m_swapchainIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    // - Rebuild Top level acceleration structures -
+    CreateTlas(m_commandList, frameResources.WorldTlas);
+	D3D12_NAME_OBJECT(frameResources.WorldTlas.Scratch, std::format(L"WorldBlasScratch"));
+	D3D12_NAME_OBJECT(frameResources.WorldTlas.Buffer, std::format(L"WorldBlas"));
+
+    // - Present - #Todo: move the swapchain render target copy into a seperate method - no need to clutter up the render function more.
+	ComPtr<ID3D12Resource>& rt = m_swapchainRenderTargets[m_swapchainIndex];
+	CD3DX12_RESOURCE_BARRIER bar = CD3DX12_RESOURCE_BARRIER::Transition(m_swapchainRenderTargets[m_swapchainIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_commandList->ResourceBarrier(1, &bar);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_swapchainIndex, m_rtvDescriptorSize);
-	const fp32 clearColor[] = { 200/255.0f, 96.0f/255.f, 24.0f/255.0f, 1.0f };
+	const fp32 clearColor[] = { 200 / 255.0f, 96.0f / 255.f, 24.0f / 255.0f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
-    CD3DX12_RESOURCE_BARRIER bar2 = CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    CD3DX12_RESOURCE_BARRIER bar2 = CD3DX12_RESOURCE_BARRIER::Transition(rt.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	m_commandList->ResourceBarrier(1, &bar2);
 
     D3D12_CHECK(m_commandList->Close());
 
     // -- Execute the data --
-    ID3D12CommandList* const lists[] =
-    {
-        m_commandList.Get()
-    };
+    ID3D12CommandList* const lists[] = { m_commandList.Get() };
     m_commandQueue->ExecuteCommandLists(1, lists);
 
     // -- End of render frame will present to the screen and signal the command queue --
@@ -304,30 +689,35 @@ void Render()
 void FrameLoop()
 {
 	fp32 elapsedInterval = 0.0f;
-	u64 fps = 0u;
+    fp32 prevFrameSample = 0.0f;
+    u32 fps = 0;
 
 	while (m_window->PollEvents())
 	{
-        Tick();
+        const fp32 dt = m_time.GetElapsedSeconds() - prevFrameSample;
+        prevFrameSample = m_time.GetElapsedSeconds();
+        
+        Tick(dt);
         Render();
 
+        elapsedInterval += dt;
 		++fps;
-		if (m_time.GetElapsedSeconds() - elapsedInterval > 1.0f)
+		if (elapsedInterval > 1.0f)
 		{
 			m_window->SetWindowTitle(std::format("{} fps: {} - mspf: {}",
 				PROJECT_NAME,
-				static_cast<fp32>(fps),
-				static_cast<fp32>(1000.0f / fps))
-			);
+				fps,
+				1000.0f / fps
+			));
         
-			elapsedInterval += 1.0f;
-			fps = 0;
-		}
+			elapsedInterval = 0.0f;
+            fps = 0;
+        }
 	}
 }
 
 
-// --- Entrypoint ---
+// --- Entry point ---
 
 int main(int argc, char** argv)
 {
@@ -355,6 +745,8 @@ int main(int argc, char** argv)
     CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
     CreateSwapchain(m_swapchain, windowInfo.Rect.Width, windowInfo.Rect.Height);
     CreateFrameResources();
+    CreateGlobalResources();
+    CreateRayTraceDemoRootSig(m_rootSig);
 
     FrameLoop();
 
