@@ -23,9 +23,8 @@ World (geometry data):
 
 /*
 !The last bits to get this to work:
-1. PSO + shader linking to PSO.
-2. Rewrite swapchain render target management -> this needs to use UAVs as the shader most likely won't allow non-UAV writing - raytracing shaders are considered compute shaders as far as I'm aware.
-3. Implement the render function correctly.
+1. Rewrite swapchain render target management -> this needs to use UAVs as the shader most likely won't allow non-UAV writing - raytracing shaders are considered compute shaders as far as I'm aware.
+2. Implement the render function correctly.
 */
 
 
@@ -84,7 +83,14 @@ ComPtr<ID3D12Resource> m_blasInstanceBuffer;
 void* m_blasInstanceBufferAddr;
 
 ComPtr<ID3D12RootSignature> m_rootSig;
-ComPtr<ID3D12PipelineLibrary> m_pipelineStateObject;
+
+struct RaytracePipelineStateObject
+{
+    ComPtr<ID3D12StateObject> Pso;
+    ComPtr<ID3D12Resource> ShaderIds;
+    const u32 NumShaderIds = 3;
+};
+RaytracePipelineStateObject m_rtpso;
 
 
 // --- DX12 primitives ---
@@ -609,13 +615,137 @@ void CreateRayTraceDemoRootSig(ComPtr<ID3D12RootSignature>& a_rootSig)
 		.pParameters = params.data(),
         .NumStaticSamplers = 0,
         .pStaticSamplers = nullptr,
-        .Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE //#Todo: investigate which flags to use with a ray trace rootsig - as there are no mentions of dxil libs.
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE
 	};
 
     //#Todo: Add proper error checking on the return blob.
 	ComPtr<ID3DBlob> blob = nullptr;
 	D3D12_CHECK(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, nullptr));
 	D3D12_CHECK(m_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&a_rootSig)));
+}
+
+void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
+{
+    //1. Compile the sahder and create a subobject for it.
+	const ShaderCompilationOptions options =
+	{
+		.OptimizeLevel = EOptimizeLevel::O2,
+		.ShaderModel = EShaderModel::SM6_3,
+		.ShouldKeepDebugInfo = true
+	};
+
+    //#Todo: Move the inline compilation to a different place once abstraction begins.
+    const ShaderCompilationOutput compileRes = m_dxShaderCompiler->CompileShader(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", options);
+    if (compileRes.SizeInBytes <= 0)
+    {
+        return;
+    }
+
+    const D3D12_DXIL_LIBRARY_DESC libDesc =
+    {
+        .DXILLibrary = 
+        {
+            compileRes.Data,
+            compileRes.SizeInBytes
+        },
+        .NumExports = 0,
+        .pExports = nullptr
+    };
+
+    //2. Define a hit group, which the dispatched rays refer to when looking for intersections. These include any form of hit shaders.
+    const D3D12_HIT_GROUP_DESC hitGroupDesc =
+    {
+        .HitGroupExport = L"HitGroup",
+        .Type = D3D12_HIT_GROUP_TYPE_TRIANGLES,
+		.ClosestHitShaderImport = L"ClosestHit"
+    };
+
+    //3. The shader config is responsible for matching the ray payload, defined in the file - #Todo: Investigate shader reflection possabilities.
+    const D3D12_RAYTRACING_SHADER_CONFIG shaderConfig =
+    {
+        .MaxPayloadSizeInBytes = 20,
+        .MaxAttributeSizeInBytes = 8
+    };
+
+    //4. Define a global root signature - #Todo: Investigate local root signatures https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#local-root-signatures-vs-global-root-signatures
+    const D3D12_GLOBAL_ROOT_SIGNATURE globalSig =
+    {
+        m_rootSig.Get()
+    };
+
+    //5. Define the max bounds configuration, going above this will result in a driver crash.
+    const D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig =
+    {
+        .MaxTraceRecursionDepth = 3
+    };
+
+    //6. Pack the subobjects into an array and create the rtpso.
+    std::array<D3D12_STATE_SUBOBJECT, 5> subObjects;
+    subObjects[0] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &libDesc };
+    subObjects[1] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, .pDesc = &hitGroupDesc };
+    subObjects[2] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, .pDesc = &shaderConfig };
+    subObjects[3] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, .pDesc = &globalSig };
+    subObjects[4] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, .pDesc = &pipelineConfig };
+
+    const D3D12_STATE_OBJECT_DESC rtpsoDesc =
+    {
+        .Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
+        .NumSubobjects = static_cast<u32>(subObjects.size()),
+        .pSubobjects = subObjects.data()
+    };
+    
+	ComPtr<ID3D12Device5> dxrDevice;
+	D3D12_CHECK(m_device.As(&dxrDevice));
+    D3D12_CHECK(dxrDevice->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(&a_rtpso.Pso)));
+
+    //7. Store the shader Ids so they can be identified when the rays have to be dispatched.
+	const D3D12_RESOURCE_DESC resourceDesc =
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+		.Alignment = 0,
+		.Width = a_rtpso.NumShaderIds * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, //#Note: shader ids are 32-byte, the other 32 byte required for alignment can be used for root params.
+		.Height = 1,
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.SampleDesc = { 1, 0 },
+		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+		.Flags = D3D12_RESOURCE_FLAG_NONE
+	};
+
+	const D3D12_HEAP_PROPERTIES heapProps =
+	{
+		.Type = D3D12_HEAP_TYPE_UPLOAD
+	};
+
+	D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&a_rtpso.ShaderIds)));
+    if (!a_rtpso.ShaderIds)
+    {
+        DXRAY_ERROR("Failed to create rtpso shader ids buffer!");
+        return;
+    }
+
+	ComPtr<ID3D12StateObjectProperties> psoProps = nullptr;
+	D3D12_CHECK(a_rtpso.Pso.As(&psoProps));
+
+    void* data = nullptr;
+    a_rtpso.ShaderIds->Map(0, nullptr, &data);
+
+    //#Note: Size doesn't matter here as the shaderids are hardcoded anyways :/
+    const std::vector<void*> shaderIds =
+    {
+	    psoProps->GetShaderIdentifier(L"RayGeneration"),
+	    psoProps->GetShaderIdentifier(L"Miss"),
+	    psoProps->GetShaderIdentifier(L"HitGroup")
+    };
+
+    for (u32 i = 0; i < a_rtpso.NumShaderIds; i++)
+    {
+		memcpy(data, shaderIds[i], D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		data = static_cast<u8*>(data) + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+    }
+	
+    a_rtpso.ShaderIds->Unmap(0, nullptr);
 }
 
 
@@ -661,7 +791,23 @@ void Render()
 	D3D12_NAME_OBJECT(frameResources.WorldTlas.Scratch, std::format(L"WorldBlasScratch"));
 	D3D12_NAME_OBJECT(frameResources.WorldTlas.Buffer, std::format(L"WorldBlas"));
 
-    // - Present - #Todo: move the swapchain render target copy into a seperate method - no need to clutter up the render function more.
+    // - Bind all the resources -
+    //ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
+    //D3D12_CHECK(m_commandList.As(&dxrCmdList));
+    //
+    //dxrCmdList->SetPipelineState1(m_rtpso.Pso.Get());
+    //dxrCmdList->SetComputeRootSignature(m_rootSig.Get());
+    //dxrCmdList->SetDescriptorHeaps(1, &uavHeap);
+    //
+    //D3D12_GPU_DESCRIPTOR_HANDLE uavTable = uavHeap->GetGPUDescriptorHandleForHeapStart();
+    //dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
+    //dxrCmdList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
+
+    // - Dispatch the rays! -
+
+
+
+    // - Present - #Todo: move the swapchain render target copy into a separate method - no need to clutter up the render function more.
 	ComPtr<ID3D12Resource>& rt = m_swapchainRenderTargets[m_swapchainIndex];
 	CD3DX12_RESOURCE_BARRIER bar = CD3DX12_RESOURCE_BARRIER::Transition(m_swapchainRenderTargets[m_swapchainIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_commandList->ResourceBarrier(1, &bar);
@@ -737,16 +883,13 @@ int main(int argc, char** argv)
 		.ShouldKeepDebugInfo = true
     };
 
-    //Currently compiles and saves binary data in intermediate directory, these will later be loaded back into memory.
-    //Something that could potentially be done is allowing this dependency to be a standalone tool, though that's something for later.
-    m_dxShaderCompiler->CompileShadersInDirectory(ENGINE_SHADER_DIRECTORY, Path(ENGINE_CACHE_DIRECTORY) / "shaders", options);
-
     CreateDevice(m_device);
     CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
     CreateSwapchain(m_swapchain, windowInfo.Rect.Width, windowInfo.Rect.Height);
     CreateFrameResources();
     CreateGlobalResources();
     CreateRayTraceDemoRootSig(m_rootSig);
+    CreateRayTracingPipelineStateObject(m_rtpso);
 
     FrameLoop();
 

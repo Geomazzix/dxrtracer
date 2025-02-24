@@ -70,19 +70,11 @@ namespace dxray
 	// --- HlslCompiler ---
 
 	DxShaderCompiler::DxShaderCompiler() :
-		m_library(nullptr),
 		m_compiler(nullptr),
 		m_utilities(nullptr),
 		m_includeHandler(nullptr)
 	{
-		HRESULT result = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&m_library));
-		if (FAILED(result))
-		{
-			DXRAY_CRITICAL("Could not create the DXC library instance.");
-			return;
-		}
-
-		result = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_compiler));
+		HRESULT result = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_compiler));
 		if (FAILED(result))
 		{
 			DXRAY_CRITICAL("Could not create the DXC compiler instance.");

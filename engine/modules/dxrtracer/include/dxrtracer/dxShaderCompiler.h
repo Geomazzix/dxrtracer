@@ -54,7 +54,6 @@ namespace dxray
 	private:
 		bool CompileShaderSource(const DxcBuffer* a_pSourceBuffer, const ShaderCompilationInput& a_compilerInput, ShaderCompilationOutput& a_compilerOutput);
 
-		ComPtr<IDxcLibrary> m_library;
 		ComPtr<IDxcCompiler3> m_compiler;
 		ComPtr<IDxcUtils> m_utilities;
 		ComPtr<IncludeHandler> m_includeHandler;

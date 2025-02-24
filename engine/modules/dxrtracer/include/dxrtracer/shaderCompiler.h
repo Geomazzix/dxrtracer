@@ -71,7 +71,7 @@ namespace dxray
 	 */
 	struct MacroDefinition
 	{
-		String Macro;
+		String Macro = "";
 		String Value = "";
 	};
 
@@ -96,7 +96,7 @@ namespace dxray
 	 */
 	struct ShaderCompilationOutput
 	{
-		void* Data;
-		u32 SizeInBytes;
+		void* Data = nullptr;
+		u32 SizeInBytes = 0;
 	};
 }
