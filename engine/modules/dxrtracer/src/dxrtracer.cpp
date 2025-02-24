@@ -560,11 +560,11 @@ void CreateGlobalResources()
     CreateReadBackBuffer(m_cubeIndexBuffer, m_cubeIndicies, sizeof(m_cubeIndicies));
 	D3D12_NAME_OBJECT(m_cubeIndexBuffer, std::format(L"Cube index buffer"));
 
-	CreateBlas(m_commandList, m_cubeBlas, m_cubeVertexBuffer, std::size(m_cubeVertices), m_cubeIndexBuffer, std::size(m_cubeIndicies));
+	CreateBlas(m_commandList, m_cubeBlas, m_cubeVertexBuffer, static_cast<u32>(std::size(m_cubeVertices)), m_cubeIndexBuffer, static_cast<u32>(std::size(m_cubeIndicies)));
 	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Cube Blas Scratch"));
 	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Cube Blas"));
 
-	CreateBlas(m_commandList, m_quadBlas, m_quadVertexBuffer, std::size(m_quadVertices));
+	CreateBlas(m_commandList, m_quadBlas, m_quadVertexBuffer, static_cast<u32>(std::size(m_quadVertices)));
 	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Quad Blas Scratch"));
 	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Quad Blas"));
 
