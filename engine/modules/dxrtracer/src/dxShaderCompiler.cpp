@@ -58,12 +58,14 @@ namespace dxray
 	ULONG DxShaderCompiler::IncludeHandler::Release()
 	{
 		InterlockedDecrement(&m_refCount);
-		if (m_refCount == 0) 
+		if (m_refCount > 0) 
 		{
 			delete this;
 		}
-
-		return m_refCount;
+		else
+		{
+			return m_refCount;
+		}
 	}
 
 
@@ -186,14 +188,18 @@ namespace dxray
 			L"-E", a_compilerInput.EntryPoint.c_str(),		//Shader main entry point - in case of a library is empty.
 			L"-T", a_compilerInput.TargetProfile.c_str(),	//Shader target profile
 			DXC_ARG_WARNINGS_ARE_ERRORS,					//Force WX flag for warnings are errors.
-			L"-Qstrip_debug"								//Strip debug data - retrieved later down compilation.
+			//L"/Fh OutputShader.fxh",
+			//L"/Vn compiledShader"
+			//L"-Qstrip_debug"								//Strip debug data - retrieved later down compilation.
 		};
 
 		//Debug options.
-		if (a_compilerInput.ShouldKeepDebugData)
-		{
+		//if (a_compilerInput.ShouldKeepDebugData)
+		//{
 			arguments.push_back(DXC_ARG_DEBUG);
-		}
+			arguments.push_back(L"-Fd");
+			arguments.push_back(L"");// <---- set path as it's expected for some reason?
+		//}
 
 		//Set optimization level.
 		switch (a_compilerInput.OptimizationLevel)
@@ -221,9 +227,13 @@ namespace dxray
 			arguments.push_back(std::format(L"{}={}", StringEncoder::Utf8ToUnicode(a_compilerInput.MacroDefinitions[i].Macro), StringEncoder::Utf8ToUnicode(a_compilerInput.MacroDefinitions[i].Value)).c_str());
 		}
 
+
 		// Compile shader
 		ComPtr<IDxcResult> compileResult = nullptr;
 		DXC_CHECK(m_compiler->Compile(a_pSourceBuffer, arguments.data(), static_cast<u32>(arguments.size()), m_includeHandler.Get(), IID_PPV_ARGS(&compileResult)));
+
+		//#note: when retrieving outputs from the IDxcResult ensure to call Has<Ouput> to check if it has the output, then call Get<output>.
+		//#todo: get the out blob with DXC_OUT_OBJECT not GetResult, as this implies predefined potentially unwanted behaviour.
 
 		ComPtr<IDxcBlobUtf8> errorBlob;
 		DXC_CHECK(compileResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorBlob), nullptr));
@@ -232,6 +242,15 @@ namespace dxray
 			DXRAY_ERROR("Shader compilation failed: {}", static_cast<const char*>(errorBlob->GetBufferPointer()));
 			DXRAY_ASSERT(true);
 			return false;
+		}
+
+		ComPtr<IDxcBlobUtf8> pdbData;
+		ComPtr<IDxcBlobUtf16> pdbPath;
+		DXC_CHECK(compileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdbData), &pdbPath));
+		if (pdbData != nullptr)
+		{
+			//#Todo: convert pdbPath->GetStringPointer to filePath.
+			DXRAY_ASSERT(dxray::WriteBinary(a_compilerInput.FilePath, pdbData->GetBufferPointer(), pdbData->GetBufferSize()));
 		}
 
 		// Store the compilation blob.

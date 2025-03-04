@@ -17,11 +17,14 @@ static const float3 skyBottom = float3(0.75, 0.86, 0.93);
 [shader("raygeneration")]
 void RayGeneration()
 {
+
 	uint2 idx = DispatchRaysIndex().xy;
 	float2 size = DispatchRaysDimensions().xy;
 
 	float2 uv = idx / size;
-	float3 target = float3((uv.x * 2 - 1) * 1.8 * (size.x / size.y), (1 - uv.y) * 4 - 2 + camera.y, 0);
+	float3 target = float3((uv.x * 2 - 1) * 1.8 * (size.x / size.y),
+                           (1 - uv.y) * 4 - 2 + camera.y,
+                           0);
 
 	RayDesc ray;
 	ray.Origin = camera;
@@ -41,6 +44,7 @@ void RayGeneration()
 [shader("miss")]
 void Miss(inout Payload payload)
 {
+
 	float slope = normalize(WorldRayDirection()).y;
 	float t = saturate(slope * 5 + 0.5);
 	payload.color = lerp(skyBottom, skyTop, t);
@@ -53,8 +57,10 @@ void HitMirror(inout Payload payload, float2 uv);
 void HitFloor(inout Payload payload, float2 uv);
 
 [shader("closesthit")]
-void ClosestHit(inout Payload payload, BuiltInTriangleIntersectionAttributes attrib)
+void ClosestHit(inout Payload payload,
+                BuiltInTriangleIntersectionAttributes attrib)
 {
+
 	switch (InstanceID())
 	{
 		case 0:
@@ -75,16 +81,16 @@ void ClosestHit(inout Payload payload, BuiltInTriangleIntersectionAttributes att
 
 void HitCube(inout Payload payload, float2 uv)
 {
-	uint tri = PrimitiveIndex() / 2;
+	uint tri = PrimitiveIndex();
 
+	tri /= 2;
 	float3 normal = (tri.xxx % 3 == uint3(0, 1, 2)) * (tri < 3 ? -1 : 1);
-	float3 worldNormal = normalize(mul(normal, (float3x3) ObjectToWorld4x3()));
-	float3 color = abs(normal) / 3 + 0.5;
 
+	float3 worldNormal = normalize(mul(normal, (float3x3) ObjectToWorld4x3()));
+
+	float3 color = abs(normal) / 3 + 0.5;
 	if (uv.x < 0.03 || uv.y < 0.03)
-	{
 		color = 0.25.xxx;
-	}
 
 	color *= saturate(dot(worldNormal, normalize(light))) + 0.33;
 	payload.color = color;
@@ -93,9 +99,7 @@ void HitCube(inout Payload payload, float2 uv)
 void HitMirror(inout Payload payload, float2 uv)
 {
 	if (!payload.allowReflection)
-	{
 		return;
-	}
 
 	float3 pos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 	float3 normal = normalize(mul(float3(0, 1, 0), (float3x3) ObjectToWorld4x3()));
@@ -109,11 +113,13 @@ void HitMirror(inout Payload payload, float2 uv)
 
 	payload.allowReflection = false;
 	TraceRay(scene, RAY_FLAG_NONE, 0xFF, 0, 0, 0, mirrorRay, payload);
+
 }
 
 void HitFloor(inout Payload payload, float2 uv)
 {
 	float3 pos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+
 	bool2 pattern = frac(pos.xz) > 0.5;
 	payload.color = pattern.x ^ pattern.y ? 0.6.xxx : 0.4.xxx;
 
@@ -129,7 +135,5 @@ void HitFloor(inout Payload payload, float2 uv)
 	TraceRay(scene, RAY_FLAG_NONE, 0xFF, 0, 0, 0, shadowRay, shadow);
 
 	if (!shadow.missed)
-	{
 		payload.color /= 2;
-	}
 }

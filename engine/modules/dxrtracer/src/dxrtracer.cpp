@@ -92,6 +92,8 @@ struct RaytracePipelineStateObject
 };
 RaytracePipelineStateObject m_rtpso;
 
+u32 windowSurfaceWidth = 1600;
+u32 windowSurfaceHeight = 900;
 
 // --- DX12 primitives ---
 
@@ -113,6 +115,7 @@ struct FrameResources
 {
 	AccelerationStructure WorldTlas;
 	ComPtr<ID3D12CommandAllocator> CommandAllocator = nullptr;
+    ComPtr<ID3D12Resource> RaytraceRenderTarget = nullptr;
 	u64 FenceValue = 0;
 };
 
@@ -120,12 +123,14 @@ inline constexpr u32 SwapchainBackbufferCount = 3;
 std::array<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
 std::array<FrameResources, SwapchainBackbufferCount> m_frameResources;
 u32 m_swapchainIndex = 0;
-u32 m_rtvDescriptorSize = 0;
 ComPtr<ID3D12DescriptorHeap> m_rtvHeap = nullptr;
+u32 m_rtvDescriptorSize = 0;
 ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
 
+ComPtr<ID3D12DescriptorHeap> m_uavHeap = nullptr;
+u32 m_uavDescriptorSize = 0;
+
 std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAccelerationStructures;
-ComPtr<ID3D12Resource> m_topLevelAccelerationStructure = nullptr;
 
 inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
 {
@@ -302,7 +307,7 @@ void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, co
         const D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc =
         {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-            .NumDescriptors = static_cast<u32>(m_swapchainRenderTargets.size()),
+            .NumDescriptors = SwapchainBackbufferCount,
             .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             .NodeMask = 0
         };
@@ -324,11 +329,54 @@ void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, co
 
 void CreateFrameResources()
 {
+    //#Todo: Check if this needs to be a frame dependent resource as well, seems odd to leave this here.
+	const D3D12_DESCRIPTOR_HEAP_DESC uavHeapDesc =
+	{
+		.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		.NumDescriptors = SwapchainBackbufferCount,
+		.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        .NodeMask = 0
+	};
+
+	D3D12_CHECK(m_device->CreateDescriptorHeap(&uavHeapDesc, IID_PPV_ARGS(&m_uavHeap)));
+    D3D12_NAME_OBJECT(m_uavHeap, std::format(L"UavDescriptorHeap"));
+
+    m_uavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetCPUDescriptorHandleForHeapStart());
     for (u32 i = 0; i < SwapchainBackbufferCount; i++)
     {
         FrameResources& frameResources = m_frameResources[i];
         D3D12_CHECK(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frameResources.CommandAllocator)));
-		D3D12_NAME_OBJECT(frameResources.CommandAllocator, std::format(L"D3D12{}CommandAllocator_{}", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT), std::to_wstring(i)));
+		D3D12_NAME_OBJECT(frameResources.CommandAllocator, std::format(L"D3D12{}CommandAllocator_{}", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT), std::to_wstring(i)));    
+        
+		const D3D12_RESOURCE_DESC shaderRenderTarget =
+		{
+			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+		    .Width = windowSurfaceWidth,
+		    .Height = windowSurfaceHeight,
+		    .DepthOrArraySize = 1,
+		    .MipLevels = 1,
+		    .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .SampleDesc = { 1, 0 },
+		    .Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+		};
+
+		const D3D12_HEAP_PROPERTIES heapDesc =
+		{
+			.Type = D3D12_HEAP_TYPE_DEFAULT
+		};
+
+		D3D12_CHECK(m_device->CreateCommittedResource(&heapDesc, D3D12_HEAP_FLAG_NONE, &shaderRenderTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&frameResources.RaytraceRenderTarget)));
+        D3D12_NAME_OBJECT(frameResources.RaytraceRenderTarget, std::format(L"RaytraceRenderTarget_{}", i));
+        
+        const D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc =
+        {
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D
+        };
+        m_device->CreateUnorderedAccessView(frameResources.RaytraceRenderTarget.Get(), nullptr, &uavDesc, uavHandle);
+        uavHandle.Offset(1, m_uavDescriptorSize);
+
         frameResources.FenceValue = i;
     }
 
@@ -475,9 +523,9 @@ void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, A
         .ScratchAccelerationStructureData = a_as.Scratch->GetGPUVirtualAddress()
     };
 
-	ComPtr<ID3D12GraphicsCommandList5> cmdList;
-	D3D12_CHECK(a_cmdList.As(&cmdList));
-    cmdList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
+	ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
+	D3D12_CHECK(a_cmdList.As(&dxrCmdList));
+    dxrCmdList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
     //#Todo: once queuing for multiple builds ensure that multiple barriers are batched.
 	const D3D12_RESOURCE_BARRIER asbarrier =
@@ -488,7 +536,7 @@ void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, A
 			.pResource = a_as.Buffer.Get()
 		}
 	};
-    cmdList->ResourceBarrier(1, &asbarrier);
+    dxrCmdList->ResourceBarrier(1, &asbarrier);
 }
 
 void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const u32 a_vsCount, ComPtr<ID3D12Resource> a_idBuffer = nullptr, const u32 a_idCount = 0)
@@ -536,7 +584,7 @@ void CreateTlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStruct
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS tlasInputs =
 	{
         .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
-        .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD,
+        .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE,
         .NumDescs = m_numBlas,
         .DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
         .InstanceDescs = m_blasInstanceBuffer->GetGPUVirtualAddress()
@@ -792,36 +840,63 @@ void Render()
 	D3D12_NAME_OBJECT(frameResources.WorldTlas.Buffer, std::format(L"WorldBlas"));
 
     // - Bind all the resources -
-    //ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
-    //D3D12_CHECK(m_commandList.As(&dxrCmdList));
-    //
-    //dxrCmdList->SetPipelineState1(m_rtpso.Pso.Get());
-    //dxrCmdList->SetComputeRootSignature(m_rootSig.Get());
-    //dxrCmdList->SetDescriptorHeaps(1, &uavHeap);
-    //
-    //D3D12_GPU_DESCRIPTOR_HANDLE uavTable = uavHeap->GetGPUDescriptorHandleForHeapStart();
-    //dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
-    //dxrCmdList->SetComputeRootShaderResourceView(1, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
+    ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
+    D3D12_CHECK(m_commandList.As(&dxrCmdList));
+    
+    dxrCmdList->SetPipelineState1(m_rtpso.Pso.Get());
+    dxrCmdList->SetComputeRootSignature(m_rootSig.Get());
+    dxrCmdList->SetDescriptorHeaps(1, m_uavHeap.GetAddressOf());
+    
+    const CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_swapchainIndex, m_uavDescriptorSize);
+    dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
+    dxrCmdList->SetComputeRootShaderResourceView(1, frameResources.WorldTlas.Buffer->GetGPUVirtualAddress());
 
     // - Dispatch the rays! -
+	D3D12_DISPATCH_RAYS_DESC dispatchDesc =
+	{
+		.RayGenerationShaderRecord =
+		{
+			.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress(),
+			.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+		},
+		.MissShaderTable =
+		{
+			.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
+			.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+		},
+		.HitGroupTable =
+		{
+			.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + 2 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
+			.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+		},
+		.Width = windowSurfaceWidth,
+		.Height = windowSurfaceHeight,
+		.Depth = 1
+	};
 
+	ComPtr<ID3D12GraphicsCommandList5> cmdList;
+	D3D12_CHECK(m_commandList.As(&cmdList));
+    cmdList->DispatchRays(&dispatchDesc);
 
+    // - Present -
+	ComPtr<ID3D12Resource>& swapchainRenderTarget = m_swapchainRenderTargets[m_swapchainIndex];
+    const std::array <CD3DX12_RESOURCE_BARRIER, 2> barriers =
+    {
+        CD3DX12_RESOURCE_BARRIER::Transition(frameResources.RaytraceRenderTarget.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
+        CD3DX12_RESOURCE_BARRIER::Transition(swapchainRenderTarget.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST)
+    };
+	m_commandList->ResourceBarrier(static_cast<u32>(barriers.size()), barriers.data());
+    m_commandList->CopyResource(swapchainRenderTarget.Get(), frameResources.RaytraceRenderTarget.Get());
 
-    // - Present - #Todo: move the swapchain render target copy into a separate method - no need to clutter up the render function more.
-	ComPtr<ID3D12Resource>& rt = m_swapchainRenderTargets[m_swapchainIndex];
-	CD3DX12_RESOURCE_BARRIER bar = CD3DX12_RESOURCE_BARRIER::Transition(m_swapchainRenderTargets[m_swapchainIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	m_commandList->ResourceBarrier(1, &bar);
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_swapchainIndex, m_rtvDescriptorSize);
-	const fp32 clearColor[] = { 200 / 255.0f, 96.0f / 255.f, 24.0f / 255.0f, 1.0f };
-	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-
-    CD3DX12_RESOURCE_BARRIER bar2 = CD3DX12_RESOURCE_BARRIER::Transition(rt.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	m_commandList->ResourceBarrier(1, &bar2);
-
-    D3D12_CHECK(m_commandList->Close());
+	const std::array <CD3DX12_RESOURCE_BARRIER, 2> presentationBarriers =
+	{
+		CD3DX12_RESOURCE_BARRIER::Transition(swapchainRenderTarget.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT),
+		CD3DX12_RESOURCE_BARRIER::Transition(frameResources.RaytraceRenderTarget.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+	};
+	m_commandList->ResourceBarrier(static_cast<u32>(presentationBarriers.size()), presentationBarriers.data());
 
     // -- Execute the data --
+    D3D12_CHECK(m_commandList->Close());
     ID3D12CommandList* const lists[] = { m_commandList.Get() };
     m_commandQueue->ExecuteCommandLists(1, lists);
 
@@ -871,7 +946,7 @@ int main(int argc, char** argv)
     const WindowCreationInfo windowInfo =
     {
         .Title = PROJECT_NAME,
-        .Rect = dxray::vath::Rectu32(0, 0, 1600, 900)
+        .Rect = dxray::vath::Rectu32(0, 0, windowSurfaceWidth, windowSurfaceHeight)
     };
     m_window = std::make_unique<WinApiWindow>(windowInfo);
     m_dxShaderCompiler = std::make_unique<DxShaderCompiler>();
