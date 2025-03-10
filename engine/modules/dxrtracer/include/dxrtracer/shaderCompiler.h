@@ -1,4 +1,5 @@
 #pragma once
+#include <core/fileSystem/fileIO.h>
 
 namespace dxray
 {
@@ -77,6 +78,16 @@ namespace dxray
 
 
 	/*!
+	 * @brief Contains the data used in shader reflection.
+	 */
+	struct ShaderReflectionBuffer
+	{
+		DataBlob Blob;
+		u32 Encoding;
+	};
+
+
+	/*!
 	 * @brief The options the shader compiler provides.
 	 * #Note: Potentially just select the highest available shader model and compile all with that. It's currently uncertain what potential downsides this could have. Though it would mean this option can be removed.
 	 */
@@ -86,17 +97,38 @@ namespace dxray
 		EOptimizeLevel OptimizeLevel;
 		EShaderModel ShaderModel;
 		String EntryPoint;
-		bool ShouldKeepDebugInfo;
+		u8 WarningsAreErrors : 1;
+		u8 SaveSymbols : 1;
+		u8 SaveReflection : 1;
 	};
 
 
 	/*!
 	 * @brief The output of a compiled shader unit.
-	 * #Todo: Could be refactored into a binary blob in the fileIO.h
 	 */
-	struct ShaderCompilationOutput
+	struct ShaderCompilationOutput final
 	{
-		void* Data = nullptr;
-		u32 SizeInBytes = 0;
+		const bool HasBinary() const;
+		const bool HasSymbols() const;
+		const bool HasReflection() const;
+
+		DataBlob Binary;
+		DataBlob Symbols;
+		DataBlob Reflection;
 	};
+
+	inline const bool ShaderCompilationOutput::HasBinary() const
+	{
+		return Binary.SizeInBytes > 0;
+	}
+
+	inline const bool ShaderCompilationOutput::HasSymbols() const
+	{
+		return Symbols.SizeInBytes > 0;
+	}
+
+	inline const bool ShaderCompilationOutput::HasReflection() const
+	{
+		return Reflection.SizeInBytes > 0;
+	}
 }

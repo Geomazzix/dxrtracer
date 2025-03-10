@@ -10,6 +10,7 @@
 #include <memory>
 #include <queue>
 #include <unordered_set>
+#include <functional>
 
 #if defined(PLATFORM_WINDOWS)
 

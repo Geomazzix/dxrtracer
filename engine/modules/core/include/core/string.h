@@ -13,6 +13,8 @@ namespace dxray
 	using IfStream = std::fstream;
 	using StringView = std::string_view;
 	using StringStream = std::stringstream;
+	using OStringStream = std::ostringstream;
+	using IStringStream = std::istringstream;
 
 	//File system paths.
 	using Path = std::filesystem::path;
@@ -24,6 +26,8 @@ namespace dxray
 	using WIfstream = std::wifstream;
 	using WStringView = std::wstring_view;
 	using WStringStream = std::wstringstream;
+	using WOStringStream = std::wostringstream;
+	using WIStringStream = std::wistringstream;
 
 	/*!
 	 * @brief StringEncoder class holds encoding conversions specific to the Windows platform.

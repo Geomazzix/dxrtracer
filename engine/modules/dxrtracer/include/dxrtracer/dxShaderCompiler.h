@@ -1,13 +1,13 @@
 #pragma once
 #include <core/string.h>
 #include <dxcapi.h>
+#include <d3d12shader.h>
 #include "dxrtracer/shaderCompiler.h"
 
 namespace dxray
 {
 	/*!
 	 * @brief Capable of individual or directory shader compilation.
-	 * #Todo: For multi threading purposes - include a way to pass bufferSource through, instead of having to rely on the DXC API to read file contents.
 	 */
 	class DxShaderCompiler final
 	{
@@ -32,27 +32,34 @@ namespace dxray
 		};
 
 		/*!
-		 * @brief The input needed for the shader compiler to compile a single shader.
+		 * @brief The input needed for the shader compiler to compile a shader file (can contain multiple shaders).
 		 */
 		struct ShaderCompilationInput
 		{
 			std::vector<MacroDefinition> MacroDefinitions;
-			Path FilePath;
+			const DxcBuffer* SourceBuffer;
+			Path ShaderFile;
+			Path ShaderBinDirectory;
 			WString TargetProfile;
 			WString EntryPoint;
 			EOptimizeLevel OptimizationLevel;
-			bool ShouldKeepDebugData;
+			u8 WarningsAreErrors : 1;
+			u8 SaveSymbols : 1;						//Saved as .pdb.
+			u8 SaveReflection : 1;					//Saved as .ref
 		};
 
 	public:
 		DxShaderCompiler();
 		~DxShaderCompiler() = default;
 	
-		ShaderCompilationOutput CompileShader(const Path& a_filePath, const ShaderCompilationOptions& a_options);
 		void CompileShadersInDirectory(const Path& a_shaderDirectory, const Path& a_shaderCacheDirectory, const ShaderCompilationOptions& a_options);
+		bool CompileShaderFile(const Path& a_filePath, const Path& a_binDirectory, const ShaderCompilationOptions& a_options, ShaderCompilationOutput& a_compileResult);
+		bool GetShaderReflection(const DataBlob& a_shaderReflectionBlob, ComPtr<ID3D12ShaderReflection>& a_shaderReflection);
+		//#Todo: For multi threading purposes - include a way to pass bufferSource through, instead of having to rely on the DXC API to read file contents.
 
 	private:
-		bool CompileShaderSource(const DxcBuffer* a_pSourceBuffer, const ShaderCompilationInput& a_compilerInput, ShaderCompilationOutput& a_compilerOutput);
+		bool CompileShaderSource(const ShaderCompilationInput& a_compilerInput, ShaderCompilationOutput& a_compilerOutput);
+		static WString DxcHashToWideString(const u8* a_pDigets);
 
 		ComPtr<IDxcCompiler3> m_compiler;
 		ComPtr<IDxcUtils> m_utilities;

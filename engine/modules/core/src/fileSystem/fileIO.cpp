@@ -45,7 +45,7 @@ namespace dxray
 		return true;
 	}
 
-	bool WriteBinary(const Path& a_filePath, const void* a_pSource, usize a_sizeInBytes)
+	bool WriteBinary(const Path& a_filePath, const DataBlob& a_dataBlob)
 	{
 		if (a_filePath.has_parent_path())
 		{
@@ -64,7 +64,7 @@ namespace dxray
 			return false;
 		}
 
-		fileStream.write(static_cast<const char*>(a_pSource), a_sizeInBytes);
+		fileStream.write(static_cast<const char*>(a_dataBlob.Data), static_cast<std::streamsize>(a_dataBlob.SizeInBytes));
 		fileStream.flush();
 		fileStream.close();
 		return true;

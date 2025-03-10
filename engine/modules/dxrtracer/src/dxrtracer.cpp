@@ -372,7 +372,12 @@ void CreateFrameResources()
         const D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc =
         {
             .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D
+			.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+			.Texture2D =
+			{
+				.MipSlice = 0,
+				.PlaneSlice = 0
+			}
         };
         m_device->CreateUnorderedAccessView(frameResources.RaytraceRenderTarget.Get(), nullptr, &uavDesc, uavHandle);
         uavHandle.Offset(1, m_uavDescriptorSize);
@@ -602,19 +607,19 @@ void CreateGlobalResources()
 	D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
     CreateReadBackBuffer(m_quadVertexBuffer, m_quadVertices, sizeof(m_quadVertices));
-	D3D12_NAME_OBJECT(m_quadVertexBuffer, std::format(L"Quad vertex buffer"));
+	D3D12_NAME_OBJECT(m_quadVertexBuffer, std::format(L"Quad_vertex_buffer"));
     CreateReadBackBuffer(m_cubeVertexBuffer, m_cubeVertices, sizeof(m_cubeVertices));
-	D3D12_NAME_OBJECT(m_cubeVertexBuffer, std::format(L"Cube vertex buffer"));
+	D3D12_NAME_OBJECT(m_cubeVertexBuffer, std::format(L"Cube_vertex_buffer"));
     CreateReadBackBuffer(m_cubeIndexBuffer, m_cubeIndicies, sizeof(m_cubeIndicies));
-	D3D12_NAME_OBJECT(m_cubeIndexBuffer, std::format(L"Cube index buffer"));
+	D3D12_NAME_OBJECT(m_cubeIndexBuffer, std::format(L"Cube_index_buffer"));
 
 	CreateBlas(m_commandList, m_cubeBlas, m_cubeVertexBuffer, static_cast<u32>(std::size(m_cubeVertices)), m_cubeIndexBuffer, static_cast<u32>(std::size(m_cubeIndicies)));
-	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Cube Blas Scratch"));
-	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Cube Blas"));
+	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Cube_Blas_Scratch"));
+	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Cube_Blas"));
 
 	CreateBlas(m_commandList, m_quadBlas, m_quadVertexBuffer, static_cast<u32>(std::size(m_quadVertices)));
-	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Quad Blas Scratch"));
-	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Quad Blas"));
+	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Quad_Blas_Scratch"));
+	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Quad_Blas"));
 
     CreateSceneInstances(); //Depends on the blas being ready to be read.
 
@@ -677,14 +682,14 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
     //1. Compile the sahder and create a subobject for it.
 	const ShaderCompilationOptions options =
 	{
-		.OptimizeLevel = EOptimizeLevel::O2,
 		.ShaderModel = EShaderModel::SM6_3,
-		.ShouldKeepDebugInfo = true
+		.SaveSymbols = true,
+        .SaveReflection = true
 	};
 
     //#Todo: Move the inline compilation to a different place once abstraction begins.
-    const ShaderCompilationOutput compileRes = m_dxShaderCompiler->CompileShader(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", options);
-    if (compileRes.SizeInBytes <= 0)
+    ShaderCompilationOutput compileRes;
+    if (!m_dxShaderCompiler->CompileShaderFile(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", Path(ENGINE_CACHE_DIRECTORY) / "shaders", options, compileRes))
     {
         return;
     }
@@ -693,8 +698,8 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
     {
         .DXILLibrary = 
         {
-            compileRes.Data,
-            compileRes.SizeInBytes
+            compileRes.Binary.Data,
+            compileRes.Binary.SizeInBytes
         },
         .NumExports = 0,
         .pExports = nullptr
@@ -802,26 +807,28 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
 void Tick(const fp32 a_dt)
 {
 	using namespace DirectX;
-	D3D12_RAYTRACING_INSTANCE_DESC* const instances = static_cast<D3D12_RAYTRACING_INSTANCE_DESC* const>(m_blasInstanceBufferAddr);
+	
+    const std::function<void(i32 a_id, const XMMATRIX a_mx)> StoreInstanceTransform = [](int idx, XMMATRIX mx) 
+    {
+        XMFLOAT3X4* ptr = reinterpret_cast<XMFLOAT3X4*>(&static_cast<D3D12_RAYTRACING_INSTANCE_DESC* const>(m_blasInstanceBufferAddr)[idx].Transform);
+		XMStoreFloat3x4(ptr, mx);
+	};
 
-    //Cube.
-	XMMATRIX cube = XMMatrixRotationRollPitchYaw(a_dt / 2, a_dt / 3, a_dt / 5);
+    static fp32 time = 0.0f;
+    time += a_dt;
+
+	auto cube = XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
 	cube *= XMMatrixTranslation(-1.5, 2, 2);
-    XMFLOAT3X4& ptr = reinterpret_cast<XMFLOAT3X4&>(instances[0].Transform);
-	XMStoreFloat3x4(&ptr, cube);
+    StoreInstanceTransform(0, cube);
 
-    //Mirror.
-    XMMATRIX mirror = XMMatrixRotationX(-1.8f);
-	mirror *= XMMatrixRotationY(XMScalarSinEst(a_dt) / 8 + 1);
+	auto mirror = XMMatrixRotationX(-1.8f);
+	mirror *= XMMatrixRotationY(XMScalarSinEst(time) / 8 + 1);
 	mirror *= XMMatrixTranslation(2, 2, 2);
-	ptr = reinterpret_cast<XMFLOAT3X4&>(instances[1].Transform);
-	XMStoreFloat3x4(&ptr, mirror);
+    StoreInstanceTransform(1, mirror);
 
-    //Floor.
-    XMMATRIX floor = XMMatrixScaling(5, 5, 5);
+	auto floor = XMMatrixScaling(5, 5, 5);
 	floor *= XMMatrixTranslation(0, 0, 2);
-	ptr = reinterpret_cast<XMFLOAT3X4&>(instances[2].Transform);
-	XMStoreFloat3x4(&ptr, floor);
+    StoreInstanceTransform(2, floor);
 }
 
 void Render()
@@ -836,8 +843,8 @@ void Render()
 
     // - Rebuild Top level acceleration structures -
     CreateTlas(m_commandList, frameResources.WorldTlas);
-	D3D12_NAME_OBJECT(frameResources.WorldTlas.Scratch, std::format(L"WorldBlasScratch"));
-	D3D12_NAME_OBJECT(frameResources.WorldTlas.Buffer, std::format(L"WorldBlas"));
+	D3D12_NAME_OBJECT(frameResources.WorldTlas.Scratch, std::format(L"WorldTlasScratch"));
+	D3D12_NAME_OBJECT(frameResources.WorldTlas.Buffer, std::format(L"WorldTlas"));
 
     // - Bind all the resources -
     ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
@@ -951,13 +958,6 @@ int main(int argc, char** argv)
     m_window = std::make_unique<WinApiWindow>(windowInfo);
     m_dxShaderCompiler = std::make_unique<DxShaderCompiler>();
     
-    const ShaderCompilationOptions options =
-    {
-		.OptimizeLevel = EOptimizeLevel::O2,
-		.ShaderModel = EShaderModel::SM6_3,
-		.ShouldKeepDebugInfo = true
-    };
-
     CreateDevice(m_device);
     CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
     CreateSwapchain(m_swapchain, windowInfo.Rect.Width, windowInfo.Rect.Height);
