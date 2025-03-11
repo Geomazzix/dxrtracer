@@ -1,10 +1,70 @@
 #include "dxrtracer/dxShaderCompiler.h"
 #include <core/fileSystem/fileIO.h>
+#include <core/vath/vath.h>
 
 #define DXC_CHECK(hr) DXRAY_ASSERT(SUCCEEDED(hr))
 
 namespace dxray
 {
+	/*!
+	 * @brief The input needed for the shader compiler to compile a shader file (can contain multiple shaders).
+	 */
+	struct ShaderCompilationInput
+	{
+		std::vector<MacroDefinition> MacroDefinitions;
+		const DxcBuffer* SourceBuffer;
+		Path ShaderFile;
+		Path ShaderBinDirectory;
+		WString TargetProfile;
+		WString EntryPoint;
+		EOptimizeLevel OptimizationLevel;
+		u8 WarningsAreErrors : 1;
+		u8 SaveSymbols : 1;						//Saved as .pdb.
+		u8 SaveReflection : 1;					//Saved as .ref
+	};
+
+
+	/*!
+	 * @brief Capable of individual or directory shader compilation.
+	 */
+	class DxShaderCompiler final
+	{
+		/*!
+		 * @brief Include handler used to handle in-shader includes.
+		 */
+		class IncludeHandler final : public IDxcIncludeHandler
+		{
+		public:
+			IncludeHandler(ComPtr<IDxcUtils> a_pDxcUtilities);
+			~IncludeHandler() = default;
+
+			HRESULT STDMETHODCALLTYPE LoadSource(_In_ LPCWSTR pFilename, _COM_Outptr_result_maybenull_ IDxcBlob** ppIncludeSource) override;
+			HRESULT QueryInterface(REFIID riid, void** ppvObject) override;
+			ULONG AddRef() override;
+			ULONG Release() override;
+
+		private:
+			std::unordered_set<WString> m_includedFiles;
+			ComPtr<IDxcUtils> m_dxcUtilities;
+			volatile ULONG m_refCount;
+		};
+
+	public:
+		DxShaderCompiler();
+		~DxShaderCompiler() = default;
+
+		bool CompileShaderSource(const ShaderCompilationInput& a_compilerInput, ShaderCompilationOutput& a_compilerOutput);
+		static WString DxcHashToWideString(const u8* a_pDigets);
+
+	private:
+		ComPtr<IDxcCompiler3> m_compiler;
+		ComPtr<IDxcUtils> m_utilities;
+		ComPtr<IncludeHandler> m_includeHandler;
+	};
+
+	DxShaderCompiler DxCompiler;
+
+
 	// --- DxShaderCompiler::IncludeHandler ---
 
 	DxShaderCompiler::IncludeHandler::IncludeHandler(ComPtr<IDxcUtils> a_pDxcUtilities) :
@@ -67,7 +127,7 @@ namespace dxray
 	}
 
 
-	// --- HlslCompiler ---
+	// --- DxShaderCompiler ---
 
 	DxShaderCompiler::DxShaderCompiler() :
 		m_compiler(nullptr),
@@ -89,6 +149,12 @@ namespace dxray
 		}
 
 		m_includeHandler = new DxShaderCompiler::IncludeHandler(m_utilities);
+
+		ComPtr<IDxcVersionInfo> info;
+		DXC_CHECK(m_compiler.As(&info));
+		vath::Vector2u32 version;
+		DXC_CHECK(info->GetVersion(&version.x, &version.y));
+		DXRAY_INFO("Loaded DirectX shader compiler version {}.{}", version.x, version.y);
 	}
 
 	WString DxShaderCompiler::DxcHashToWideString(const u8* a_pDigets)
@@ -101,95 +167,6 @@ namespace dxray
 		return outStream.str();
 	}
 
-	void DxShaderCompiler::CompileShadersInDirectory(const Path& a_shaderDirectory, const Path& a_shaderCacheDirectory, const ShaderCompilationOptions& a_options)
-	{
-		if (!std::filesystem::exists(a_shaderDirectory))
-		{
-			DXRAY_ERROR("Could not find: {}", a_shaderDirectory.string());
-			return;
-		}
-
-		for (const std::filesystem::directory_entry& file : std::filesystem::directory_iterator(a_shaderDirectory))
-		{
-			//#Note: DxShaderCompiler currently only supports compiling files with the .hlsl extension.
-			if (!file.is_regular_file() || file.path().filename().extension() != ".hlsl")
-			{
-				continue;
-			}
-
-			const Path absolutePath = a_shaderDirectory / file;
-			const String source = dxray::Read(absolutePath);
-
-			ShaderCompilationOutput result;
-			DXRAY_ASSERT(CompileShaderFile(file, a_shaderCacheDirectory, a_options, result));
-		}
-	}
-
-	bool DxShaderCompiler::CompileShaderFile(const Path& a_filePath, const Path& a_binDirectory, const ShaderCompilationOptions& a_options, ShaderCompilationOutput& a_compileResult)
-	{
-		//Create the buffer to store the raw shader source.
-		const WString file = StringEncoder::Utf8ToUnicode(a_filePath.string());
-		u32 codePage = DXC_CP_ACP;
-		ComPtr<IDxcBlobEncoding> sourceBlob;
-
-		//#Todo: Check if the load file utility already takes care of the include handling as the preprocessed shader can then also be stored near the debug data.
-		HRESULT result = m_utilities->LoadFile(file.c_str(), &codePage, &sourceBlob);
-		if (FAILED(result))
-		{
-			DXRAY_ERROR("Could not load the shader source.");
-			return {};
-		};
-
-		const DxcBuffer buffer =
-		{
-			.Ptr = sourceBlob->GetBufferPointer(),
-			.Size = sourceBlob->GetBufferSize(),
-			.Encoding = DXC_CP_ACP,
-		};
-
-		//Select target profile based on shader file extension
-		WString targetProfile;
-		static std::unordered_map<Path, WString> targetProfileMapping =
-		{
-			{ ".vert", L"vs" },
-			{ ".geom", L"gs" },
-			{ ".frag", L"ps" },
-			{ ".comp", L"cs" },
-			{ ".rt", L"lib" }
-		};
-
-		targetProfile = std::format(L"{}_{}", targetProfileMapping[a_filePath.stem().extension()], StringEncoder::Utf8ToUnicode(ShaderModelVersionToUtf8(a_options.ShaderModel)));
-
-		//Configure the compiler.
-		const WString shaderEntryPoint = !a_options.EntryPoint.empty()
-			? StringEncoder::Utf8ToUnicode(a_options.EntryPoint)
-			: L""; //#Note: Raytrace shader files are libraries and don't have entry points.
-
-		const ShaderCompilationInput input =
-		{
-			.MacroDefinitions = a_options.MacroDefinitions,
-			.SourceBuffer = &buffer,
-			.ShaderFile = a_filePath,
-			.ShaderBinDirectory = a_binDirectory,
-			.TargetProfile = targetProfile,
-			.EntryPoint = shaderEntryPoint,
-			.OptimizationLevel = a_options.OptimizeLevel,
-			.WarningsAreErrors = a_options.WarningsAreErrors,
-			.SaveSymbols = a_options.SaveSymbols,
-			.SaveReflection = a_options.SaveReflection
-		};
-
-		if (CompileShaderSource(input, a_compileResult))
-		{
-			DXRAY_INFO("Compiled shader {} successfully", a_filePath.string());
-			return true;
-		}
-
-		//#Note: Error could be vague, see todo for enhanced error handling using error code/custom result types.
-		DXRAY_ERROR("Failed to compile {}!", a_filePath.string());
-		return false;
-	}
-
 	bool DxShaderCompiler::CompileShaderSource(const ShaderCompilationInput& a_compilationInput, ShaderCompilationOutput& a_compilationOutput)
 	{
 		std::vector<const wchar*> arguments =
@@ -198,7 +175,7 @@ namespace dxray
 			L"-E", a_compilationInput.EntryPoint.c_str(),
 			L"-T", a_compilationInput.TargetProfile.c_str(),
 
-			//#Note: It's recommended to strip everything from the shader output blob and retrieve it separately later - this saves diskspace in shipped applications.
+			//#Note_dxc: It's recommended to strip everything from the shader output blob and retrieve it separately later - this saves diskspace in shipped applications.
 			L"Qstrip_debug",
 			L"Qstrip_reflect",
 			L"Qstrip_priv",
@@ -213,7 +190,7 @@ namespace dxray
 		if (a_compilationInput.SaveSymbols)
 		{
 			arguments.push_back(L"-Od");
-			arguments.push_back(L"-Zs"); //#Note: using slim pdbs here - only supported by PIX.
+			arguments.push_back(L"-Zs"); //#Note_dxc: using slim pdbs here - only supported by PIX.
 			arguments.push_back(L"-Zss");
 		}
 		else
@@ -238,12 +215,12 @@ namespace dxray
 				break;
 			}
 		}
-		
+
 		for (u32 i = 0; i < a_compilationInput.MacroDefinitions.size(); i++)
 		{
 			arguments.push_back(L"-D");
-			arguments.push_back(std::format(L"{}={}", 
-				StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Macro), 
+			arguments.push_back(std::format(L"{}={}",
+				StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Macro),
 				StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Value)).c_str()
 			);
 		}
@@ -258,7 +235,7 @@ namespace dxray
 			if (errorBlob != nullptr && errorBlob->GetStringLength() > 0)
 			{
 				DXRAY_ERROR("Shader compilation failed: {}", static_cast<const char*>(errorBlob->GetBufferPointer()));
-				DXRAY_ASSERT(true); //#Note: This assert should be replaced if shader hot-reloading ever becomes a thing.
+				DXRAY_ASSERT(true); //#Todo_dxc: This assert should be replaced if shader hot-reloading ever becomes a thing.
 				return false;
 			}
 		}
@@ -270,12 +247,19 @@ namespace dxray
 			ComPtr<IDxcBlob> shaderHashBlob = nullptr;
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
 			shaderHash = static_cast<DxcShaderHash*>(shaderHashBlob->GetBufferPointer());
-			
+
 			if (!(shaderHash->Flags & DXC_HASHFLAG_INCLUDES_SOURCE))
 			{
 				DXRAY_WARN("Shader hash did not take source into account, which can result shader collisions: {}", a_compilationInput.ShaderFile.string());
 			}
 			shaderHashString = DxcHashToWideString(shaderHash->HashDigest);
+
+			const usize hashSize = _countof(shaderHash->HashDigest);
+			a_compilationOutput.ShaderHash.reserve(hashSize);
+			for (int i = 0; i < hashSize; i++)
+			{
+				a_compilationOutput.ShaderHash.push_back(shaderHash->HashDigest[i]);
+			}
 		}
 		else
 		{
@@ -289,7 +273,7 @@ namespace dxray
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBinary), nullptr));
 			a_compilationOutput.Binary.Data = shaderBinary->GetBufferPointer();
 			a_compilationOutput.Binary.SizeInBytes = shaderBinary->GetBufferSize();
-			dxray::WriteBinary(a_compilationInput.ShaderBinDirectory / L"bin" / a_compilationInput.ShaderFile.stem().stem() += L".dxil", a_compilationOutput.Binary);
+			dxray::WriteBinaryFile(a_compilationInput.ShaderBinDirectory / L"bin" / a_compilationInput.ShaderFile.stem().stem() += L".dxil", a_compilationOutput.Binary);
 		}
 		else
 		{
@@ -306,7 +290,7 @@ namespace dxray
 			a_compilationOutput.Symbols.Data = shaderSymbols->GetBufferPointer();
 			a_compilationOutput.Symbols.SizeInBytes = shaderSymbols->GetBufferSize();
 
-			dxray::WriteBinary(Path(a_compilationInput.ShaderBinDirectory / L"debug" / shaderSymbolsPath->GetStringPointer()), a_compilationOutput.Symbols);
+			dxray::WriteBinaryFile(Path(a_compilationInput.ShaderBinDirectory / L"debug" / shaderSymbolsPath->GetStringPointer()), a_compilationOutput.Symbols);
 		}
 		else
 		{
@@ -320,7 +304,7 @@ namespace dxray
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&shaderReflection), nullptr));
 			a_compilationOutput.Reflection.Data = shaderReflection->GetBufferPointer();
 			a_compilationOutput.Reflection.SizeInBytes = shaderReflection->GetBufferSize();
-			dxray::WriteBinary(Path(a_compilationInput.ShaderBinDirectory / L"debug" / shaderHashString += ".ref"), a_compilationOutput.Reflection);
+			dxray::WriteBinaryFile(Path(a_compilationInput.ShaderBinDirectory / L"debug" / shaderHashString += ".ref"), a_compilationOutput.Reflection);
 		}
 		else
 		{
@@ -331,15 +315,86 @@ namespace dxray
 		return true;
 	}
 
-	bool DxShaderCompiler::GetShaderReflection(const DataBlob& a_shaderReflectionBlob, ComPtr<ID3D12ShaderReflection>& a_shaderReflection)
+
+	// --- Shader compilation API ---
+
+	void ShaderCompiler::CompileShaderFilesInDirectory(const Path& a_shaderDirectory, const Path& a_shaderCacheDirectory, const ShaderCompilationOptions& a_options)
 	{
+		if (!std::filesystem::exists(a_shaderDirectory))
+		{
+			DXRAY_ERROR("Could not find: {}", a_shaderDirectory.string());
+			return;
+		}
+
+		for (const std::filesystem::directory_entry& file : std::filesystem::directory_iterator(a_shaderDirectory))
+		{
+			//#Note_dxc: DxShaderCompiler currently only supports compiling files with the .hlsl extension.
+			if (!file.is_regular_file() || file.path().filename().extension() != ".hlsl")
+			{
+				continue;
+			}
+
+			const Path absolutePath = a_shaderDirectory / file;
+			const String source = dxray::ReadFile(absolutePath);
+
+			ShaderCompilationOutput result;
+			DXRAY_ASSERT(CompileShaderFile(file, a_shaderCacheDirectory, a_options, result));
+		}
+	}
+
+	bool ShaderCompiler::CompileShaderFile(const Path& a_filePath, const Path& a_binDirectory, const ShaderCompilationOptions& a_options, ShaderCompilationOutput& a_compileResult)
+	{
+		//Create the buffer to store the raw shader source.
+		const String fileContents = ReadFile(a_filePath);
+		DXRAY_ASSERT(!fileContents.empty());
+
 		const DxcBuffer buffer =
 		{
-			.Ptr = a_shaderReflectionBlob.Data,
-			.Size = static_cast<SIZE_T>(a_shaderReflectionBlob.SizeInBytes),
-			.Encoding = DXC_CP_ACP
+			.Ptr = fileContents.data(),
+			.Size = fileContents.size(),
+			.Encoding = DXC_CP_ACP,
 		};
 
-		return SUCCEEDED(m_utilities->CreateReflection(&buffer, IID_PPV_ARGS(&a_shaderReflection)));
+		//Select target profile based on shader file extension
+		WString targetProfile;
+		static std::unordered_map<Path, WString> targetProfileMapping =
+		{
+			{ ".vert", L"vs" },
+			{ ".geom", L"gs" },
+			{ ".frag", L"ps" },
+			{ ".comp", L"cs" },
+			{ ".rt", L"lib" }
+		};
+
+		targetProfile = std::format(L"{}_{}", targetProfileMapping[a_filePath.stem().extension()], StringEncoder::Utf8ToUnicode(ShaderModelVersionToUtf8(a_options.ShaderModel)));
+
+		//Configure the compiler.
+		const WString shaderEntryPoint = !a_options.EntryPoint.empty()
+			? StringEncoder::Utf8ToUnicode(a_options.EntryPoint)
+			: L""; //#Note_dxc: Raytrace shader files are libraries and don't have entry points.
+
+		const ShaderCompilationInput input =
+		{
+			.MacroDefinitions = a_options.MacroDefinitions,
+			.SourceBuffer = &buffer,
+			.ShaderFile = a_filePath,
+			.ShaderBinDirectory = a_binDirectory,
+			.TargetProfile = targetProfile,
+			.EntryPoint = shaderEntryPoint,
+			.OptimizationLevel = a_options.OptimizeLevel,
+			.WarningsAreErrors = a_options.WarningsAreErrors,
+			.SaveSymbols = a_options.SaveSymbols,
+			.SaveReflection = a_options.SaveReflection
+		};
+
+		if (DxCompiler.CompileShaderSource(input, a_compileResult))
+		{
+			DXRAY_INFO("Compiled shader {} successfully", a_filePath.string());
+			return true;
+		}
+
+		//#Todo_dxc: Error could be vague, see todo for enhanced error handling using error code/custom result types.
+		DXRAY_ERROR("Failed to compile {}!", a_filePath.string());
+		return false;
 	}
 }

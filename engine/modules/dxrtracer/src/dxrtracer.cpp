@@ -1,4 +1,4 @@
-#include "dxrtracer/dxShaderCompiler.h"
+#include "dxrtracer/shaderCompiler.h"
 #include "dxrtracer/window.h"
 #include <core/time/stopwatch.h>
 
@@ -99,7 +99,6 @@ u32 windowSurfaceHeight = 900;
 
 Stopwatchf m_time;
 std::unique_ptr<WinApiWindow> m_window;
-std::unique_ptr<DxShaderCompiler> m_dxShaderCompiler;
 
 bool m_bUseWarp;
 ComPtr<IDXGIFactory4> m_factory;
@@ -689,7 +688,7 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
 
     //#Todo: Move the inline compilation to a different place once abstraction begins.
     ShaderCompilationOutput compileRes;
-    if (!m_dxShaderCompiler->CompileShaderFile(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", Path(ENGINE_CACHE_DIRECTORY) / "shaders", options, compileRes))
+    if (!ShaderCompiler::CompileShaderFile(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", Path(ENGINE_CACHE_DIRECTORY) / "shaders", options, compileRes))
     {
         return;
     }
@@ -956,7 +955,6 @@ int main(int argc, char** argv)
         .Rect = dxray::vath::Rectu32(0, 0, windowSurfaceWidth, windowSurfaceHeight)
     };
     m_window = std::make_unique<WinApiWindow>(windowInfo);
-    m_dxShaderCompiler = std::make_unique<DxShaderCompiler>();
     
     CreateDevice(m_device);
     CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);

@@ -78,16 +78,6 @@ namespace dxray
 
 
 	/*!
-	 * @brief Contains the data used in shader reflection.
-	 */
-	struct ShaderReflectionBuffer
-	{
-		DataBlob Blob;
-		u32 Encoding;
-	};
-
-
-	/*!
 	 * @brief The options the shader compiler provides.
 	 * #Note: Potentially just select the highest available shader model and compile all with that. It's currently uncertain what potential downsides this could have. Though it would mean this option can be removed.
 	 */
@@ -112,6 +102,7 @@ namespace dxray
 		const bool HasSymbols() const;
 		const bool HasReflection() const;
 
+		std::vector<u8> ShaderHash;
 		DataBlob Binary;
 		DataBlob Symbols;
 		DataBlob Reflection;
@@ -131,4 +122,15 @@ namespace dxray
 	{
 		return Reflection.SizeInBytes > 0;
 	}
+
+
+	/*!
+	 * @brief API for cross platform shader compilation.
+	 */
+	class ShaderCompiler
+	{
+	public:
+		static void CompileShaderFilesInDirectory(const Path& a_shaderDirectory, const Path& a_shaderCacheDirectory, const ShaderCompilationOptions& a_options);
+		static bool CompileShaderFile(const Path& a_filePath, const Path& a_binDirectory, const ShaderCompilationOptions& a_options, ShaderCompilationOutput& a_compileResult);
+	};
 }

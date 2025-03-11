@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.27)
 set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/window.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/shaderCompiler.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/dxShaderCompiler.h"
 )
 
 set(SOURCE
@@ -31,4 +30,4 @@ project_add_target(
 	PCH_ON
 )
 
-add_dependencies(dxrtracer copy_dxil)
+add_dependencies(dxrtracer copy_dxc)

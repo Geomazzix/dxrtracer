@@ -11,7 +11,7 @@ namespace dxray
 	 */
 	struct DataBlob
 	{
-		void* Data = nullptr;
+		const void* Data = nullptr;
 		usize SizeInBytes = 0;
 	};
 
@@ -21,7 +21,7 @@ namespace dxray
 	 * @param a_bIsBinary optional flag for binary contents. Binary contents are treated as u8 within the context of a string.
 	 * @return 
 	 */
-	String Read(const Path& a_filePath, bool a_bIsBinary = false);
+	String ReadFile(const Path& a_filePath, bool a_bIsBinary = false);
 
 	/*!
 	 * @brief Opens a filestream to write non-binary content to.
@@ -29,7 +29,7 @@ namespace dxray
 	 * @param a_content the non-binary contents.
 	 * @return 
 	 */
-	bool Write(const Path& a_filePath, const String& a_content);
+	bool WriteFile(const Path& a_filePath, const String& a_content);
 
 	/*!
 	 * @brief Opens a filestream to write the binary to.
@@ -37,5 +37,5 @@ namespace dxray
 	 * @param a_dataBlob the binary data to be stored.
 	 * @return 
 	 */
-	bool WriteBinary(const Path& a_filePath, const DataBlob& a_dataBlob);
+	bool WriteBinaryFile(const Path& a_filePath, const DataBlob& a_dataBlob);
 }

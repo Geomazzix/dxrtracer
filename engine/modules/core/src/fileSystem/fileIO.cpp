@@ -2,7 +2,7 @@
 
 namespace dxray
 {
-	String Read(const Path& a_filePath, bool a_bIsBinary /*= false*/)
+	String ReadFile(const Path& a_filePath, bool a_bIsBinary /*= false*/)
 	{
 		String content("");
 		IfStream fileStream(a_filePath, a_bIsBinary
@@ -21,7 +21,7 @@ namespace dxray
 		return content;
 	}
 
-	bool Write(const Path& a_filePath, const String& a_content)
+	bool WriteFile(const Path& a_filePath, const String& a_content)
 	{
 		if (a_filePath.has_parent_path())
 		{
@@ -45,7 +45,7 @@ namespace dxray
 		return true;
 	}
 
-	bool WriteBinary(const Path& a_filePath, const DataBlob& a_dataBlob)
+	bool WriteBinaryFile(const Path& a_filePath, const DataBlob& a_dataBlob)
 	{
 		if (a_filePath.has_parent_path())
 		{
