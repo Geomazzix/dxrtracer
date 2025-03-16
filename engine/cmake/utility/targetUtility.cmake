@@ -52,7 +52,7 @@ function(target_set_ide_folders)
             FILES "${TARGET_SOURCE}"
         )
 
-        #Append the target to the modules filter if its not an runnable instance.
+        #Append the target to the modules filter if its not a runnable instance.
         if("${TARGET_FILTER}" STREQUAL "")
             set(TARGET_FILTER "modules")
         endif()

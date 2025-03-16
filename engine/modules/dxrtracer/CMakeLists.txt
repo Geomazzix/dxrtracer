@@ -18,7 +18,7 @@ set(DEPS
 	"d3dx12::guids"
 	"d3d12"
 	"dxgi"
-	"dxcompiler"
+	"dxShaderCompiler"
 )
 
 project_add_target(
@@ -29,5 +29,3 @@ project_add_target(
 	LINK_DEPS ${DEPS}
 	PCH_ON
 )
-
-add_dependencies(dxrtracer copy_dxc)

@@ -14,7 +14,7 @@ set(FETCHCONTENT_BASE_DIR "${THIRD_PARTY_DIRECTORY}" CACHE PATH "Third party dep
 find_package(Threads REQUIRED)
 include(findStb)
 include(findD3dx12)
-include(findD3d12sdk)
+include(findDxc)
 
 if(BUILD_TESTS)
 	include(findGoogleTest)
