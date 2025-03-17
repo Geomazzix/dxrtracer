@@ -9,7 +9,7 @@ set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/downloa
 set(DXC_DIRECTORY "${THIRD_PARTY_DIRECTORY}/dxc/${DXC_VERSION}")
 set(DXC_ARCHIVE "${DXC_DIRECTORY}/dxc.zip")
 
-if(EXISTS ${DXC_DIRECTORY})
+if(NOT EXISTS ${DXC_DIRECTORY})
     file(DOWNLOAD "${DXC_URL}" "${DXC_ARCHIVE}")
     execute_process(COMMAND "${CMAKE_COMMAND}" -E tar xzf "${DXC_ARCHIVE}" 
         WORKING_DIRECTORY "${THIRD_PARTY_DIRECTORY}/dxc/${DXC_VERSION}"
