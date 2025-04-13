@@ -2,9 +2,11 @@
 #include <cstdint>
 #include <cmath>
 #include <limits>
+#include <concepts>
 
 namespace dxray
 {
+	// Platform arithmetic types.
 	using u8 = uint8_t;
 	using u16 = uint16_t;
 	using u32 = uint32_t;
@@ -23,7 +25,11 @@ namespace dxray
 	using char16 = char16_t;
 	using char32 = char32_t;
 
-	using usize = std::size_t;
+	using usize = std::size_t; // Not sure if this is cross platform, stl contains it so it's assumed to be.
+	
+	// Limits
+	inline constexpr usize umin = std::numeric_limits<usize>::min();
+	inline constexpr usize umax = std::numeric_limits<usize>::max();
 
 	inline constexpr u8 u8max = std::numeric_limits<u8>::max();
 	inline constexpr u16 u16max = std::numeric_limits<u16>::max();
@@ -43,4 +49,20 @@ namespace dxray
 	inline constexpr fp32 fp32max = std::numeric_limits<fp32>::max();
 	inline constexpr fp64 fp64min = std::numeric_limits<fp64>::lowest();
 	inline constexpr fp64 fp64max = std::numeric_limits<fp64>::max();
+
+	// Arithmetic concepts.
+	template<typename T>
+	concept Arithmetic = std::is_arithmetic_v<T>;
+
+	template<typename T>
+	concept UnsignedArithmatic = std::floating_point<T> || std::unsigned_integral<T>;
+
+	template<typename T>
+	concept FloatingPoint = std::floating_point<T>;
+
+	template<typename T>
+	concept Integral = std::integral<T>;
+
+	template<typename T>
+	concept UnsignedIntegral = std::unsigned_integral<T>;
 }

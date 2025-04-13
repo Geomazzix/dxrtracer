@@ -9,6 +9,8 @@ set(SOURCE
 	"vath/vector2_testSuite.cpp"
 	"vath/quaternion_testSuite.cpp"
 
+	"containers/sparseSet_testSuite.cpp"
+
 	"unit_test_suite.cpp"
 )
 

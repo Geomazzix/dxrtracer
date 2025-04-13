@@ -15,6 +15,10 @@ set(HEADERS
 	#IO
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/fileSystem/fileIO.h"
 
+	#Containers
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/containers/array.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/containers/sparseSet.h"
+
 	#Math
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/matrix2x2.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/matrix3x3.h"

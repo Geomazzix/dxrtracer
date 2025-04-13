@@ -5,24 +5,6 @@
 
 namespace dxray::vath
 {
-	// --- Aliasing and defining math concepts ---
-
-    template<typename T>
-    concept Arithmetic = std::is_arithmetic_v<T>;
-
-	template<typename T>
-	concept UnsignedArithmatic = std::floating_point<T> || std::unsigned_integral<T>;
-
-    template<typename T>
-    concept FloatingPoint = std::floating_point<T>;
-
-    template<typename T>
-    concept Integral = std::integral<T>;
-
-    template<typename T>
-    concept UnsignedIntegral = std::unsigned_integral<T>;
-
-
 	//--- Arithmetic Utility ---
 
 	template<Arithmetic T>
