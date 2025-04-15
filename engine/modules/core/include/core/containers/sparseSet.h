@@ -3,28 +3,24 @@
 #include "core/valueTypes.h"
 #include "core/containers/array.h"
 
+// #Todo_container_sparseSet: Implement all methods.
+// #Todo_container_sparseSet: Is EnTT the way forward...? The current implementation suggests so, though it looks overly complex looking ahead into the ECS they created.
+// #Todo_container_sparseSet: Potentially implement a custom allocator.
+// #Todo_container_sparseSet: Potentially implement a custom storage container - this should ensure generic elements can use the container.
+
+// #Note_container_sparseSet: Are the key types and size types correct? i.e. can the current implementation actually work?
+
 namespace dxray
 {
 	template<typename T>
 	concept SparseSetKeyType = std::same_as<T, u16> || std::same_as<T, u32> || std::same_as<T, u64>;
 
-	/*!
-	 * @brief Resize-able sparse set implementation. To be used with an ECS.
-	 * @tparam ElementType: The element type to store in the dense array.
-	 * @tparam IndexType: The index type to use as handle to retrieve.
-	 */
-	template<typename ElementType, SparseSetKeyType KeyType = usize>
+	template<SparseSetKeyType KeyType = usize>
 	class SparseSet
 	{
 	public:
-		using value_type = ElementType;
 		using key_type = KeyType;
-		using size_type = KeyType;
-
-		using iterator = Array<value_type>::iterator;
-		using const_iterator = Array<value_type>::const_iterator;
-		using reverse_iterator = Array<value_type>::reverse_iterator;
-		using const_reverse_iterator = Array<value_type>::const_reverse_iterator;
+		using size_type = usize;
 		
 	private:
 		static constexpr const size_type InvalidKey = std::numeric_limits<KeyType>::max();
@@ -52,126 +48,109 @@ namespace dxray
 			return m_sparsePages[a_pageIndex];
 		}
 
-		inline void SetDenseMapping(const key_type a_keyId, const size_type a_index)
-		{
-			EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)] = a_index;
-		}
-
-		inline size_type GetDenseMapping(const key_type a_keyId)
-		{
-			return EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)];
-		}
-
 	public:
+		using iterator = Array<size_type>::iterator;
+		using const_iterator = iterator;
+		using reverse_iterator = std::reverse_iterator<iterator>;
+		using const_reverse_iterator = std::const_reverse_iterator<const_iterator>;
+
+		SparseSet() :
+			m_sparsePages(),
+			m_dense()
+		{ }
+
 		explicit SparseSet(const size_type a_initialCapacity = PageSize) :
 			m_sparsePages(),
-			m_dense(),
-			m_keyToDenseMapping()
+			m_dense()
 		{
-			// Reserve 1 page, or more if needed to match the capacity of the dense capacity.
 			m_sparsePages.reserve(static_cast<size_type>(static_cast<fp32>(a_initialCapacity) / PageSize));
 			m_dense.reserve(a_initialCapacity);
-			m_keyToDenseMapping.reserve(a_initialCapacity);
 		}
 
-		void Reserve(const size_type a_numElements)
+		virtual ~SparseSet() = default;
+
+		SparseSet(const SparseSet& a_rhs) = delete;
+
+		SparseSet& operator=(const SparseSet& a_rhs) = delete;
+
+		SparseSet(SparseSet&& a_rhs) = default;
+
+		SparseSet&& operator=(SparseSet&& a_rhs) = default;
+
+		void Reserve(const size_type a_capacity)
 		{
-			m_dense.reserve(a_numElements);
+			m_dense.reserve(a_capacity);
 		}
 
-		void ShrinkToFit()
+		void Emplace(const key_type a_keyId)
 		{
-			m_sparsePages.shrink_to_fit();
-			m_dense.shrink_to_fit();
+			// #Todo: Implement.
 		}
 
-		template<typename... Args>
-		ElementType& Emplace(const key_type a_keyId, Args&&... a_pArgs)
+		void Insert(iterator a_first, iterator a_end)
 		{
-			const size_type Index = EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)];
-			if (Index != InvalidKey)
-			{
-				m_dense[Index] = ElementType(std::forward<Args>(a_pArgs)...);
-				m_keyToDenseMapping[Index] = a_keyId;
-				return m_dense[Index];
-			}
-
-			m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] = m_dense.size();
-			m_dense.push_back(ElementType(std::forward<Args>(a_pArgs)...));
-			m_keyToDenseMapping.push_back(a_keyId);
-			return m_dense.back();
+			// #Todo: Implement.
 		}
 
 		void Remove(const key_type a_keyId)
 		{
-			const size_type index = GetDenseMapping(a_keyId);
-			if (index == InvalidKey)
-			{
-				return;
-			}
-
-			SetDenseMapping(m_keyToDenseMapping.back(), index);
-			SetDenseMapping(a_keyId, InvalidKey);
-			
-			std::swap(m_dense.back(), m_dense[index]);
-			std::swap(m_keyToDenseMapping.back(), m_keyToDenseMapping[index]);
-
-			m_dense.pop_back();
-			m_keyToDenseMapping.pop_back();
+			// #Todo: Implement.
 		}
 
-		void Clear() noexcept
+		void Remove(iterator a_first, iterator a_end)
 		{
-			m_dense.clear();
-			m_sparsePages.clear();
-			m_keyToDenseMapping.clear();
+			// #Todo: Implement.
 		}
 
-		[[nodiscard]] value_type& Get(const key_type a_keyId) noexcept
+		void Swap(const key_type a_lhs, const key_type a_rhs)
 		{
-			const size_type index = GetDenseMapping(a_keyId);
-			DXRAY_ASSERT(index != InvalidKey);
-			return m_dense[index];
+			// #Todo: Implement.
 		}
 
-		[[nodiscard]] bool Contains(const key_type a_keyId) const noexcept
+		void Clear()
 		{
-			return m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] != InvalidKey;
+			// #Todo: Implement.
 		}
 
-		[[nodiscard]] bool IsEmpty() const noexcept
-		{
-			return m_dense.empty();
-		}
-
-		[[nodiscard]] size_type GetCapacity() const
+		[[nodiscard]] const size_type GetCapacity() const noexcept
 		{
 			return m_dense.capacity();
 		}
 
-		[[nodiscard]] size_type GetSize() const noexcept
+		[[nodiscard]] const size_type GetSize() const noexcept
 		{
 			return m_dense.size();
 		}
 
-		[[nodiscard]] const value_type* const GetData() const noexcept
+		[[nodiscard]] const bool IsEmpty() const noexcept
 		{
-			return m_dense.data();
+			return m_dense.empty();
 		}
 
-		[[nodiscard]] value_type At(const key_type a_keyId) const
+		[[nodiscard]] const bool Contains() const noexcept
 		{
-			const size_type Index = GetDenseMapping(a_keyId);
-			DXRAY_ASSERT(a_keyId != InvalidKey);
-			return m_dense.at(Index);
+			// #Todo: Implement.
 		}
 
-		[[nodiscard]] value_type operator[](const key_type a_keyId) const
+		[[nodiscard]] iterator Find(const key_type a_keyId)
 		{
-			return At(a_keyId);
+			// #Todo: Implement.
 		}
 
-		// Scoped iterator implementations - cannot confirm to coding standards.
+		[[nodiscard]] size_type MapToIndex(const key_type a_keyId)
+		{
+			// #Todo: Implement.
+		}
+
+		[[nodiscard]] key_type At(const size_type a_index) const
+		{
+			// #Todo: Implement.
+		}
+
+		[[nodiscard]] key_type operator[](const size_type a_index) const
+		{
+			// #Todo: Implement.
+		}
 
 		[[nodiscard]] iterator begin() noexcept
 		{
@@ -181,26 +160,6 @@ namespace dxray
 		[[nodiscard]] const_iterator begin() const noexcept
 		{
 			return m_dense.begin();
-		}
-
-		[[nodiscard]] const_iterator cbegin() const noexcept
-		{
-			return m_dense.cbegin();
-		}
-
-		[[nodiscard]] reverse_iterator rbegin() noexcept
-		{
-			return m_dense.rbegin();
-		}
-
-		[[nodiscard]] const_reverse_iterator rbegin() const noexcept
-		{
-			return m_dense.rbegin();
-		}
-		
-		[[nodiscard]] const_reverse_iterator crbegin() const noexcept
-		{
-			return m_dense.crbegin();
 		}
 
 		[[nodiscard]] iterator end() noexcept
@@ -213,9 +172,14 @@ namespace dxray
 			return m_dense.end();
 		}
 
-		[[nodiscard]] const_iterator cend() const noexcept
+		[[nodiscard]] reverse_iterator rbegin() noexcept
 		{
-			return m_dense.cend();
+			return m_dense.rbegin();
+		}
+
+		[[nodiscard]] const_reverse_iterator rbegin() const noexcept
+		{
+			return m_dense.rbegin();
 		}
 
 		[[nodiscard]] reverse_iterator rend() noexcept
@@ -227,15 +191,29 @@ namespace dxray
 		{
 			return m_dense.rend();
 		}
-		
-		[[nodiscard]] const_reverse_iterator crend() const noexcept
+
+		[[nodiscard]] const_iterator cbegin() const noexcept
 		{
-			return m_dense.crend();
+			return begin();
+		}
+
+		[[nodiscard]] const_iterator cend() const noexcept
+		{
+			return end();
+		}
+
+		[[nodiscard]] const_reverse_iterator rcbegin() const noexcept
+		{
+			return rbegin();
+		}
+
+		[[nodiscard]] const_reverse_iterator rcend() const noexcept
+		{
+			return rend();
 		}
 
 	private:
 		Array<SparsePage> m_sparsePages;
-		Array<value_type> m_dense;
-		Array<key_type> m_keyToDenseMapping;
+		Array<key_type> m_dense;
 	};
 }
