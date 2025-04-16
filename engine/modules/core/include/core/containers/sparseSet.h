@@ -3,25 +3,35 @@
 #include "core/valueTypes.h"
 #include "core/containers/array.h"
 
-// #Todo_container_sparseSet: Implement all methods.
-// #Todo_container_sparseSet: Is EnTT the way forward...? The current implementation suggests so, though it looks overly complex looking ahead into the ECS they created.
-// #Todo_container_sparseSet: Potentially implement a custom allocator.
-// #Todo_container_sparseSet: Potentially implement a custom storage container - this should ensure generic elements can use the container.
-
-// #Note_container_sparseSet: Are the key types and size types correct? i.e. can the current implementation actually work?
+// #Todo: Revise the whole class:
+// - Strip all the value_type ops and move em into the sparseArray class.
+// - Revise iterators, MIGHT need a custom one for the sparse set.
+// - Revise the current paged sparse implementation - i.e. since we're not dealing with value_types anymore
+// we can now get away with different types of tricks that do not require us having to deal with strong types.
 
 namespace dxray
 {
 	template<typename T>
 	concept SparseSetKeyType = std::same_as<T, u16> || std::same_as<T, u32> || std::same_as<T, u64>;
 
-	template<SparseSetKeyType KeyType = usize>
+	/*!
+	 * @brief Resize-able sparse set implementation. To be used with an ECS.
+	 * @tparam ElementType: The element type to store in the dense array.
+	 * @tparam IndexType: The index type to use as handle to retrieve.
+	 */
+	template<SparseSetKeyType KeyType>
 	class SparseSet
 	{
 	public:
 		using key_type = KeyType;
 		using size_type = usize;
-		
+		using difference_type = u64;
+
+		using iterator = Array<key_type>::iterator;
+		using const_iterator = Array<key_type>::const_iterator;
+		using reverse_iterator = Array<key_type>::reverse_iterator;
+		using const_reverse_iterator = Array<key_type>::const_reverse_iterator;
+
 	private:
 		static constexpr const size_type InvalidKey = std::numeric_limits<KeyType>::max();
 		static constexpr const size_type PageSize = 4096;
@@ -49,22 +59,22 @@ namespace dxray
 		}
 
 	public:
-		using iterator = Array<size_type>::iterator;
-		using const_iterator = iterator;
-		using reverse_iterator = std::reverse_iterator<iterator>;
-		using const_reverse_iterator = std::const_reverse_iterator<const_iterator>;
-
 		SparseSet() :
 			m_sparsePages(),
-			m_dense()
-		{ }
+			m_dense(),
+			m_keyToDenseMapping()
+		{
+		}
 
 		explicit SparseSet(const size_type a_initialCapacity = PageSize) :
 			m_sparsePages(),
-			m_dense()
+			m_dense(),
+			m_keyToDenseMapping()
 		{
+			// Reserve 1 page, or more if needed to match the capacity of the dense capacity.
 			m_sparsePages.reserve(static_cast<size_type>(static_cast<fp32>(a_initialCapacity) / PageSize));
 			m_dense.reserve(a_initialCapacity);
+			m_keyToDenseMapping.reserve(a_initialCapacity);
 		}
 
 		virtual ~SparseSet() = default;
@@ -75,81 +85,106 @@ namespace dxray
 
 		SparseSet(SparseSet&& a_rhs) = default;
 
-		SparseSet&& operator=(SparseSet&& a_rhs) = default;
+		SparseSet& operator=(SparseSet&& a_rhs) = default;
 
-		void Reserve(const size_type a_capacity)
+		void Reserve(const size_type a_numElements)
 		{
-			m_dense.reserve(a_capacity);
+			m_keyToDenseMapping.reserve(a_numElements);
+			m_dense.reserve(a_numElements);
 		}
 
-		void Emplace(const key_type a_keyId)
+		void ShrinkToFit()
 		{
-			// #Todo: Implement.
+			m_sparsePages.shrink_to_fit();
+			m_keyToDenseMapping.shrink_to_fit();
+			m_dense.shrink_to_fit();
 		}
 
-		void Insert(iterator a_first, iterator a_end)
+		template<typename... Args>
+		ElementType& Emplace(const key_type a_keyId, Args&&... a_pArgs)
 		{
-			// #Todo: Implement.
+			if (const size_type Index = EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)] != InvalidKey)
+			{
+				m_keyToDenseMapping[Index] = a_keyId;
+				m_dense[Index] = ElementType(std::forward<Args>(a_pArgs)...);
+				return m_dense[Index];
+			}
+
+			m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] = m_dense.size();
+			m_keyToDenseMapping.push_back(a_keyId);
+			m_dense.push_back(ElementType(std::forward<Args>(a_pArgs)...));
+			return m_dense.back();
 		}
 
 		void Remove(const key_type a_keyId)
 		{
-			// #Todo: Implement.
+			DXRAY_ASSERT(Contains(a_keyId));
+
+			const size_type index = m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)];
+			const key_type backKeyId = m_keyToDenseMapping.back();
+			m_sparsePages[PageIndex(backKeyId)][PageOffset(backKeyId)] = index;
+			m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] = InvalidKey;
+
+			std::swap(m_dense.back(), m_dense[index]);
+			std::swap(m_keyToDenseMapping.back(), m_keyToDenseMapping[index]);
+
+			m_dense.pop_back();
+			m_keyToDenseMapping.pop_back();
 		}
 
-		void Remove(iterator a_first, iterator a_end)
+		void Clear() noexcept
 		{
-			// #Todo: Implement.
+			m_dense.clear();
+			m_sparsePages.clear();
+			m_keyToDenseMapping.clear();
 		}
 
-		void Swap(const key_type a_lhs, const key_type a_rhs)
+		[[nodiscard]] value_type& Get(const key_type a_keyId) noexcept
 		{
-			// #Todo: Implement.
+			DXRAY_ASSERT(PageIndex(a_keyId) < m_sparsePages.size());
+			DXRAY_ASSERT(PageOffset(a_keyId) < PageSize);
+			return m_dense[m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)]];
 		}
 
-		void Clear()
+		[[nodiscard]] bool Contains(const key_type a_keyId) const noexcept
 		{
-			// #Todo: Implement.
+			DXRAY_ASSERT(PageIndex(a_keyId) < m_sparsePages.size());
+			DXRAY_ASSERT(PageOffset(a_keyId) < PageSize);
+			return m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] != InvalidKey;
 		}
 
-		[[nodiscard]] const size_type GetCapacity() const noexcept
-		{
-			return m_dense.capacity();
-		}
-
-		[[nodiscard]] const size_type GetSize() const noexcept
-		{
-			return m_dense.size();
-		}
-
-		[[nodiscard]] const bool IsEmpty() const noexcept
+		[[nodiscard]] bool IsEmpty() const noexcept
 		{
 			return m_dense.empty();
 		}
 
-		[[nodiscard]] const bool Contains() const noexcept
+		[[nodiscard]] size_type GetCapacity() const
 		{
-			// #Todo: Implement.
+			return m_dense.capacity();
 		}
 
-		[[nodiscard]] iterator Find(const key_type a_keyId)
+		[[nodiscard]] size_type GetSize() const noexcept
 		{
-			// #Todo: Implement.
+			return m_dense.size();
 		}
 
-		[[nodiscard]] size_type MapToIndex(const key_type a_keyId)
+		[[nodiscard]] const value_type* const GetData() const noexcept
 		{
-			// #Todo: Implement.
+			return m_dense.data();
 		}
 
-		[[nodiscard]] key_type At(const size_type a_index) const
+		[[nodiscard]] value_type At(const key_type a_keyId) const
 		{
-			// #Todo: Implement.
+			DXRAY_ASSERT(PageIndex(a_keyId) < m_sparsePages.size());
+			DXRAY_ASSERT(PageOffset(a_keyId) < PageSize);
+			const size_type Index = m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)];
+			DXRAY_ASSERT(a_keyId != InvalidKey);
+			return m_dense.at(Index);
 		}
 
-		[[nodiscard]] key_type operator[](const size_type a_index) const
+		[[nodiscard]] value_type operator[](const key_type a_keyId) const
 		{
-			// #Todo: Implement.
+			return m_dense[m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)]];
 		}
 
 		[[nodiscard]] iterator begin() noexcept
@@ -214,6 +249,113 @@ namespace dxray
 
 	private:
 		Array<SparsePage> m_sparsePages;
-		Array<key_type> m_dense;
+		Array<key_type> m_keyToDenseMapping;
+	};
+
+
+	template<typename ValueType, SparseSetKeyType KeyType = usize>
+	class SparseArray : public SparseSet<KeyType>
+	{
+	public:
+		using value_type = ElementType;
+
+		using iterator = Array<value_type>::iterator;
+		using const_iterator = Array<value_type>::const_iterator;
+		using reverse_iterator = Array<value_type>::reverse_iterator;
+		using const_reverse_iterator = Array<value_type>::const_reverse_iterator;
+
+	public:
+		SparseArray() :
+			m_elements()
+		{ }
+
+		explicit SparseArray(const size_type a_initialCapacity = PageSize) :
+			m_elements(),
+		{
+			m_elements.reserve(a_initialCapacity);
+		}
+
+		virtual ~SparseArray() = default;
+
+		SparseArray(const SparseArray& a_rhs) = delete;
+
+		SparseArray& operator=(const SparseArray& a_rhs) = delete;
+
+		SparseArray(SparseArray&& a_rhs) = default;
+
+		SparseArray& operator=(SparseArray&& a_rhs) = default;
+
+		value_type& Emplace()
+		{
+			// #Todo: Implementation.
+		}
+
+		void Remove()
+		{
+			// #Todo: Implementation.
+		}
+
+		[[nodiscard]] iterator begin() noexcept
+		{
+			return m_elements.begin();
+		}
+
+		[[nodiscard]] const_iterator begin() const noexcept
+		{
+			return m_elements.begin();
+		}
+
+		[[nodiscard]] iterator end() noexcept
+		{
+			return m_elements.end();
+		}
+
+		[[nodiscard]] const_iterator end() const noexcept
+		{
+			return m_elements.end();
+		}
+
+		[[nodiscard]] reverse_iterator rbegin() noexcept
+		{
+			return m_elements.rbegin();
+		}
+
+		[[nodiscard]] const_reverse_iterator rbegin() const noexcept
+		{
+			return m_elements.rbegin();
+		}
+
+		[[nodiscard]] reverse_iterator rend() noexcept
+		{
+			return m_elements.rend();
+		}
+
+		[[nodiscard]] const_reverse_iterator rend() const noexcept
+		{
+			return m_elements.rend();
+		}
+
+		[[nodiscard]] const_iterator cbegin() const noexcept
+		{
+			return begin();
+		}
+
+		[[nodiscard]] const_iterator cend() const noexcept
+		{
+			return end();
+		}
+
+		[[nodiscard]] const_reverse_iterator rcbegin() const noexcept
+		{
+			return rbegin();
+		}
+
+		[[nodiscard]] const_reverse_iterator rcend() const noexcept
+		{
+			return rend();
+		}
+
+	private:
+		Array<value_type> m_elements;
 	};
 }
