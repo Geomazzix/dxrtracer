@@ -1,258 +1,340 @@
 #pragma once
+#include <iterator>
 #include "core/vath/vathUtility.h"
 #include "core/valueTypes.h"
 #include "core/containers/array.h"
 
-// #Todo: Revise the whole class:
-// - Strip all the value_type ops and move em into the sparseArray class.
-// - Revise iterators, MIGHT need a custom one for the sparse set.
-// - Revise the current paged sparse implementation - i.e. since we're not dealing with value_types anymore
-// we can now get away with different types of tricks that do not require us having to deal with strong types.
-
 namespace dxray
 {
-	template<typename T>
-	concept SparseSetKeyType = std::same_as<T, u16> || std::same_as<T, u32> || std::same_as<T, u64>;
+	/*!
+	 * @brief Acceptable key types for the sparse set.
+	 */
+	template<typename ValueType>
+	concept SparseSetKeyType = std::same_as<ValueType, u16> || std::same_as<ValueType, u32> || std::same_as<ValueType, u64>;
+
 
 	/*!
-	 * @brief Resize-able sparse set implementation. To be used with an ECS.
-	 * @tparam ElementType: The element type to store in the dense array.
-	 * @tparam IndexType: The index type to use as handle to retrieve.
+	* @brief The iterator used to traverse the sparse set.
+	* Internally this traverses the dense array in the sparse set in reverse order,
+	* thereby allowing insertions/removals to occur without the invalidation of this iterator.
+	*/
+	template<typename Container>
+	class SparseSetIterator final
+	{
+		using iterator_concept [[maybe_unused]] = std::contiguous_iterator_tag;
+		using difference_type = typename Container::difference_type;
+		using element_type = typename Container::value_type;
+		using pointer = typename Container::const_pointer;
+		using reference = typename Container::const_pointer;
+
+		SparseSetIterator() noexcept :
+			m_ptr(nullptr)
+		{ }
+
+		explicit SparseSetIterator(pointer a_pElement) noexcept :
+			m_ptr(a_pElement)
+		{ }
+
+		[[nodiscard]] constexpr reference operator*() const noexcept
+		{
+			return *m_ptr;
+		}
+
+		[[nodiscard]] constexpr pointer operator->() const noexcept
+		{
+			return m_ptr;
+		}
+
+		[[nodiscard]] constexpr reference operator[](difference_type a_idx) const noexcept
+		{
+			return m_ptr[a_idx];
+		}
+
+		constexpr SparseSetIterator& operator++() noexcept
+		{
+			m_ptr++;
+			return *this;
+		}
+
+		constexpr SparseSetIterator operator++(int) noexcept
+		{
+			SparseSetIterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		constexpr SparseSetIterator& operator+=(int a_idx) noexcept
+		{
+			m_ptr += a_idx;
+			return *this;
+		}
+
+		[[nodiscard]] constexpr SparseSetIterator operator+(const difference_type other) const noexcept
+		{
+			return m_ptr + other;
+		}
+
+		[[nodiscard]] constexpr friend SparseSetIterator operator+(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
+		{
+			return a_rhs + a_value;
+		}
+
+		constexpr SparseSetIterator& operator--() noexcept
+		{
+			--m_ptr;
+			return *this;
+		}
+
+		constexpr SparseSetIterator operator--(int) noexcept
+		{
+			SparseSetIterator tmp = *this;
+			--(*this);
+			return tmp;
+		}
+
+		constexpr SparseSetIterator& operator-=(int a_idx) noexcept
+		{
+			m_ptr -= a_idx;
+			return *this;
+		}
+
+		[[nodiscard]] constexpr difference_type operator-(const SparseSetIterator& a_rhs) const noexcept
+		{
+			return m_ptr - a_rhs.m_ptr;
+		}
+
+		[[nodiscard]] constexpr SparseSetIterator operator-(const difference_type a_value) const noexcept
+		{
+			return m_ptr - a_value;
+		}
+
+		[[nodiscard]] constexpr friend SparseSetIterator operator-(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
+		{
+			return a_rhs - a_value;
+		}
+
+		[[nodiscard]] constexpr bool operator==(const SparseSetIterator& a_rhs) const noexcept
+		{
+			return m_ptr == a_rhs.m_ptr;
+		}
+
+		[[nodiscard]] constexpr auto operator<=>(const SparseSetIterator&) const = default;
+
+	private:
+		pointer m_ptr;
+	};
+
+
+	/*!
+	 * @brief Resize-able sparse set implementation.
+	 * @tparam KeyType: The handle type used to store map the values indices to.
+	 * @tparam PageSize: The page size of the sparse array, default: 4096.
+	 * 
+	 * Differs from usual sparse set, optimizations taken from: ECS back and forth - Part 9 - Sparse sets and EnTT
+	 * - Uses an invalidations value for faster lookups.
+	 * - Uses a reverse iterator to allow insertions/removals to be made without invaliding the iterators.
+	 * - Uses pagination to enhance memory performance.
 	 */
-	template<SparseSetKeyType KeyType>
+	template<SparseSetKeyType KeyType, usize PageSize = 4096>
 	class SparseSet
 	{
 	public:
 		using key_type = KeyType;
 		using size_type = usize;
-		using difference_type = u64;
-
-		using iterator = Array<key_type>::iterator;
-		using const_iterator = Array<key_type>::const_iterator;
-		using reverse_iterator = Array<key_type>::reverse_iterator;
-		using const_reverse_iterator = Array<key_type>::const_reverse_iterator;
 
 	private:
 		static constexpr const size_type InvalidKey = std::numeric_limits<KeyType>::max();
-		static constexpr const size_type PageSize = 4096;
 		using SparsePage = FixedArray<size_type, PageSize>;
+		using DenseArray = Array<key_type>;
+		using SparseArray = Array<SparsePage>;
 
-		[[nodiscard]] inline size_type PageIndex(const key_type a_keyId) const noexcept
+	public:
+		using iterator = SparseSetIterator<Array<key_type>>;
+		using const_iterator = iterator;
+		using reverse_iterator = std::reverse_iterator<iterator>;
+		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+		static_assert(std::contiguous_iterator<SparseSetIterator<DenseArray>>);
+
+	private:
+		[[nodiscard]] constexpr inline size_type PageIndex(const key_type a_keyId) const noexcept
 		{
 			return a_keyId / PageSize;
 		}
 
-		[[nodiscard]] inline size_type PageOffset(const key_type a_keyId) const noexcept
+		[[nodiscard]] constexpr inline size_type PageOffset(const key_type a_keyId) const noexcept
 		{
 			return a_keyId & (PageSize - 1);
 		}
 
-		[[nodiscard]] inline SparsePage EnsurePage(const size_type a_pageIndex)
+		[[nodiscard]] constexpr inline SparsePage& EnsurePage(const size_type a_pageIndex)
 		{
-			if (a_pageIndex >= m_sparsePages.size())
+			if (a_pageIndex >= m_pagedSparse.size())
 			{
-				m_sparsePages.resize(a_pageIndex + 1);
-				m_sparsePages[a_pageIndex].fill(InvalidKey);
+				m_pagedSparse.resize(a_pageIndex + 1);
+				m_pagedSparse[a_pageIndex].fill(InvalidKey);
 			}
 
-			return m_sparsePages[a_pageIndex];
+			return m_pagedSparse[a_pageIndex];
 		}
 
 	public:
-		SparseSet() :
-			m_sparsePages(),
-			m_dense(),
-			m_keyToDenseMapping()
-		{
-		}
-
-		explicit SparseSet(const size_type a_initialCapacity = PageSize) :
-			m_sparsePages(),
-			m_dense(),
-			m_keyToDenseMapping()
-		{
-			// Reserve 1 page, or more if needed to match the capacity of the dense capacity.
-			m_sparsePages.reserve(static_cast<size_type>(static_cast<fp32>(a_initialCapacity) / PageSize));
-			m_dense.reserve(a_initialCapacity);
-			m_keyToDenseMapping.reserve(a_initialCapacity);
-		}
-
+		SparseSet() = default;
 		virtual ~SparseSet() = default;
-
 		SparseSet(const SparseSet& a_rhs) = delete;
-
 		SparseSet& operator=(const SparseSet& a_rhs) = delete;
-
 		SparseSet(SparseSet&& a_rhs) = default;
-
 		SparseSet& operator=(SparseSet&& a_rhs) = default;
 
-		void Reserve(const size_type a_numElements)
+		constexpr void Reserve(const size_type a_numElements)
 		{
-			m_keyToDenseMapping.reserve(a_numElements);
 			m_dense.reserve(a_numElements);
 		}
 
-		void ShrinkToFit()
+		constexpr void ShrinkCapacityToSize()
 		{
-			m_sparsePages.shrink_to_fit();
-			m_keyToDenseMapping.shrink_to_fit();
+			m_pagedSparse.shrink_to_fit();
 			m_dense.shrink_to_fit();
 		}
 
-		template<typename... Args>
-		ElementType& Emplace(const key_type a_keyId, Args&&... a_pArgs)
+		constexpr void Emplace(const key_type a_keyId)
 		{
-			if (const size_type Index = EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)] != InvalidKey)
-			{
-				m_keyToDenseMapping[Index] = a_keyId;
-				m_dense[Index] = ElementType(std::forward<Args>(a_pArgs)...);
-				return m_dense[Index];
-			}
+			DXRAY_ASSERT(!Contains(a_keyId));
 
-			m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] = m_dense.size();
-			m_keyToDenseMapping.push_back(a_keyId);
-			m_dense.push_back(ElementType(std::forward<Args>(a_pArgs)...));
-			return m_dense.back();
+			// Add the keyId to the back of the dense array, as removal does the opposite.
+			EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)] = m_dense.size();
+			m_dense.push_back(a_keyId);
 		}
 
-		void Remove(const key_type a_keyId)
+		constexpr void Remove(const key_type a_keyId)
 		{
 			DXRAY_ASSERT(Contains(a_keyId));
 
-			const size_type index = m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)];
-			const key_type backKeyId = m_keyToDenseMapping.back();
-			m_sparsePages[PageIndex(backKeyId)][PageOffset(backKeyId)] = index;
-			m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] = InvalidKey;
-
+			// Swap the dense last element with the requested one.
+			size_type& index = m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)];
+			const key_type backKeyId = m_dense.back();
 			std::swap(m_dense.back(), m_dense[index]);
-			std::swap(m_keyToDenseMapping.back(), m_keyToDenseMapping[index]);
-
+			
+			// Update the sparse value to ensure it still points to the just swapped index and invalidate the index that's now located at the back.
+			m_pagedSparse[PageIndex(backKeyId)][PageOffset(backKeyId)] = index;
+			index = InvalidKey;
 			m_dense.pop_back();
-			m_keyToDenseMapping.pop_back();
 		}
 
-		void Clear() noexcept
+		constexpr void Clear() noexcept
 		{
+			m_pagedSparse.clear();
 			m_dense.clear();
-			m_sparsePages.clear();
-			m_keyToDenseMapping.clear();
 		}
 
-		[[nodiscard]] value_type& Get(const key_type a_keyId) noexcept
+		[[nodiscard]] constexpr bool Contains(const key_type a_keyId) const noexcept
 		{
-			DXRAY_ASSERT(PageIndex(a_keyId) < m_sparsePages.size());
-			DXRAY_ASSERT(PageOffset(a_keyId) < PageSize);
-			return m_dense[m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)]];
+			return PageIndex(a_keyId) < m_pagedSparse.size() && PageOffset(a_keyId) < PageSize && m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)] != InvalidKey;
 		}
 
-		[[nodiscard]] bool Contains(const key_type a_keyId) const noexcept
-		{
-			DXRAY_ASSERT(PageIndex(a_keyId) < m_sparsePages.size());
-			DXRAY_ASSERT(PageOffset(a_keyId) < PageSize);
-			return m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)] != InvalidKey;
-		}
-
-		[[nodiscard]] bool IsEmpty() const noexcept
+		[[nodiscard]] constexpr bool IsEmpty() const noexcept
 		{
 			return m_dense.empty();
 		}
 
-		[[nodiscard]] size_type GetCapacity() const
+		[[nodiscard]] constexpr size_type GetCapacity() const
 		{
 			return m_dense.capacity();
 		}
 
-		[[nodiscard]] size_type GetSize() const noexcept
+		[[nodiscard]] constexpr size_type GetSize() const noexcept
 		{
 			return m_dense.size();
 		}
 
-		[[nodiscard]] const value_type* const GetData() const noexcept
+		[[nodiscard]] constexpr const size_type* const GetData() const noexcept
 		{
 			return m_dense.data();
 		}
 
-		[[nodiscard]] value_type At(const key_type a_keyId) const
+		[[nodiscard]] constexpr size_type At(const key_type a_keyId) const
 		{
-			DXRAY_ASSERT(PageIndex(a_keyId) < m_sparsePages.size());
+			DXRAY_ASSERT(PageIndex(a_keyId) < m_pagedSparse.size());
 			DXRAY_ASSERT(PageOffset(a_keyId) < PageSize);
-			const size_type Index = m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)];
+
+			const size_type Index = m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)];
 			DXRAY_ASSERT(a_keyId != InvalidKey);
+			
 			return m_dense.at(Index);
 		}
 
-		[[nodiscard]] value_type operator[](const key_type a_keyId) const
+		[[nodiscard]] constexpr size_type operator[](const key_type a_keyId) const
 		{
-			return m_dense[m_sparsePages[PageIndex(a_keyId)][PageOffset(a_keyId)]];
+			return m_dense[m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)]];
 		}
 
-		[[nodiscard]] iterator begin() noexcept
-		{
-			return m_dense.begin();
-		}
-
-		[[nodiscard]] const_iterator begin() const noexcept
+		[[nodiscard]] constexpr iterator begin() noexcept
 		{
 			return m_dense.begin();
 		}
 
-		[[nodiscard]] iterator end() noexcept
+		[[nodiscard]] constexpr const_iterator begin() const noexcept
+		{
+			return m_dense.begin();
+		}
+
+		[[nodiscard]] constexpr iterator end() noexcept
 		{
 			return m_dense.end();
 		}
 
-		[[nodiscard]] const_iterator end() const noexcept
+		[[nodiscard]] constexpr const_iterator end() const noexcept
 		{
 			return m_dense.end();
 		}
 
-		[[nodiscard]] reverse_iterator rbegin() noexcept
+		[[nodiscard]] constexpr reverse_iterator rbegin() noexcept
 		{
 			return m_dense.rbegin();
 		}
 
-		[[nodiscard]] const_reverse_iterator rbegin() const noexcept
+		[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
 		{
 			return m_dense.rbegin();
 		}
 
-		[[nodiscard]] reverse_iterator rend() noexcept
+		[[nodiscard]] constexpr reverse_iterator rend() noexcept
 		{
 			return m_dense.rend();
 		}
 
-		[[nodiscard]] const_reverse_iterator rend() const noexcept
+		[[nodiscard]] constexpr const_reverse_iterator rend() const noexcept
 		{
 			return m_dense.rend();
 		}
 
-		[[nodiscard]] const_iterator cbegin() const noexcept
+		[[nodiscard]] constexpr const_iterator cbegin() const noexcept
 		{
 			return begin();
 		}
 
-		[[nodiscard]] const_iterator cend() const noexcept
+		[[nodiscard]] constexpr const_iterator cend() const noexcept
 		{
 			return end();
 		}
 
-		[[nodiscard]] const_reverse_iterator rcbegin() const noexcept
+		[[nodiscard]] constexpr const_reverse_iterator rcbegin() const noexcept
 		{
 			return rbegin();
 		}
 
-		[[nodiscard]] const_reverse_iterator rcend() const noexcept
+		[[nodiscard]] constexpr const_reverse_iterator rcend() const noexcept
 		{
 			return rend();
 		}
-
+		
 	private:
-		Array<SparsePage> m_sparsePages;
-		Array<key_type> m_keyToDenseMapping;
+		SparseArray m_pagedSparse;
+		DenseArray m_dense;
 	};
 
 
+	/*
 	template<typename ValueType, SparseSetKeyType KeyType = usize>
 	class SparseArray : public SparseSet<KeyType>
 	{
@@ -285,9 +367,20 @@ namespace dxray
 
 		SparseArray& operator=(SparseArray&& a_rhs) = default;
 
-		value_type& Emplace()
+		template<typename... Args>
+		ElementType& Emplace(const key_type a_keyId, Args&&... a_pArgs)
 		{
-			// #Todo: Implementation.
+			if (const size_type Index = EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)] != InvalidKey)
+			{
+				m_keyToDenseMapping[Index] = a_keyId;
+				m_dense[Index] = ElementType(std::forward<Args>(a_pArgs)...);
+				return m_dense[Index];
+			}
+
+			m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)] = m_dense.size();
+			m_keyToDenseMapping.push_back(a_keyId);
+			m_dense.push_back(ElementType(std::forward<Args>(a_pArgs)...));
+			return m_dense.back();
 		}
 
 		void Remove()
@@ -358,4 +451,5 @@ namespace dxray
 	private:
 		Array<value_type> m_elements;
 	};
+	*/
 }

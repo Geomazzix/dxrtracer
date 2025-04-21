@@ -22,40 +22,36 @@ TEST(SparseSet, StressTest)
 
 	using KeyType = usize;
 	const u32 sparseSize = 2048;
+
 	std::vector<KeyType> ids;
 	ids.resize(sparseSize);
-
 	for (u32 i = 0; i < sparseSize; i++)
 	{
 		ids[i] = i;
 	}
 
-	SparseSet<KeyType> sparseSet(sparseSize);
+	SparseSet<KeyType> sparseSet;
+	sparseSet.Reserve(sparseSize);
 	for (u32 i = 0; i < sparseSize; i++)
 	{
-		sparseSet.Emplace(i, SparseItem());
+		sparseSet.Emplace(i);
 	}
 
-	if (sparseSet.Contains(128))
+	for (u32 i = 0; i < sparseSize; i++)
 	{
-		SparseItem i = sparseSet.Get(128);
-	}
-
-	sparseSet.Remove(ids[2046]);
-	sparseSet.Remove(ids.back());
-
-	for (auto& it : sparseSet)
-	{
-		it.b = 2.0f;
+		EXPECT_EQ(sparseSet[i], ids[i]);
 	}
 
 	const usize sparseSetSize = sparseSet.GetSize();
 	for (i32 i = 0; i < sparseSetSize; i++)
 	{
-		EXPECT_EQ(sparseSet[i].b, 2.0f);
 		sparseSet.Remove(i);
 	}
-
+	
 	sparseSet.Clear();
 	EXPECT_EQ(sparseSet.GetSize(), 0);
+	EXPECT_EQ(sparseSet.GetCapacity(), sparseSize);
+
+	sparseSet.ShrinkCapacityToSize();
+	EXPECT_EQ(sparseSet.GetCapacity(), 0);
 }
