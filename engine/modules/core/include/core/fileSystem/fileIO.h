@@ -1,5 +1,5 @@
 #pragma once
-#include "core/string.h"
+#include "core/containers/string.h"
 
 //#Todo: Implement a proper filereader/writer class, these functions are quite messy on the inside.
 

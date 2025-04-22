@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cassert>
 
-#include "core/string.h"
+#include "core/containers/string.h"
 
 #ifndef CONFIG_RELEASE
 #define DXRAY_TRACE(message, ...)		printf("trace: %s\n", std::format(message, __VA_ARGS__).c_str())

@@ -1,4 +1,4 @@
-#include "core/string.h"
+#include "core/containers/string.h"
 
 namespace dxray
 {

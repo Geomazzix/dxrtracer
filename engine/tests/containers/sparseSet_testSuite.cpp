@@ -42,6 +42,13 @@ TEST(SparseSet, StressTest)
 		EXPECT_EQ(sparseSet[i], ids[i]);
 	}
 
+	u32 i = 0;
+	for (const auto& it : sparseSet)
+	{
+		i++;
+		EXPECT_EQ(it, ids[i]);
+	}
+
 	const usize sparseSetSize = sparseSet.GetSize();
 	for (i32 i = 0; i < sparseSetSize; i++)
 	{

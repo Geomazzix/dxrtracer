@@ -4,7 +4,6 @@ set(HEADERS
 	#Root includes
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/debug.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/valueTypes.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/string.h"
 
 	#Time
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/time/stopwatch.h"
@@ -18,6 +17,8 @@ set(HEADERS
 	#Containers
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/containers/array.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/containers/sparseSet.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/containers/sparseArray.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/containers/string.h"
 
 	#Math
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/matrix2x2.h"

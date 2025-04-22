@@ -4,9 +4,9 @@
 #include <cstdlib>
 
 //Global accessible defines, used throughout the whole framework.
-#include "core/string.h"		//Takes care of <string>
-#include "core/valueTypes.h"	//Defines mathematical values/
-#include "core/debug.h"			//Debug logging/asserts.
+#include "core/containers/string.h"		//Takes care of <string>
+#include "core/valueTypes.h"			//Defines mathematical values/
+#include "core/debug.h"					//Debug logging/asserts.
 
 //Memory and containers.
 #include <memory>

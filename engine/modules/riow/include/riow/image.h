@@ -1,5 +1,5 @@
 #pragma once
-#include <core/string.h>
+#include <core/containers/string.h>
 #include <core/vath/vath.h>
 #include "riow/color.h"
 

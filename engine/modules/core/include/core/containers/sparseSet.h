@@ -1,5 +1,4 @@
 #pragma once
-#include <iterator>
 #include "core/vath/vathUtility.h"
 #include "core/valueTypes.h"
 #include "core/containers/array.h"
@@ -14,18 +13,19 @@ namespace dxray
 
 
 	/*!
-	* @brief The iterator used to traverse the sparse set.
+	* @brief The iterator used to traverse the sparse set. Expects an STL compatible container.
 	* Internally this traverses the dense array in the sparse set in reverse order,
 	* thereby allowing insertions/removals to occur without the invalidation of this iterator.
 	*/
 	template<typename Container>
 	class SparseSetIterator final
 	{
+	public:
 		using iterator_concept [[maybe_unused]] = std::contiguous_iterator_tag;
 		using difference_type = typename Container::difference_type;
-		using element_type = typename Container::value_type;
+		using value_type = typename Container::value_type;
 		using pointer = typename Container::const_pointer;
-		using reference = typename Container::const_pointer;
+		using reference = typename Container::const_reference;
 
 		SparseSetIterator() noexcept :
 			m_ptr(nullptr)
@@ -52,65 +52,65 @@ namespace dxray
 
 		constexpr SparseSetIterator& operator++() noexcept
 		{
-			m_ptr++;
+			--m_ptr;
 			return *this;
 		}
 
 		constexpr SparseSetIterator operator++(int) noexcept
 		{
 			SparseSetIterator tmp = *this;
-			++(*this);
+			--(*this);
 			return tmp;
 		}
 
 		constexpr SparseSetIterator& operator+=(int a_idx) noexcept
 		{
-			m_ptr += a_idx;
+			m_ptr -= a_idx;
 			return *this;
 		}
 
 		[[nodiscard]] constexpr SparseSetIterator operator+(const difference_type other) const noexcept
 		{
-			return m_ptr + other;
+			return m_ptr - other;
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator+(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
 		{
-			return a_rhs + a_value;
+			return a_rhs - a_value;
 		}
 
 		constexpr SparseSetIterator& operator--() noexcept
 		{
-			--m_ptr;
+			++m_ptr;
 			return *this;
 		}
 
 		constexpr SparseSetIterator operator--(int) noexcept
 		{
 			SparseSetIterator tmp = *this;
-			--(*this);
+			++(*this);
 			return tmp;
 		}
 
 		constexpr SparseSetIterator& operator-=(int a_idx) noexcept
 		{
-			m_ptr -= a_idx;
+			m_ptr += a_idx;
 			return *this;
 		}
 
 		[[nodiscard]] constexpr difference_type operator-(const SparseSetIterator& a_rhs) const noexcept
 		{
-			return m_ptr - a_rhs.m_ptr;
+			return m_ptr + a_rhs.m_ptr;
 		}
 
 		[[nodiscard]] constexpr SparseSetIterator operator-(const difference_type a_value) const noexcept
 		{
-			return m_ptr - a_value;
+			return m_ptr + a_value;
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator-(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
 		{
-			return a_rhs - a_value;
+			return a_rhs + a_value;
 		}
 
 		[[nodiscard]] constexpr bool operator==(const SparseSetIterator& a_rhs) const noexcept
@@ -270,186 +270,66 @@ namespace dxray
 
 		[[nodiscard]] constexpr iterator begin() noexcept
 		{
-			return m_dense.begin();
+			return iterator();
 		}
-
-		[[nodiscard]] constexpr const_iterator begin() const noexcept
-		{
-			return m_dense.begin();
-		}
-
+		
+		//[[nodiscard]] constexpr const_iterator begin() const noexcept
+		//{
+		//	return m_dense.begin();
+		//}
+		
 		[[nodiscard]] constexpr iterator end() noexcept
 		{
-			return m_dense.end();
+			return iterator(nullptr);
 		}
-
-		[[nodiscard]] constexpr const_iterator end() const noexcept
-		{
-			return m_dense.end();
-		}
-
-		[[nodiscard]] constexpr reverse_iterator rbegin() noexcept
-		{
-			return m_dense.rbegin();
-		}
-
-		[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
-		{
-			return m_dense.rbegin();
-		}
-
-		[[nodiscard]] constexpr reverse_iterator rend() noexcept
-		{
-			return m_dense.rend();
-		}
-
-		[[nodiscard]] constexpr const_reverse_iterator rend() const noexcept
-		{
-			return m_dense.rend();
-		}
-
-		[[nodiscard]] constexpr const_iterator cbegin() const noexcept
-		{
-			return begin();
-		}
-
-		[[nodiscard]] constexpr const_iterator cend() const noexcept
-		{
-			return end();
-		}
-
-		[[nodiscard]] constexpr const_reverse_iterator rcbegin() const noexcept
-		{
-			return rbegin();
-		}
-
-		[[nodiscard]] constexpr const_reverse_iterator rcend() const noexcept
-		{
-			return rend();
-		}
+		
+		//[[nodiscard]] constexpr const_iterator end() const noexcept
+		//{
+		//	return m_dense.end();
+		//}
+		
+		//[[nodiscard]] constexpr reverse_iterator rbegin() noexcept
+		//{
+		//	return m_dense.rbegin();
+		//}
+		
+		//[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
+		//{
+		//	return m_dense.rbegin();
+		//}
+		
+		//[[nodiscard]] constexpr reverse_iterator rend() noexcept
+		//{
+		//	return m_dense.rend();
+		//}
+		
+		//[[nodiscard]] constexpr const_reverse_iterator rend() const noexcept
+		//{
+		//	return m_dense.rend();
+		//}
+		
+		//[[nodiscard]] constexpr const_iterator cbegin() const noexcept
+		//{
+		//	return begin();
+		//}
+		//
+		//[[nodiscard]] constexpr const_iterator cend() const noexcept
+		//{
+		//	return end();
+		//}
+		
+		//[[nodiscard]] constexpr const_reverse_iterator rcbegin() const noexcept
+		//{
+		//	return rbegin();
+		//}
+		
+		//[[nodiscard]] constexpr const_reverse_iterator rcend() const noexcept
+		//{
+		//	return rend();
+		//}
 		
 	private:
 		SparseArray m_pagedSparse;
 		DenseArray m_dense;
 	};
-
-
-	/*
-	template<typename ValueType, SparseSetKeyType KeyType = usize>
-	class SparseArray : public SparseSet<KeyType>
-	{
-	public:
-		using value_type = ElementType;
-
-		using iterator = Array<value_type>::iterator;
-		using const_iterator = Array<value_type>::const_iterator;
-		using reverse_iterator = Array<value_type>::reverse_iterator;
-		using const_reverse_iterator = Array<value_type>::const_reverse_iterator;
-
-	public:
-		SparseArray() :
-			m_elements()
-		{ }
-
-		explicit SparseArray(const size_type a_initialCapacity = PageSize) :
-			m_elements(),
-		{
-			m_elements.reserve(a_initialCapacity);
-		}
-
-		virtual ~SparseArray() = default;
-
-		SparseArray(const SparseArray& a_rhs) = delete;
-
-		SparseArray& operator=(const SparseArray& a_rhs) = delete;
-
-		SparseArray(SparseArray&& a_rhs) = default;
-
-		SparseArray& operator=(SparseArray&& a_rhs) = default;
-
-		template<typename... Args>
-		ElementType& Emplace(const key_type a_keyId, Args&&... a_pArgs)
-		{
-			if (const size_type Index = EnsurePage(PageIndex(a_keyId))[PageOffset(a_keyId)] != InvalidKey)
-			{
-				m_keyToDenseMapping[Index] = a_keyId;
-				m_dense[Index] = ElementType(std::forward<Args>(a_pArgs)...);
-				return m_dense[Index];
-			}
-
-			m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)] = m_dense.size();
-			m_keyToDenseMapping.push_back(a_keyId);
-			m_dense.push_back(ElementType(std::forward<Args>(a_pArgs)...));
-			return m_dense.back();
-		}
-
-		void Remove()
-		{
-			// #Todo: Implementation.
-		}
-
-		[[nodiscard]] iterator begin() noexcept
-		{
-			return m_elements.begin();
-		}
-
-		[[nodiscard]] const_iterator begin() const noexcept
-		{
-			return m_elements.begin();
-		}
-
-		[[nodiscard]] iterator end() noexcept
-		{
-			return m_elements.end();
-		}
-
-		[[nodiscard]] const_iterator end() const noexcept
-		{
-			return m_elements.end();
-		}
-
-		[[nodiscard]] reverse_iterator rbegin() noexcept
-		{
-			return m_elements.rbegin();
-		}
-
-		[[nodiscard]] const_reverse_iterator rbegin() const noexcept
-		{
-			return m_elements.rbegin();
-		}
-
-		[[nodiscard]] reverse_iterator rend() noexcept
-		{
-			return m_elements.rend();
-		}
-
-		[[nodiscard]] const_reverse_iterator rend() const noexcept
-		{
-			return m_elements.rend();
-		}
-
-		[[nodiscard]] const_iterator cbegin() const noexcept
-		{
-			return begin();
-		}
-
-		[[nodiscard]] const_iterator cend() const noexcept
-		{
-			return end();
-		}
-
-		[[nodiscard]] const_reverse_iterator rcbegin() const noexcept
-		{
-			return rbegin();
-		}
-
-		[[nodiscard]] const_reverse_iterator rcend() const noexcept
-		{
-			return rend();
-		}
-
-	private:
-		Array<value_type> m_elements;
-	};
-	*/
 }
