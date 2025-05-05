@@ -270,63 +270,63 @@ namespace dxray
 
 		[[nodiscard]] constexpr iterator begin() noexcept
 		{
-			return iterator();
+			return iterator(&m_dense[m_dense.size() - 1]);
 		}
 		
-		//[[nodiscard]] constexpr const_iterator begin() const noexcept
-		//{
-		//	return m_dense.begin();
-		//}
+		[[nodiscard]] constexpr const_iterator begin() const noexcept
+		{
+			return const_iterator(&m_dense[m_dense.size() - 1]);
+		}
 		
 		[[nodiscard]] constexpr iterator end() noexcept
 		{
-			return iterator(nullptr);
+			return iterator(&m_dense[0] - 1);
 		}
 		
-		//[[nodiscard]] constexpr const_iterator end() const noexcept
-		//{
-		//	return m_dense.end();
-		//}
+		[[nodiscard]] constexpr const_iterator end() const noexcept
+		{
+			return const_iterator(&m_dense[0] - 1);
+		}
 		
-		//[[nodiscard]] constexpr reverse_iterator rbegin() noexcept
-		//{
-		//	return m_dense.rbegin();
-		//}
+		[[nodiscard]] constexpr const_iterator cbegin() const noexcept
+		{
+			return begin();
+		}
+
+		[[nodiscard]] constexpr const_iterator cend() const noexcept
+		{
+			return end();
+		}
+
+		[[nodiscard]] constexpr reverse_iterator rbegin() noexcept
+		{
+			return std::make_reverse_iterator(end());
+		}
 		
-		//[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
-		//{
-		//	return m_dense.rbegin();
-		//}
+		[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
+		{
+			return std::make_reverse_iterator(cend());
+		}
 		
-		//[[nodiscard]] constexpr reverse_iterator rend() noexcept
-		//{
-		//	return m_dense.rend();
-		//}
+		[[nodiscard]] constexpr reverse_iterator rend() noexcept
+		{
+			return std::make_reverse_iterator(begin());
+		}
 		
-		//[[nodiscard]] constexpr const_reverse_iterator rend() const noexcept
-		//{
-		//	return m_dense.rend();
-		//}
+		[[nodiscard]] constexpr const_reverse_iterator rend() const noexcept
+		{
+			return std::make_reverse_iterator(cbegin());
+		}
+	
+		[[nodiscard]] constexpr const_reverse_iterator rcbegin() const noexcept
+		{
+			return std::make_reverse_iterator(cend());
+		}
 		
-		//[[nodiscard]] constexpr const_iterator cbegin() const noexcept
-		//{
-		//	return begin();
-		//}
-		//
-		//[[nodiscard]] constexpr const_iterator cend() const noexcept
-		//{
-		//	return end();
-		//}
-		
-		//[[nodiscard]] constexpr const_reverse_iterator rcbegin() const noexcept
-		//{
-		//	return rbegin();
-		//}
-		
-		//[[nodiscard]] constexpr const_reverse_iterator rcend() const noexcept
-		//{
-		//	return rend();
-		//}
+		[[nodiscard]] constexpr const_reverse_iterator rcend() const noexcept
+		{
+			return std::make_reverse_iterator(cbegin());
+		}
 		
 	private:
 		SparseArray m_pagedSparse;

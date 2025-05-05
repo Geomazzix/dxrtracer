@@ -5,20 +5,7 @@ using namespace dxray;
 
 TEST(SparseSet, StressTest)
 {
-	struct SparseItem
-	{
-		u32 a = 141241233;
-		fp32 b = 1231.1212f;
-		u8 c = 12;
-
-		SparseItem() = default;
-		SparseItem(u32 _a, fp32 _b, u8 _c) :
-			a(_a),
-			b(_b),
-			c(_c)
-		{
-		}
-	};
+	//Test setup.
 
 	using KeyType = usize;
 	const u32 sparseSize = 2048;
@@ -29,6 +16,9 @@ TEST(SparseSet, StressTest)
 	{
 		ids[i] = i;
 	}
+
+
+	//Creation/initialization.
 
 	SparseSet<KeyType> sparseSet;
 	sparseSet.Reserve(sparseSize);
@@ -42,12 +32,25 @@ TEST(SparseSet, StressTest)
 		EXPECT_EQ(sparseSet[i], ids[i]);
 	}
 
-	u32 i = 0;
-	for (const auto& it : sparseSet)
+
+	// Iterators.
+
+	u32 i = sparseSize;
+	for (auto it : sparseSet)
 	{
-		i++;
+		--i;
 		EXPECT_EQ(it, ids[i]);
 	}
+
+	u32 j = sparseSize;
+	for (const auto& it : sparseSet)
+	{
+		--j;
+		EXPECT_EQ(it, ids[j]);
+	}
+
+
+	// Removal.
 
 	const usize sparseSetSize = sparseSet.GetSize();
 	for (i32 i = 0; i < sparseSetSize; i++)
@@ -55,6 +58,9 @@ TEST(SparseSet, StressTest)
 		sparseSet.Remove(i);
 	}
 	
+
+	//Cleanup.
+
 	sparseSet.Clear();
 	EXPECT_EQ(sparseSet.GetSize(), 0);
 	EXPECT_EQ(sparseSet.GetCapacity(), sparseSize);
