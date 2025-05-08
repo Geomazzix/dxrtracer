@@ -11,7 +11,6 @@ namespace dxray
 	template<typename ValueType>
 	concept SparseSetKeyType = std::same_as<ValueType, u16> || std::same_as<ValueType, u32> || std::same_as<ValueType, u64>;
 
-
 	/*!
 	* @brief The iterator used to traverse the sparse set. Expects an STL compatible container.
 	* Internally this traverses the dense array in the sparse set in reverse order,
@@ -59,7 +58,7 @@ namespace dxray
 		constexpr SparseSetIterator operator++(int) noexcept
 		{
 			SparseSetIterator tmp = *this;
-			--(*this);
+			++(*this);
 			return tmp;
 		}
 
@@ -69,14 +68,14 @@ namespace dxray
 			return *this;
 		}
 
-		[[nodiscard]] constexpr SparseSetIterator operator+(const difference_type other) const noexcept
+		[[nodiscard]] constexpr SparseSetIterator operator+(const difference_type a_rhs) const noexcept
 		{
-			return m_ptr - other;
+			return SparseSetIterator(m_ptr - a_rhs);
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator+(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
 		{
-			return a_rhs - a_value;
+			return SparseSetIterator(a_rhs - a_value);
 		}
 
 		constexpr SparseSetIterator& operator--() noexcept
@@ -88,7 +87,7 @@ namespace dxray
 		constexpr SparseSetIterator operator--(int) noexcept
 		{
 			SparseSetIterator tmp = *this;
-			++(*this);
+			--(*this);
 			return tmp;
 		}
 
@@ -100,17 +99,17 @@ namespace dxray
 
 		[[nodiscard]] constexpr difference_type operator-(const SparseSetIterator& a_rhs) const noexcept
 		{
-			return m_ptr + a_rhs.m_ptr;
+			return static_cast<difference_type>(m_ptr - a_rhs.m_ptr);
 		}
 
 		[[nodiscard]] constexpr SparseSetIterator operator-(const difference_type a_value) const noexcept
 		{
-			return m_ptr + a_value;
+			return SparseSetIterator(m_ptr + a_value);
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator-(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
 		{
-			return a_rhs + a_value;
+			return SparseSetIterator(a_rhs - a_value);
 		}
 
 		[[nodiscard]] constexpr bool operator==(const SparseSetIterator& a_rhs) const noexcept
@@ -270,22 +269,22 @@ namespace dxray
 
 		[[nodiscard]] constexpr iterator begin() noexcept
 		{
-			return iterator(&m_dense[m_dense.size() - 1]);
+			return iterator(m_dense.data() + m_dense.size() - 1);
 		}
 		
 		[[nodiscard]] constexpr const_iterator begin() const noexcept
 		{
-			return const_iterator(&m_dense[m_dense.size() - 1]);
+			return const_iterator(m_dense.data() + m_dense.size() - 1);
 		}
 		
 		[[nodiscard]] constexpr iterator end() noexcept
 		{
-			return iterator(&m_dense[0] - 1);
+			return iterator(m_dense.data() - 1);
 		}
 		
 		[[nodiscard]] constexpr const_iterator end() const noexcept
 		{
-			return const_iterator(&m_dense[0] - 1);
+			return const_iterator(m_dense.data() - 1);
 		}
 		
 		[[nodiscard]] constexpr const_iterator cbegin() const noexcept
@@ -305,7 +304,7 @@ namespace dxray
 		
 		[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept
 		{
-			return std::make_reverse_iterator(cend());
+			return std::make_reverse_iterator(end());
 		}
 		
 		[[nodiscard]] constexpr reverse_iterator rend() noexcept

@@ -35,28 +35,54 @@ TEST(SparseSet, StressTest)
 
 	// Iterators.
 
-	u32 i = sparseSize;
+	u32 innerIdx = sparseSize;
 	for (auto it : sparseSet)
 	{
-		--i;
-		EXPECT_EQ(it, ids[i]);
+		--innerIdx;
+		EXPECT_EQ(it, ids[innerIdx]);
 	}
 
-	u32 j = sparseSize;
-	for (const auto& it : sparseSet)
+	innerIdx = sparseSize - 1;
+	for (SparseSet<KeyType>::iterator it = sparseSet.begin(); it != sparseSet.end(); ++it)
 	{
-		--j;
-		EXPECT_EQ(it, ids[j]);
+		//printf("it: %llu, i: %i \n", *it, innerIdx);
+		EXPECT_EQ(*it, ids[innerIdx]);
+		--innerIdx;
 	}
 
-
-	// Removal.
-
-	const usize sparseSetSize = sparseSet.GetSize();
-	for (i32 i = 0; i < sparseSetSize; i++)
+	innerIdx = sparseSize - 1;
+	for (SparseSet<KeyType>::const_iterator cit = sparseSet.cbegin(); cit != sparseSet.cend(); ++cit)
 	{
-		sparseSet.Remove(i);
+		//printf("cit: %llu, i: %i \n", *cit, innerIdx);
+		EXPECT_EQ(*cit, ids[innerIdx]);
+		--innerIdx;
 	}
+
+	innerIdx = 0;
+	for (SparseSet<KeyType>::reverse_iterator rit = sparseSet.rbegin(); rit != sparseSet.rend(); ++rit)
+	{
+		//printf("rit: %llu, i: %i \n", *rit, innerIdx);
+		EXPECT_EQ(*rit, ids[innerIdx]);
+		++innerIdx;
+	}
+
+	innerIdx = 0;
+	for (SparseSet<KeyType>::const_reverse_iterator crit = sparseSet.rcbegin(); crit != sparseSet.rcend(); crit++)
+	{
+		//printf("crit: %llu, i: %i \n", *crit, innerIdx);
+		EXPECT_EQ(*crit, ids[innerIdx]);
+		++innerIdx;
+	}
+
+	// Removal - WIP.
+
+	// Problem: iterator gets invalidated. Might be better to store a reference to the container in the iterator so it can refer to it's internal values as opposed to keeping track of a pointer that randomly gets invalidated.
+	//const usize sparseSetSize = sparseSet.GetSize();
+	//for (auto it : sparseSet)
+	//{
+	//	sparseSet.Remove(it);
+	//	sparseSet.ShrinkCapacityToSize();
+	//}
 	
 
 	//Cleanup.
