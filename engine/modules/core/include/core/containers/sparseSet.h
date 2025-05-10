@@ -27,31 +27,35 @@ namespace dxray
 		using reference = typename Container::const_reference;
 
 		SparseSetIterator() noexcept :
-			m_ptr(nullptr)
+			m_container(nullptr),
+			m_offset(0)
 		{ }
 
-		explicit SparseSetIterator(pointer a_pElement) noexcept :
-			m_ptr(a_pElement)
+		explicit SparseSetIterator(const Container& a_container, const value_type a_offset = 0) noexcept :
+			m_container(&a_container),
+			m_offset(a_offset)
 		{ }
+
+		~SparseSetIterator() = default;
+
+		[[nodiscard]] constexpr reference operator[](difference_type a_idx) const noexcept
+		{
+			return (*m_container)[m_offset];
+		}
 
 		[[nodiscard]] constexpr reference operator*() const noexcept
 		{
-			return *m_ptr;
+			return operator[](m_offset);
 		}
 
 		[[nodiscard]] constexpr pointer operator->() const noexcept
 		{
-			return m_ptr;
-		}
-
-		[[nodiscard]] constexpr reference operator[](difference_type a_idx) const noexcept
-		{
-			return m_ptr[a_idx];
+			return &operator[](m_offset);
 		}
 
 		constexpr SparseSetIterator& operator++() noexcept
 		{
-			--m_ptr;
+			--m_offset;
 			return *this;
 		}
 
@@ -64,23 +68,23 @@ namespace dxray
 
 		constexpr SparseSetIterator& operator+=(int a_idx) noexcept
 		{
-			m_ptr -= a_idx;
+			m_offset -= a_idx;
 			return *this;
 		}
 
 		[[nodiscard]] constexpr SparseSetIterator operator+(const difference_type a_rhs) const noexcept
 		{
-			return SparseSetIterator(m_ptr - a_rhs);
+			return SparseSetIterator(m_container, m_offset - a_rhs);
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator+(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
 		{
-			return SparseSetIterator(a_rhs - a_value);
+			return SparseSetIterator(m_container, a_rhs - a_value);
 		}
 
 		constexpr SparseSetIterator& operator--() noexcept
 		{
-			++m_ptr;
+			++m_offset;
 			return *this;
 		}
 
@@ -93,18 +97,18 @@ namespace dxray
 
 		constexpr SparseSetIterator& operator-=(int a_idx) noexcept
 		{
-			m_ptr += a_idx;
+			m_offset += a_idx;
 			return *this;
 		}
 
 		[[nodiscard]] constexpr difference_type operator-(const SparseSetIterator& a_rhs) const noexcept
 		{
-			return static_cast<difference_type>(m_ptr - a_rhs.m_ptr);
+			return static_cast<difference_type>(m_offset - a_rhs.m_offset);
 		}
 
 		[[nodiscard]] constexpr SparseSetIterator operator-(const difference_type a_value) const noexcept
 		{
-			return SparseSetIterator(m_ptr + a_value);
+			return SparseSetIterator(m_offset + a_value);
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator-(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
@@ -114,13 +118,15 @@ namespace dxray
 
 		[[nodiscard]] constexpr bool operator==(const SparseSetIterator& a_rhs) const noexcept
 		{
-			return m_ptr == a_rhs.m_ptr;
+			return m_offset == a_rhs.m_offset;
 		}
 
 		[[nodiscard]] constexpr auto operator<=>(const SparseSetIterator&) const = default;
 
 	private:
-		pointer m_ptr;
+		// #Note_SparseSet: Could be const&?
+		const Container* m_container;
+		value_type m_offset;
 	};
 
 
@@ -269,22 +275,22 @@ namespace dxray
 
 		[[nodiscard]] constexpr iterator begin() noexcept
 		{
-			return iterator(m_dense.data() + m_dense.size() - 1);
+			return iterator(m_dense, m_dense.size() - 1);
 		}
 		
 		[[nodiscard]] constexpr const_iterator begin() const noexcept
 		{
-			return const_iterator(m_dense.data() + m_dense.size() - 1);
+			return const_iterator(m_dense, m_dense.size() - 1);
 		}
 		
 		[[nodiscard]] constexpr iterator end() noexcept
 		{
-			return iterator(m_dense.data() - 1);
+			return iterator(m_dense, -1);
 		}
 		
 		[[nodiscard]] constexpr const_iterator end() const noexcept
 		{
-			return const_iterator(m_dense.data() - 1);
+			return const_iterator(m_dense, -1);
 		}
 		
 		[[nodiscard]] constexpr const_iterator cbegin() const noexcept

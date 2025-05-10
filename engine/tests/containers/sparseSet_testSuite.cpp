@@ -6,7 +6,6 @@ using namespace dxray;
 TEST(SparseSet, StressTest)
 {
 	//Test setup.
-
 	using KeyType = usize;
 	const u32 sparseSize = 2048;
 
@@ -19,7 +18,6 @@ TEST(SparseSet, StressTest)
 
 
 	//Creation/initialization.
-
 	SparseSet<KeyType> sparseSet;
 	sparseSet.Reserve(sparseSize);
 	for (u32 i = 0; i < sparseSize; i++)
@@ -34,7 +32,6 @@ TEST(SparseSet, StressTest)
 
 
 	// Iterators.
-
 	u32 innerIdx = sparseSize;
 	for (auto it : sparseSet)
 	{
@@ -74,22 +71,19 @@ TEST(SparseSet, StressTest)
 		++innerIdx;
 	}
 
-	// Removal - WIP.
-
-	// Problem: iterator gets invalidated. Might be better to store a reference to the container in the iterator so it can refer to it's internal values as opposed to keeping track of a pointer that randomly gets invalidated.
-	//const usize sparseSetSize = sparseSet.GetSize();
-	//for (auto it : sparseSet)
-	//{
-	//	sparseSet.Remove(it);
-	//	sparseSet.ShrinkCapacityToSize();
-	//}
+	// Removal
+	const usize sparseSetSize = sparseSet.GetSize();
+	for (auto it : sparseSet)
+	{
+		sparseSet.Remove(it);
+		sparseSet.ShrinkCapacityToSize();
+	}
 	
 
 	//Cleanup.
-
 	sparseSet.Clear();
 	EXPECT_EQ(sparseSet.GetSize(), 0);
-	EXPECT_EQ(sparseSet.GetCapacity(), sparseSize);
+	EXPECT_EQ(sparseSet.GetCapacity(), sparseSet.GetSize());
 
 	sparseSet.ShrinkCapacityToSize();
 	EXPECT_EQ(sparseSet.GetCapacity(), 0);
