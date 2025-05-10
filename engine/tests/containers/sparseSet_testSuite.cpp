@@ -1,56 +1,60 @@
 #include <gtest/gtest.h>
+#include "core/containers/array.h"
 #include "core/containers/sparseSet.h"
 
 using namespace dxray;
 
-TEST(SparseSet, StressTest)
-{
-	//Test setup.
-	using KeyType = usize;
-	const u32 sparseSize = 2048;
+using KeyType = usize;
+const u32 SparseSize = 2048;
 
-	std::vector<KeyType> ids;
-	ids.resize(sparseSize);
-	for (u32 i = 0; i < sparseSize; i++)
+TEST(SparseSet, Construction)
+{
+	Array<KeyType> ids;
+	ids.resize(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
 	{
 		ids[i] = i;
 	}
 
-
-	//Creation/initialization.
 	SparseSet<KeyType> sparseSet;
-	sparseSet.Reserve(sparseSize);
-	for (u32 i = 0; i < sparseSize; i++)
+	sparseSet.Reserve(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
 	{
 		sparseSet.Emplace(i);
 	}
 
-	for (u32 i = 0; i < sparseSize; i++)
+	for (u32 i = 0; i < SparseSize; i++)
 	{
 		EXPECT_EQ(sparseSet[i], ids[i]);
 	}
+}
 
-
-	// Iterators.
-	u32 innerIdx = sparseSize;
-	for (auto it : sparseSet)
+TEST(SparseSet, Iterators)
+{
+	Array<KeyType> ids;
+	ids.resize(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
 	{
-		--innerIdx;
-		EXPECT_EQ(it, ids[innerIdx]);
+		ids[i] = i;
 	}
 
-	innerIdx = sparseSize - 1;
+	SparseSet<KeyType> sparseSet;
+	sparseSet.Reserve(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
+	{
+		sparseSet.Emplace(i);
+	}
+
+	u32 innerIdx = SparseSize - 1;
 	for (SparseSet<KeyType>::iterator it = sparseSet.begin(); it != sparseSet.end(); ++it)
 	{
-		//printf("it: %llu, i: %i \n", *it, innerIdx);
 		EXPECT_EQ(*it, ids[innerIdx]);
 		--innerIdx;
 	}
 
-	innerIdx = sparseSize - 1;
+	innerIdx = SparseSize - 1;
 	for (SparseSet<KeyType>::const_iterator cit = sparseSet.cbegin(); cit != sparseSet.cend(); ++cit)
 	{
-		//printf("cit: %llu, i: %i \n", *cit, innerIdx);
 		EXPECT_EQ(*cit, ids[innerIdx]);
 		--innerIdx;
 	}
@@ -58,7 +62,6 @@ TEST(SparseSet, StressTest)
 	innerIdx = 0;
 	for (SparseSet<KeyType>::reverse_iterator rit = sparseSet.rbegin(); rit != sparseSet.rend(); ++rit)
 	{
-		//printf("rit: %llu, i: %i \n", *rit, innerIdx);
 		EXPECT_EQ(*rit, ids[innerIdx]);
 		++innerIdx;
 	}
@@ -66,25 +69,64 @@ TEST(SparseSet, StressTest)
 	innerIdx = 0;
 	for (SparseSet<KeyType>::const_reverse_iterator crit = sparseSet.rcbegin(); crit != sparseSet.rcend(); crit++)
 	{
-		//printf("crit: %llu, i: %i \n", *crit, innerIdx);
 		EXPECT_EQ(*crit, ids[innerIdx]);
 		++innerIdx;
 	}
+}
 
-	// Removal
+TEST(SparseSet, Resizing)
+{
+	Array<KeyType> ids;
+	ids.resize(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
+	{
+		ids[i] = i;
+	}
+
+	SparseSet<KeyType> sparseSet;
+	sparseSet.Reserve(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
+	{
+		sparseSet.Emplace(i);
+	}
+
 	const usize sparseSetSize = sparseSet.GetSize();
 	for (auto it : sparseSet)
 	{
 		sparseSet.Remove(it);
 		sparseSet.ShrinkCapacityToSize();
 	}
-	
 
-	//Cleanup.
+	sparseSet.Emplace(9412);
+	sparseSet.Emplace(124014);
+	sparseSet.Emplace(121482);
+	EXPECT_EQ(sparseSet.GetSize(), 3);
+	
+	usize max = umax;
+	sparseSet.Emplace(94792371);
+	sparseSet.Emplace(178243);
+	EXPECT_EQ(sparseSet.GetSize(), 5);}
+
+TEST(SparseSet, Destruction)
+{
+	SparseSet<KeyType> sparseSet;
+	sparseSet.Reserve(SparseSize);
+	for (u32 i = 0; i < SparseSize; i++)
+	{
+		sparseSet.Emplace(i);
+	}
+
 	sparseSet.Clear();
 	EXPECT_EQ(sparseSet.GetSize(), 0);
-	EXPECT_EQ(sparseSet.GetCapacity(), sparseSet.GetSize());
+	EXPECT_EQ(sparseSet.GetCapacity(), SparseSize);
+	EXPECT_NE(sparseSet.GetCapacity(), sparseSet.GetSize());
 
 	sparseSet.ShrinkCapacityToSize();
 	EXPECT_EQ(sparseSet.GetCapacity(), 0);
 }
+
+// #Todo_SparseSet: Sorting
+//TEST(SparseSet, Sorting)
+//{
+//
+//}

@@ -154,7 +154,7 @@ namespace dxray
 		using SparseArray = Array<SparsePage>;
 
 	public:
-		using iterator = SparseSetIterator<Array<key_type>>;
+		using iterator = SparseSetIterator<DenseArray>;
 		using const_iterator = iterator;
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
@@ -176,8 +176,17 @@ namespace dxray
 		{
 			if (a_pageIndex >= m_pagedSparse.size())
 			{
+				const usize startPage = m_pagedSparse.size();
+				const usize endPage = a_pageIndex + 1;
+				const usize deltaPage = endPage - startPage;
+
 				m_pagedSparse.resize(a_pageIndex + 1);
-				m_pagedSparse[a_pageIndex].fill(InvalidKey);
+
+				for (usize pageIdx = 0; pageIdx < deltaPage; pageIdx++)
+				{
+					m_pagedSparse[startPage + pageIdx].fill(InvalidKey);
+				}
+
 			}
 
 			return m_pagedSparse[a_pageIndex];
