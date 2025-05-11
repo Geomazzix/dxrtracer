@@ -20,7 +20,7 @@ TEST(SparseSet, Construction)
 	sparseSet.Reserve(SparseSize);
 	for (u32 i = 0; i < SparseSize; i++)
 	{
-		sparseSet.Emplace(i);
+		sparseSet.Insert(i);
 	}
 
 	for (u32 i = 0; i < SparseSize; i++)
@@ -42,7 +42,7 @@ TEST(SparseSet, Iterators)
 	sparseSet.Reserve(SparseSize);
 	for (u32 i = 0; i < SparseSize; i++)
 	{
-		sparseSet.Emplace(i);
+		sparseSet.Insert(i);
 	}
 
 	u32 innerIdx = SparseSize - 1;
@@ -74,6 +74,50 @@ TEST(SparseSet, Iterators)
 	}
 }
 
+TEST(SparseSet, InsertAndErase)
+{
+	SparseSet<KeyType> sparseSet;
+	sparseSet.Reserve(SparseSize);
+
+	SparseSet<KeyType> destinationSparseSet;
+	destinationSparseSet.Reserve(SparseSize);
+
+	for (u32 i = 0; i < SparseSize; i++)
+	{
+		sparseSet.Insert(i);
+	}
+
+	destinationSparseSet.Insert(sparseSet.begin(), sparseSet.end());
+
+	for (u32 i = 0; i < SparseSize; i++)
+	{
+		EXPECT_EQ(sparseSet[i], destinationSparseSet[i]);
+	}
+
+	u32 erasureSize = 5;
+
+	sparseSet.Clear();
+	sparseSet.ShrinkCapacityToSize();
+	sparseSet.Reserve(erasureSize);
+	
+	destinationSparseSet.Clear();
+	destinationSparseSet.ShrinkCapacityToSize();
+	destinationSparseSet.Reserve(erasureSize);
+
+	for (u32 i = 0; i < erasureSize; i++)
+	{
+		sparseSet.Insert(i);
+		destinationSparseSet.Insert(i);
+	}
+
+	u32 beginErasureOffset = 3;
+	destinationSparseSet.Erase(sparseSet.begin() + beginErasureOffset, sparseSet.end());
+
+	EXPECT_TRUE(destinationSparseSet.Contains(2));
+	EXPECT_TRUE(destinationSparseSet.Contains(3));
+	EXPECT_TRUE(destinationSparseSet.Contains(4));
+}
+
 TEST(SparseSet, Resizing)
 {
 	Array<KeyType> ids;
@@ -87,24 +131,24 @@ TEST(SparseSet, Resizing)
 	sparseSet.Reserve(SparseSize);
 	for (u32 i = 0; i < SparseSize; i++)
 	{
-		sparseSet.Emplace(i);
+		sparseSet.Insert(i);
 	}
 
 	const usize sparseSetSize = sparseSet.GetSize();
 	for (auto it : sparseSet)
 	{
-		sparseSet.Remove(it);
+		sparseSet.Erase(it);
 		sparseSet.ShrinkCapacityToSize();
 	}
 
-	sparseSet.Emplace(9412);
-	sparseSet.Emplace(124014);
-	sparseSet.Emplace(121482);
+	sparseSet.Insert(9412);
+	sparseSet.Insert(124014);
+	sparseSet.Insert(121482);
 	EXPECT_EQ(sparseSet.GetSize(), 3);
 	
 	usize max = umax;
-	sparseSet.Emplace(94792371);
-	sparseSet.Emplace(178243);
+	sparseSet.Insert(94792371);
+	sparseSet.Insert(178243);
 	EXPECT_EQ(sparseSet.GetSize(), 5);}
 
 TEST(SparseSet, Destruction)
@@ -113,7 +157,7 @@ TEST(SparseSet, Destruction)
 	sparseSet.Reserve(SparseSize);
 	for (u32 i = 0; i < SparseSize; i++)
 	{
-		sparseSet.Emplace(i);
+		sparseSet.Insert(i);
 	}
 
 	sparseSet.Clear();

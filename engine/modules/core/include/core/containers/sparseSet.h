@@ -74,7 +74,7 @@ namespace dxray
 
 		[[nodiscard]] constexpr SparseSetIterator operator+(const difference_type a_rhs) const noexcept
 		{
-			return SparseSetIterator(m_container, m_offset - a_rhs);
+			return SparseSetIterator(*m_container, m_offset - a_rhs);
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator+(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
@@ -108,7 +108,7 @@ namespace dxray
 
 		[[nodiscard]] constexpr SparseSetIterator operator-(const difference_type a_value) const noexcept
 		{
-			return SparseSetIterator(m_offset + a_value);
+			return SparseSetIterator(*m_container, m_offset + a_value);
 		}
 
 		[[nodiscard]] constexpr friend SparseSetIterator operator-(const difference_type a_value, const SparseSetIterator& a_rhs) noexcept
@@ -124,7 +124,6 @@ namespace dxray
 		[[nodiscard]] constexpr auto operator<=>(const SparseSetIterator&) const = default;
 
 	private:
-		// #Note_SparseSet: Could be const&?
 		const Container* m_container;
 		value_type m_offset;
 	};
@@ -138,7 +137,7 @@ namespace dxray
 	 * Differs from usual sparse set, optimizations taken from: ECS back and forth - Part 9 - Sparse sets and EnTT
 	 * - Uses an invalidations value for faster lookups.
 	 * - Uses a reverse iterator to allow insertions/removals to be made without invaliding the iterators.
-	 * - Uses pagination to enhance memory performance.
+	 * - Uses pagination to minimize allocations/frees.
 	 */
 	template<SparseSetKeyType KeyType, usize PageSize = 4096>
 	class SparseSet
@@ -186,7 +185,6 @@ namespace dxray
 				{
 					m_pagedSparse[startPage + pageIdx].fill(InvalidKey);
 				}
-
 			}
 
 			return m_pagedSparse[a_pageIndex];
@@ -211,7 +209,7 @@ namespace dxray
 			m_dense.shrink_to_fit();
 		}
 
-		constexpr void Emplace(const key_type a_keyId)
+		constexpr void Insert(const key_type a_keyId)
 		{
 			DXRAY_ASSERT(!Contains(a_keyId));
 
@@ -220,7 +218,16 @@ namespace dxray
 			m_dense.push_back(a_keyId);
 		}
 
-		constexpr void Remove(const key_type a_keyId)
+		template<typename Iterator = iterator>
+		constexpr void Insert(const Iterator a_beginIt, const Iterator a_endIt)
+		{
+			for (auto it = a_beginIt; it != a_endIt; it++)
+			{
+				Insert(*it);
+			}
+		}
+
+		constexpr void Erase(const key_type a_keyId)
 		{
 			DXRAY_ASSERT(Contains(a_keyId));
 
@@ -233,6 +240,15 @@ namespace dxray
 			m_pagedSparse[PageIndex(backKeyId)][PageOffset(backKeyId)] = index;
 			index = InvalidKey;
 			m_dense.pop_back();
+		}
+
+		template<typename Iterator = iterator>
+		constexpr void Erase(Iterator a_beginIt, Iterator a_endIt)
+		{
+			for (auto it = a_beginIt; it != a_endIt; it++)
+			{
+				Erase(*it);
+			}
 		}
 
 		constexpr void Clear() noexcept
