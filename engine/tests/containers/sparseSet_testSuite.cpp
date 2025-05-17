@@ -149,7 +149,8 @@ TEST(SparseSet, Resizing)
 	usize max = umax;
 	sparseSet.Insert(94792371);
 	sparseSet.Insert(178243);
-	EXPECT_EQ(sparseSet.GetSize(), 5);}
+	EXPECT_EQ(sparseSet.GetSize(), 5);
+}
 
 TEST(SparseSet, Destruction)
 {

@@ -148,7 +148,7 @@ namespace dxray
 
 	private:
 		static constexpr const size_type InvalidKey = std::numeric_limits<KeyType>::max();
-		using SparsePage = FixedArray<size_type, PageSize>;
+		using SparsePage = std::unique_ptr<key_type[]>;
 		using DenseArray = Array<key_type>;
 		using SparseArray = Array<SparsePage>;
 
@@ -175,15 +175,15 @@ namespace dxray
 		{
 			if (a_pageIndex >= m_pagedSparse.size())
 			{
-				const usize startPage = m_pagedSparse.size();
-				const usize endPage = a_pageIndex + 1;
-				const usize deltaPage = endPage - startPage;
-
 				m_pagedSparse.resize(a_pageIndex + 1);
+			}
 
-				for (usize pageIdx = 0; pageIdx < deltaPage; pageIdx++)
+			if (!m_pagedSparse[a_pageIndex])
+			{
+				m_pagedSparse[a_pageIndex].reset(new key_type[PageSize]);
+				for (usize i = 0; i < PageSize; ++i)
 				{
-					m_pagedSparse[startPage + pageIdx].fill(InvalidKey);
+					m_pagedSparse[a_pageIndex][i] = InvalidKey;
 				}
 			}
 
@@ -259,7 +259,10 @@ namespace dxray
 
 		[[nodiscard]] constexpr bool Contains(const key_type a_keyId) const noexcept
 		{
-			return PageIndex(a_keyId) < m_pagedSparse.size() && PageOffset(a_keyId) < PageSize && m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)] != InvalidKey;
+			const size_type pageIdx = PageIndex(a_keyId);
+			return pageIdx < m_pagedSparse.size() 
+				&& m_pagedSparse[pageIdx] 
+				&& m_pagedSparse[PageIndex(a_keyId)][PageOffset(a_keyId)] != InvalidKey;
 		}
 
 		[[nodiscard]] constexpr bool IsEmpty() const noexcept
