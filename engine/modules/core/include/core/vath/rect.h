@@ -15,8 +15,8 @@ namespace dxray::vath
     public:
         using ValueType = T;
 
-        Rect();
-        Rect(const T a_x, const T a_y, const T a_width, const T a_height);
+        constexpr Rect();
+        constexpr Rect(const T a_x, const T a_y, const T a_width, const T a_height);
         ~Rect() = default;
 
         union
@@ -28,7 +28,7 @@ namespace dxray::vath
     };
 
     template<Arithmetic T>
-    Rect<T>::Rect() :
+    constexpr Rect<T>::Rect() :
         x(0),
         y(0),
         Width(0),
@@ -36,7 +36,7 @@ namespace dxray::vath
     {}
 
     template<Arithmetic T>
-    Rect<T>::Rect(const T a_x, const T a_y, const T a_width, const T a_height) :
+    constexpr Rect<T>::Rect(const T a_x, const T a_y, const T a_width, const T a_height) :
         x(a_x),
         y(a_y),
         Width(a_width),

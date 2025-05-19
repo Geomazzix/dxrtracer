@@ -1,4 +1,4 @@
-#include "dxrtracer/dxShaderCompiler.h"
+#include "dxrtracer/shaderCompiler.h"
 #include <core/fileSystem/fileIO.h>
 #include <core/vath/vath.h>
 

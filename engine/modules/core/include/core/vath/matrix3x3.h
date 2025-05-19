@@ -19,12 +19,12 @@ namespace dxray::vath
 		using ColumnType = Vector<3, T>;
 		using RowType = Vector<3, T>;
 
-		Matrix();
-		explicit Matrix(T a_scalar);
-		Matrix(T a_x0, T a_y0, T a_z0, T a_x1, T a_y1, T a_z1, T a_x2, T a_y2, T a_z2);
-		Matrix(T* a_pData);
-		Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2);
-		Matrix(const Matrix<2, 2, T>& a_innerMatrix);
+		constexpr Matrix();
+		constexpr explicit Matrix(T a_scalar);
+		constexpr Matrix(T a_x0, T a_y0, T a_z0, T a_x1, T a_y1, T a_z1, T a_x2, T a_y2, T a_z2);
+		constexpr Matrix(T* a_pData);
+		constexpr Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2);
+		constexpr Matrix(const Matrix<2, 2, T>& a_innerMatrix);
 		~Matrix() = default;
 
 		constexpr Matrix<3, 3, T>(const Matrix<3, 3, T>& a_rhs) = default;
@@ -57,33 +57,33 @@ namespace dxray::vath
 	//--- Matrix construction/destruction ---
 
 	template<typename T>
-	Matrix<3, 3, T>::Matrix() :
+	constexpr Matrix<3, 3, T>::Matrix() :
 		m_data{ ColumnType(1, 0, 0), ColumnType(0, 1, 0), ColumnType(0, 0, 1)}
 	{}
 
 	template<typename T>
-	Matrix<3, 3, T>::Matrix(T a_scalar) :
+	constexpr Matrix<3, 3, T>::Matrix(T a_scalar) :
 		m_data{ ColumnType(a_scalar), ColumnType(a_scalar), ColumnType(a_scalar) }
 	{}
 
 	template<typename T>
-	Matrix<3, 3, T>::Matrix(T a_x0, T a_y0, T a_z0, T a_x1, T a_y1, T a_z1, T a_x2, T a_y2, T a_z2) :
+	constexpr Matrix<3, 3, T>::Matrix(T a_x0, T a_y0, T a_z0, T a_x1, T a_y1, T a_z1, T a_x2, T a_y2, T a_z2) :
 		m_data{ ColumnType(a_x0, a_y0, a_z0), ColumnType(a_x1, a_y1, a_z1), ColumnType(a_x2, a_y2, a_z2) }
 	{}
 
 	template<typename T>
-	Matrix<3, 3, T>::Matrix(T* a_pData)
+	constexpr Matrix<3, 3, T>::Matrix(T* a_pData)
 	{
 		memcpy(m_data, a_pData, GetColumnCount() * GetRowCount() * sizeof(T));
 	}
 
 	template<typename T>
-	Matrix<3, 3, T>::Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2) :
+	constexpr Matrix<3, 3, T>::Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2) :
 		m_data{ ColumnType(a_col0), ColumnType{a_col1}, ColumnType{a_col2} }
 	{}
 
 	template<typename T>
-	Matrix<3, 3, T>::Matrix(const Matrix<2, 2, T>& a_innerMatrix) :
+	constexpr Matrix<3, 3, T>::Matrix(const Matrix<2, 2, T>& a_innerMatrix) :
 		m_data{ ColumnType(a_innerMatrix[0][0], a_innerMatrix[0][1], 0), ColumnType(a_innerMatrix[1][0], a_innerMatrix[1][1], 0), ColumnType(0, 0, 1) }
 	{}
 

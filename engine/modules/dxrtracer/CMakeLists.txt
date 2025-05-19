@@ -3,15 +3,18 @@ cmake_minimum_required(VERSION 3.27)
 set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/window.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/shaderCompiler.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/modelLoader.h"
 )
 
 set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/window.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/dxShaderCompiler.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/modelLoader.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/dxrtracer.cpp"
 )
 
 set(DEPS
+	"assimp"
 	"stb"
 	"core"
 	"d3dx12::headers"

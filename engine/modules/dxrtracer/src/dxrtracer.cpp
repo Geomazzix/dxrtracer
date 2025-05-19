@@ -1,5 +1,8 @@
 #include "dxrtracer/shaderCompiler.h"
 #include "dxrtracer/window.h"
+#include "dxrtracer/modelLoader.h"
+
+#include <core/vath/vath.h>
 #include <core/time/stopwatch.h>
 
 using namespace dxray;
@@ -20,69 +23,24 @@ World (geometry data):
 
 //#Todo: When abstracting the CreateBlas into something class/data oriented ensure less arguments, this sucks :(
 
-
-/*
-!The last bits to get this to work:
-1. Rewrite swapchain render target management -> this needs to use UAVs as the shader most likely won't allow non-UAV writing - raytracing shaders are considered compute shaders as far as I'm aware.
-2. Implement the render function correctly.
-*/
-
-
-// --- Asset data ---
-
-constexpr fp32 m_quadVertices[] = { 
-    -1, 0, -1, 
-    -1, 0,  1, 
-    1, 0, 1,
-    -1, 0, -1,  
-    1, 0, -1, 
-    1, 0, 1 
-};
-
-constexpr fp32 m_cubeVertices[] = {
-    -1, -1, -1, 
-    1, -1, -1, 
-    -1, 1, -1, 
-    1, 1, -1,
-    -1, -1,  1, 
-    1, -1,  1, 
-    -1, 1,  1, 
-    1, 1,  1 
-};
-
-constexpr u16 m_cubeIndicies[] = {
-    4, 6, 0, 
-    2, 0, 6, 
-    0, 1, 4, 
-    5, 4, 1,
-    0, 2, 1, 
-    3, 1, 2, 
-    1, 3, 5, 
-    7, 5, 3,
-    2, 6, 3, 
-    7, 3, 6, 
-    4, 5, 6, 
-    7, 6, 5 
-};
-
-ComPtr<ID3D12Resource> m_quadVertexBuffer;
-ComPtr<ID3D12Resource> m_cubeVertexBuffer;
-ComPtr<ID3D12Resource> m_cubeIndexBuffer;
+// --- DXR resources ---
 
 struct AccelerationStructure
 {
+	ComPtr<ID3D12Resource> VertexBuffer;
+	ComPtr<ID3D12Resource> IndexBuffer;
 	ComPtr<ID3D12Resource> Buffer;
 	ComPtr<ID3D12Resource> Scratch; //#Note: scratch memory is used during the building of the BVH. After this is can be reused for other purposes - source: do and don't from nvidia.
 };
 
-AccelerationStructure m_quadBlas;
-AccelerationStructure m_cubeBlas;
+Array<AccelerationStructure> BottomLevelAccelerationStructures;
 
-u32 m_numBlas = 3; //3 objects, a cube, a mirror quad and the floor quad.
+// #Todo: This buffer represents the *current* render instance count based on reused bottom level acceleration structures.
+// The creation of this is hard coded and needs to change so multiple submeshes can be loaded in using the model loader.
+// Currently the renderer only works for meshes that have 1 submesh meshes with more than 1 results in undefined behaviour = in this instance a crash.
 ComPtr<ID3D12Resource> m_blasInstanceBuffer;
 void* m_blasInstanceBufferAddr;
-
-ComPtr<ID3D12RootSignature> m_rootSig;
+u32 m_renderObjectCount = 3;
 
 struct RaytracePipelineStateObject
 {
@@ -91,6 +49,7 @@ struct RaytracePipelineStateObject
     const u32 NumShaderIds = 3;
 };
 RaytracePipelineStateObject m_rtpso;
+ComPtr<ID3D12RootSignature> m_rootSig;
 
 u32 windowSurfaceWidth = 1600;
 u32 windowSurfaceHeight = 900;
@@ -128,8 +87,6 @@ ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
 
 ComPtr<ID3D12DescriptorHeap> m_uavHeap = nullptr;
 u32 m_uavDescriptorSize = 0;
-
-std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAccelerationStructures;
 
 inline WString CommandListTypeToUnicode(const D3D12_COMMAND_LIST_TYPE a_type)
 {
@@ -399,7 +356,7 @@ void WaitForCommandQueueFence(const u64 a_fenceValue)
     }
 }
 
-void CreateReadBackBuffer(ComPtr<ID3D12Resource>& a_resource, const void* a_pData, const u32 a_sizeInBytes)
+void CreateReadBackBuffer(ComPtr<ID3D12Resource>& a_resource, const void* a_pData, const usize a_sizeInBytes)
 {
     //#Todo: Horrendous non-optimized buffer, this needs proper upload management.
 
@@ -433,13 +390,15 @@ void CreateReadBackBuffer(ComPtr<ID3D12Resource>& a_resource, const void* a_pDat
     }
 }
 
+// #Todo: Investigate how others keep track of this buffer, in this application objects are always preloaded -
+// this is not the case in a proper render application.
 void CreateSceneInstances()
 {
 	const D3D12_RESOURCE_DESC bufferDesc =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
 		.Alignment = 0,
-		.Width = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * m_numBlas,
+		.Width = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * m_renderObjectCount,
 		.Height = 1,
 		.DepthOrArraySize = 1,
 		.MipLevels = 1,
@@ -466,21 +425,21 @@ void CreateSceneInstances()
 	{
 		.InstanceID = 0,
 		.InstanceMask = 1,
-		.AccelerationStructure = m_cubeBlas.Buffer->GetGPUVirtualAddress()
+		.AccelerationStructure = BottomLevelAccelerationStructures[1].Buffer->GetGPUVirtualAddress()
 	};
 
 	instances[1] =
 	{
 		.InstanceID = 1,
 		.InstanceMask = 1,
-		.AccelerationStructure = m_quadBlas.Buffer->GetGPUVirtualAddress()
+		.AccelerationStructure = BottomLevelAccelerationStructures[0].Buffer->GetGPUVirtualAddress()
 	};
 
 	instances[2] =
 	{
 		.InstanceID = 2,
 		.InstanceMask = 1,
-		.AccelerationStructure = m_quadBlas.Buffer->GetGPUVirtualAddress()
+		.AccelerationStructure = BottomLevelAccelerationStructures[0].Buffer->GetGPUVirtualAddress()
 	};
 }
 
@@ -543,22 +502,21 @@ void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, A
     dxrCmdList->ResourceBarrier(1, &asbarrier);
 }
 
-void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const u32 a_vsCount, ComPtr<ID3D12Resource> a_idBuffer = nullptr, const u32 a_idCount = 0)
+void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const usize a_vsCount, ComPtr<ID3D12Resource> a_idBuffer = nullptr, const usize a_idCount = 0)
 {
     const D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE vertexBuffer =
     {
         .StartAddress = a_vsBuffer->GetGPUVirtualAddress(),
-        .StrideInBytes = sizeof(fp32) * 3
+        .StrideInBytes = Vertex::Stride
     };
 
-    //#Todo: Could possibly be retrieved through shader reflection?
     const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC triangleDesc =
     {
         .Transform3x4 = 0,
-        .IndexFormat = a_idCount > 0 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_UNKNOWN,
+        .IndexFormat = a_idCount > 0 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_UNKNOWN,
         .VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,
-        .IndexCount = a_idCount > 0 ? a_idCount : 0,
-        .VertexCount = a_vsCount / 3, //#Note: Divide by 3 as the buffer is made up of raw floats.
+        .IndexCount = a_idCount > 0 ? static_cast<unsigned>(a_idCount) : 0,
+        .VertexCount = static_cast<unsigned>(a_vsCount),
         .IndexBuffer = a_idBuffer ? a_idBuffer->GetGPUVirtualAddress() : 0,
         .VertexBuffer = vertexBuffer
     };
@@ -589,7 +547,7 @@ void CreateTlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStruct
 	{
         .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
         .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE,
-        .NumDescs = m_numBlas,
+        .NumDescs = m_renderObjectCount,
         .DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
         .InstanceDescs = m_blasInstanceBuffer->GetGPUVirtualAddress()
 	};
@@ -597,30 +555,49 @@ void CreateTlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStruct
     CreateAccelerationStructure(a_cmdList, a_as, tlasInputs);
 }
 
-void CreateGlobalResources()
+void CreateModelResources(const Model& a_model)
 {
+	for (const Mesh& mesh : a_model.Meshes)
+	{
+	    AccelerationStructure blas;
+	    CreateReadBackBuffer(blas.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
+	    D3D12_NAME_OBJECT(blas.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
+	    CreateReadBackBuffer(blas.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
+	    D3D12_NAME_OBJECT(blas.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
+
+	    CreateBlas(m_commandList, blas, blas.VertexBuffer, mesh.Vertices.size(), blas.IndexBuffer, mesh.Indices.size());
+	    D3D12_NAME_OBJECT(blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
+	    D3D12_NAME_OBJECT(blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
+		BottomLevelAccelerationStructures.push_back(blas);
+	}
+}
+
+
+void LoadResources()
+{
+	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf");
+	AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf");
+	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf");
+
+	if (!modelLoader.LoadModel())
+	{
+		return;
+	}
+
 	//#Note: Hack, current commandlist management is limited by the frameloop and does not use pooling, so the first *frame* is spend on resource initialization.
 	FrameResources& frameResources = m_frameResources[m_swapchainIndex];
-
 	D3D12_CHECK(frameResources.CommandAllocator->Reset());
 	D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
-    CreateReadBackBuffer(m_quadVertexBuffer, m_quadVertices, sizeof(m_quadVertices));
-	D3D12_NAME_OBJECT(m_quadVertexBuffer, std::format(L"Quad_vertex_buffer"));
-    CreateReadBackBuffer(m_cubeVertexBuffer, m_cubeVertices, sizeof(m_cubeVertices));
-	D3D12_NAME_OBJECT(m_cubeVertexBuffer, std::format(L"Cube_vertex_buffer"));
-    CreateReadBackBuffer(m_cubeIndexBuffer, m_cubeIndicies, sizeof(m_cubeIndicies));
-	D3D12_NAME_OBJECT(m_cubeIndexBuffer, std::format(L"Cube_index_buffer"));
+	Model quadModel = BuildQuadModel();
+	quadModel.DebugName = L"Quad";
+	CreateModelResources(quadModel);
+	Model& gltfModel = modelLoader.GetModel();
+	gltfModel.DebugName = L"LoadedModel";
+	CreateModelResources(gltfModel);
 
-	CreateBlas(m_commandList, m_cubeBlas, m_cubeVertexBuffer, static_cast<u32>(std::size(m_cubeVertices)), m_cubeIndexBuffer, static_cast<u32>(std::size(m_cubeIndicies)));
-	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Cube_Blas_Scratch"));
-	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Cube_Blas"));
-
-	CreateBlas(m_commandList, m_quadBlas, m_quadVertexBuffer, static_cast<u32>(std::size(m_quadVertices)));
-	D3D12_NAME_OBJECT(m_cubeBlas.Scratch, std::format(L"Quad_Blas_Scratch"));
-	D3D12_NAME_OBJECT(m_cubeBlas.Buffer, std::format(L"Quad_Blas"));
-
-    CreateSceneInstances(); //Depends on the blas being ready to be read.
+    // Only needs to be run once - hence this method being a temporary in-place resource loading sequence.
+	CreateSceneInstances();
 
 	D3D12_CHECK(m_commandList->Close());
 	ID3D12CommandList* const lists[] = { m_commandList.Get() };
@@ -678,7 +655,7 @@ void CreateRayTraceDemoRootSig(ComPtr<ID3D12RootSignature>& a_rootSig)
 
 void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
 {
-    //1. Compile the sahder and create a subobject for it.
+    //1. Compile the shader and create a sub object for it.
 	const ShaderCompilationOptions options =
 	{
 		.ShaderModel = EShaderModel::SM6_3,
@@ -816,16 +793,19 @@ void Tick(const fp32 a_dt)
     static fp32 time = 0.0f;
     time += a_dt;
 
-	auto cube = XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
+    auto cube = XMMatrixScaling(3, 3, 3);
+	cube *= XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
 	cube *= XMMatrixTranslation(-1.5, 2, 2);
     StoreInstanceTransform(0, cube);
 
-	auto mirror = XMMatrixRotationX(-1.8f);
+	auto mirror = XMMatrixScaling(3, 3, 3);
+	mirror *= XMMatrixRotationX(-1.8f);
 	mirror *= XMMatrixRotationY(XMScalarSinEst(time) / 8 + 1);
 	mirror *= XMMatrixTranslation(2, 2, 2);
     StoreInstanceTransform(1, mirror);
 
-	auto floor = XMMatrixScaling(5, 5, 5);
+	auto floor = XMMatrixScaling(3, 3, 3);
+	floor *= XMMatrixScaling(5, 5, 5);
 	floor *= XMMatrixTranslation(0, 0, 2);
     StoreInstanceTransform(2, floor);
 }
@@ -949,6 +929,7 @@ void FrameLoop()
 int main(int argc, char** argv)
 {
     m_time.Start();
+
     const WindowCreationInfo windowInfo =
     {
         .Title = PROJECT_NAME,
@@ -956,17 +937,23 @@ int main(int argc, char** argv)
     };
     m_window = std::make_unique<WinApiWindow>(windowInfo);
     
+    // D3D12 API setup.
     CreateDevice(m_device);
     CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
     CreateSwapchain(m_swapchain, windowInfo.Rect.Width, windowInfo.Rect.Height);
+
+    // Loading models and creating resources to render them - related to 
+    // acceleration structures and scene setup.
     CreateFrameResources();
-    CreateGlobalResources();
+    LoadResources();
+
+    // Direct shader influenced render resources, because of the current abstraction hardcoded.
     CreateRayTraceDemoRootSig(m_rootSig);
     CreateRayTracingPipelineStateObject(m_rtpso);
 
     FrameLoop();
 
-	WaitForCommandQueueFence(m_commandQueueFence->GetCompletedValue()); //Flush the gpu.
+    WaitForCommandQueueFence(m_commandQueueFence->GetCompletedValue());
 	CloseHandle(m_commandQueueFenceEvent);
 
 	return 0;

@@ -18,11 +18,11 @@ namespace dxray::vath
 		using ColumnType = Vector<2, T>;
 		using RowType = Vector<2, T>;
 
-		Matrix();
-		explicit Matrix(T a_scalar);
-		Matrix(T a_x0, T a_y0, T a_x1, T a_y1);
-		Matrix(T* a_pData);
-		Matrix(const ColumnType& a_col0, const ColumnType& a_col1);
+		constexpr Matrix();
+		constexpr explicit Matrix(T a_scalar);
+		constexpr Matrix(T a_x0, T a_y0, T a_x1, T a_y1);
+		constexpr Matrix(T* a_pData);
+		constexpr Matrix(const ColumnType& a_col0, const ColumnType& a_col1);
 		~Matrix() = default;
 
 		constexpr Matrix<2, 2, T>(const Matrix<2, 2, T>& a_rhs) = default;
@@ -56,28 +56,28 @@ namespace dxray::vath
 	//--- Matrix construction/destruction ---
 
 	template<typename T>
-	Matrix<2, 2, T>::Matrix() :
+	constexpr Matrix<2, 2, T>::Matrix() :
 		m_data{ ColumnType(1, 0),ColumnType(0, 1) }
 	{}
 
 	template<typename T>
-	Matrix<2, 2, T>::Matrix(T a_scalar) :
+	constexpr Matrix<2, 2, T>::Matrix(T a_scalar) :
 		m_data{ ColumnType(a_scalar), ColumnType(a_scalar) }
 	{}
 	
 	template<typename T>
-	Matrix<2, 2, T>::Matrix(T a_x0, T a_y0, T a_x1, T a_y1) :
+	constexpr Matrix<2, 2, T>::Matrix(T a_x0, T a_y0, T a_x1, T a_y1) :
 		m_data{ ColumnType(a_x0, a_y0), ColumnType(a_x1, a_y1) }
 	{}
 
 	template<typename T>
-	Matrix<2, 2, T>::Matrix(T* a_pData)
+	constexpr Matrix<2, 2, T>::Matrix(T* a_pData)
 	{
 		memcpy(m_data, a_pData, GetColumnCount() * GetRowCount() * sizeof(T));
 	}
 
 	template<typename T>
-	Matrix<2, 2, T>::Matrix(const ColumnType& a_col0, const ColumnType& a_col1) :
+	constexpr Matrix<2, 2, T>::Matrix(const ColumnType& a_col0, const ColumnType& a_col1) :
 		m_data{ ColumnType(a_col0), ColumnType{a_col1} }
 	{}
 

@@ -20,12 +20,12 @@ namespace dxray::vath
 		using ColumnType = Vector<4, T>;
 		using RowType = Vector<4, T>;
 
-		Matrix();
-		explicit Matrix(T a_scalar);
-		Matrix(T a_x0, T a_y0, T a_z0, T a_w0, T a_x1, T a_y1, T a_z1, T a_w1, T a_x2, T a_y2, T a_z2, T a_w2, T a_x3, T a_y3, T a_z3, T a_w3);
-		Matrix(T* a_pData);
-		Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2, const ColumnType& a_col3);
-		Matrix(const Matrix<3, 3, T>& a_innerMatrix);
+		constexpr Matrix();
+		constexpr explicit Matrix(T a_scalar);
+		constexpr Matrix(T a_x0, T a_y0, T a_z0, T a_w0, T a_x1, T a_y1, T a_z1, T a_w1, T a_x2, T a_y2, T a_z2, T a_w2, T a_x3, T a_y3, T a_z3, T a_w3);
+		constexpr Matrix(T* a_pData);
+		constexpr Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2, const ColumnType& a_col3);
+		constexpr Matrix(const Matrix<3, 3, T>& a_innerMatrix);
 		~Matrix() = default;
 
 		constexpr Matrix<4, 4, T>(const Matrix<4, 4, T>& a_rhs) = default;
@@ -61,33 +61,33 @@ namespace dxray::vath
 	//--- Matrix construction/destruction ---
 
 	template<typename T>
-	Matrix<4, 4, T>::Matrix() :
+	constexpr Matrix<4, 4, T>::Matrix() :
 		m_data{ ColumnType(1, 0, 0, 0), ColumnType(0, 1, 0, 0), ColumnType(0, 0, 1, 0), ColumnType(0, 0, 0, 1)}
 	{}
 
 	template<typename T>
-	Matrix<4, 4, T>::Matrix(T a_scalar) :
+	constexpr Matrix<4, 4, T>::Matrix(T a_scalar) :
 		m_data{ ColumnType(a_scalar), ColumnType(a_scalar), ColumnType(a_scalar), ColumnType(a_scalar)}
 	{}
 
 	template<typename T>
-	Matrix<4, 4, T>::Matrix(T a_x0, T a_y0, T a_z0, T a_w0, T a_x1, T a_y1, T a_z1, T a_w1, T a_x2, T a_y2, T a_z2, T a_w2, T a_x3, T a_y3, T a_z3, T a_w3) :
+	constexpr Matrix<4, 4, T>::Matrix(T a_x0, T a_y0, T a_z0, T a_w0, T a_x1, T a_y1, T a_z1, T a_w1, T a_x2, T a_y2, T a_z2, T a_w2, T a_x3, T a_y3, T a_z3, T a_w3) :
 		m_data{ ColumnType(a_x0, a_y0, a_z0, a_w0), ColumnType(a_x1, a_y1, a_z1, a_w1), ColumnType(a_x2, a_y2, a_z2, a_w2), ColumnType(a_x3, a_y3, a_z3, a_w3) }
 	{}
 
 	template<typename T>
-	Matrix<4, 4, T>::Matrix(T* a_pData)
+	constexpr Matrix<4, 4, T>::Matrix(T* a_pData)
 	{
 		memcpy(m_data, a_pData, GetColumnCount() * GetRowCount() * sizeof(T));
 	}
 
 	template<typename T>
-	Matrix<4, 4, T>::Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2, const ColumnType& a_col3) :
+	constexpr Matrix<4, 4, T>::Matrix(const ColumnType& a_col0, const ColumnType& a_col1, const ColumnType& a_col2, const ColumnType& a_col3) :
 		m_data{ ColumnType(a_col0), ColumnType{a_col1}, ColumnType{a_col2}, ColumnType{a_col3} }
 	{}
 
 	template<typename T>
-	Matrix<4, 4, T>::Matrix(const Matrix<3, 3, T>& a_innerMatrix) :
+	constexpr Matrix<4, 4, T>::Matrix(const Matrix<3, 3, T>& a_innerMatrix) :
 		m_data{ ColumnType(a_innerMatrix[0][0], a_innerMatrix[0][1], a_innerMatrix[0][2], 0), 
 				ColumnType(a_innerMatrix[1][0], a_innerMatrix[1][1], a_innerMatrix[1][2], 0), 
 				ColumnType(a_innerMatrix[2][0], a_innerMatrix[2][1], a_innerMatrix[2][2], 0), 

@@ -13,8 +13,9 @@ set(FETCHCONTENT_BASE_DIR "${THIRD_PARTY_DIRECTORY}" CACHE PATH "Third party dep
 #Find global cmake thirdparty dependencies - platforms should be checked in this file.
 find_package(Threads REQUIRED)
 include(findStb)
-include(findD3dx12)
 include(findDxc)
+include(findD3dx12)
+include(findAssimp)
 
 if(BUILD_TESTS)
 	include(findGoogleTest)

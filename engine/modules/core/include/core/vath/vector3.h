@@ -19,14 +19,14 @@ namespace dxray::vath
 		using Type = Vector<3, T>;
 		using ValueType = T;
 
-		Vector();
-		explicit Vector(T a_scalar);
-		Vector(T a_x, T a_y, T a_z);
-		Vector(T* a_pData);
+		constexpr Vector();
+		constexpr explicit Vector(T a_scalar);
+		constexpr Vector(T a_x, T a_y, T a_z);
+		constexpr Vector(T* a_pData);
 		~Vector() = default;
 
 		template<typename U>
-		Vector(const Vector<4, U>& a_vector4);
+		constexpr Vector(const Vector<4, U>& a_vector4);
 
 		constexpr Vector<3, T>(const Vector<3, T>& a_rhs) = default;
 		constexpr Vector<3, T>& operator=(const Vector<3, T>& a_rhs) = default;
@@ -54,27 +54,27 @@ namespace dxray::vath
 	//--- Vector construction/destruction ---
 
 	template<typename T>
-	Vector<3, T>::Vector() :
+	constexpr Vector<3, T>::Vector() :
 		x(static_cast<T>(0)),
 		y(static_cast<T>(0)),
 		z(static_cast<T>(0))
 	{}
 
 	template<typename T>
-	Vector<3, T>::Vector(T* a_pData)
+	constexpr Vector<3, T>::Vector(T* a_pData)
 	{
 		memcpy(Data, a_pData, GetLength() * sizeof(T));
 	}
 
 	template<typename T>
-	Vector<3, T>::Vector(T a_x, T a_y, T a_z) :
+	constexpr Vector<3, T>::Vector(T a_x, T a_y, T a_z) :
 		x(a_x),
 		y(a_y),
 		z(a_z)
 	{}
 
 	template<typename T>
-	Vector<3, T>::Vector(T a_scalar) :
+	constexpr Vector<3, T>::Vector(T a_scalar) :
 		x(a_scalar),
 		y(a_scalar),
 		z(a_scalar)
@@ -82,7 +82,7 @@ namespace dxray::vath
 
 	template<typename T>
 	template<typename U>
-	Vector<3, T>::Vector(const Vector<4, U>& a_vector4) :
+	constexpr Vector<3, T>::Vector(const Vector<4, U>& a_vector4) :
 		x(static_cast<T>(a_vector4[0])),
 		y(static_cast<T>(a_vector4[1])),
 		z(static_cast<T>(a_vector4[2]))
