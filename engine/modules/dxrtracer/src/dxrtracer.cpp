@@ -22,6 +22,7 @@ World (geometry data):
 */
 
 //#Todo: When abstracting the CreateBlas into something class/data oriented ensure less arguments, this sucks :(
+//#Todo: Change the "<type>Data" into something more descriptive........
 
 u32 windowSurfaceWidth = 1600;
 u32 windowSurfaceHeight = 900;
@@ -38,35 +39,34 @@ ComPtr<ID3D12Fence> m_commandQueueFence;
 ComPtr<ID3D12CommandQueue> m_commandQueue;
 ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
-struct BlasData
+struct AccelerationStructure
 {
-	ComPtr<ID3D12Resource> VertexBuffer;
-	ComPtr<ID3D12Resource> IndexBuffer;
-	ComPtr<ID3D12Resource> Buffer;
-	ComPtr<ID3D12Resource> Scratch; //#Note: scratch memory is used during the building of the BVH. After this is can be reused for other purposes - source: do and don't from nvidia.
+	ComPtr<ID3D12Resource> Buffer = nullptr;
+	ComPtr<ID3D12Resource> Scratch = nullptr; //#Note: scratch memory is used during the building of the BVH. After this is can be reused for other purposes - source: do and don't from nvidia.
 };
 
-Array<BlasData> m_blasDataBuffers;
-
-struct TlasData
+struct SceneObjectRenderData
 {
-	ComPtr<ID3D12Resource> Buffer;
-	ComPtr<ID3D12Resource> Scratch;
+	ComPtr<ID3D12Resource> VertexBuffer = nullptr;
+	ComPtr<ID3D12Resource> IndexBuffer = nullptr;
+    AccelerationStructure Blas;
 };
 
-using AsData = TlasData;
+Array<SceneObjectRenderData> m_sceneObjectRenderDataBuffer;
 
 struct FrameResources
 {
-	TlasData WorldTlas;
+	ComPtr<ID3D12Resource> WorldTlasInstancesData = nullptr;
+    AccelerationStructure WorldTlas;
+
 	ComPtr<ID3D12CommandAllocator> CommandAllocator = nullptr;
 	ComPtr<ID3D12Resource> RaytraceRenderTarget = nullptr;
 	u64 FenceValue = 0;
 };
 
 inline constexpr u32 SwapchainBackbufferCount = 3;
-std::array<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
-std::array<FrameResources, SwapchainBackbufferCount> m_frameResources;
+FixedArray<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
+FixedArray<FrameResources, SwapchainBackbufferCount> m_frameResources;
 u32 m_swapchainIndex = 0;
 ComPtr<ID3D12DescriptorHeap> m_rtvHeap = nullptr;
 u32 m_rtvDescriptorSize = 0;
@@ -90,8 +90,8 @@ void CreateSwapchain(ComPtr<IDXGISwapChain3>& a_swapchain, const u32 a_width, co
 void CreateFrameResources();
 void WaitForCommandQueueFence(const u64 a_fenceValue);
 void CreateReadBackBuffer(ComPtr<ID3D12Resource>& a_resource, const void* a_pData, const usize a_sizeInBytes);
-void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AsData& a_as, const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& a_asInputs);
-void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, BlasData& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const usize a_vsCount, ComPtr<ID3D12Resource> a_idBuffer = nullptr, const usize a_idCount = 0);
+void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& a_asInputs);
+void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const usize a_vsCount, ComPtr<ID3D12Resource> a_idBuffer = nullptr, const usize a_idCount = 0);
 void CreateModelResources(const Model& a_model);
 void LoadResources();
 void CreateRayTraceDemoRootSig(ComPtr<ID3D12RootSignature>& a_rootSig);
@@ -104,7 +104,6 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso);
 struct Scene
 {
     Scene() :
-        m_sceneObjectsGpuBuffer(nullptr),
         m_isDirty(true)
     { }
 
@@ -112,49 +111,45 @@ struct Scene
     {
 		using namespace DirectX;
 
-        if (m_sceneObjectsGpuBuffer == nullptr || m_isDirty)
+        if (m_isDirty)
         {
             return;
-        }
-
-		void* mappedSceneObjectsAddr = nullptr;
-		D3D12_CHECK(m_sceneObjectsGpuBuffer->Map(0, nullptr, &m_sceneObjectsGpuBuffer));
-
-		const std::function<void(i32 a_id, const XMMATRIX a_mx)> StoreInstanceTransform = [&](int idx, XMMATRIX mx)
-		{
-			XMFLOAT3X4* ptr = reinterpret_cast<XMFLOAT3X4*>(&static_cast<D3D12_RAYTRACING_INSTANCE_DESC* const>(mappedSceneObjectsAddr)[idx].Transform);
-			XMStoreFloat3x4(ptr, mx);
-		};
+        }        
 
 		static fp32 time = 0.0f;
 		time += a_dt;
-
-		auto cube = XMMatrixScaling(3, 3, 3);
-		cube *= XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
-		cube *= XMMatrixTranslation(-1.5, 2, 2);
-		StoreInstanceTransform(0, cube);
+        
+		auto mesh = XMMatrixScaling(4, 4, 4);
+		mesh *= XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
+		mesh *= XMMatrixTranslation(-1.5, 2, 2);
+		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjects[0].Transform), mesh);
 
 		auto mirror = XMMatrixScaling(3, 3, 3);
 		mirror *= XMMatrixRotationX(-1.8f);
 		mirror *= XMMatrixRotationY(XMScalarSinEst(time) / 8 + 1);
 		mirror *= XMMatrixTranslation(2, 2, 2);
-		StoreInstanceTransform(1, mirror);
-
+		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjects[1].Transform), mirror);
+		
+		
 		auto floor = XMMatrixScaling(3, 3, 3);
 		floor *= XMMatrixScaling(5, 5, 5);
 		floor *= XMMatrixTranslation(0, 0, 2);
-		StoreInstanceTransform(2, floor);
+		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjects[2].Transform), floor);
 
         m_isDirty = true;
     }
 
-    void AddSceneObject(const BlasData& a_blasData)
+    void AddSceneObject(const AccelerationStructure& a_blasData)
     {
         // #Todo: Unloading instances/models is not supported while this integer is counting upwards. 
         // Change this to an argument to allow support for this as the indices need to be managed.
         static u32 objectCount = 0;
 
-        D3D12_RAYTRACING_INSTANCE_DESC desc;
+		D3D12_RAYTRACING_INSTANCE_DESC desc;
+
+        // #Note: Sponza code - no scene hierarchy is in-place, this sponza is only 1 parent node which scales the model down significantly.
+		//XMStoreFloat3x4(reinterpret_cast<DirectX::XMFLOAT3X4*>(&desc.Transform), DirectX::XMMatrixScaling(0.008f, 0.008f, 0.008f));
+
         desc.InstanceID = objectCount++;
         desc.InstanceMask = 1;
         desc.AccelerationStructure = a_blasData.Buffer->GetGPUVirtualAddress();
@@ -189,15 +184,16 @@ struct Scene
 			.Type = D3D12_HEAP_TYPE_UPLOAD
 		};
 
-		D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_sceneObjectsGpuBuffer)));
-		if (!m_sceneObjectsGpuBuffer)
+		D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&a_frameResourceData.WorldTlasInstancesData)));
+		if (!a_frameResourceData.WorldTlasInstancesData)
 		{
 			return;
 		}
 
 		void* mappedSceneObjectsAddr = nullptr;
-		D3D12_CHECK(m_sceneObjectsGpuBuffer->Map(0, nullptr, &m_sceneObjectsGpuBuffer));
+		D3D12_CHECK(a_frameResourceData.WorldTlasInstancesData->Map(0, nullptr, &mappedSceneObjectsAddr));
 		D3D12_RAYTRACING_INSTANCE_DESC* const instances = static_cast<D3D12_RAYTRACING_INSTANCE_DESC* const>(mappedSceneObjectsAddr);
+
         for (usize descIdx = 0; descIdx < m_sceneObjects.size(); descIdx++)
         {
             instances[descIdx] = m_sceneObjects[descIdx];
@@ -205,7 +201,7 @@ struct Scene
         
         if (mappedSceneObjectsAddr) 
         {
-            m_sceneObjectsGpuBuffer->Unmap(0, nullptr);
+            a_frameResourceData.WorldTlasInstancesData->Unmap(0, nullptr);
         }
 
 		const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS tlasInputs =
@@ -214,7 +210,7 @@ struct Scene
 			.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE,
 			.NumDescs = static_cast<u32>(m_sceneObjects.size()),
 			.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
-			.InstanceDescs = m_sceneObjectsGpuBuffer->GetGPUVirtualAddress()
+			.InstanceDescs = a_frameResourceData.WorldTlasInstancesData->GetGPUVirtualAddress()
 		};
 
 		CreateAccelerationStructure(a_cmdList, a_frameResourceData.WorldTlas, tlasInputs);
@@ -226,7 +222,6 @@ struct Scene
 
 private:
     Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjects;
-	ComPtr<ID3D12Resource> m_sceneObjectsGpuBuffer;
     bool m_isDirty = false;
 
 } m_scene;
@@ -531,7 +526,7 @@ void CreateReadBackBuffer(ComPtr<ID3D12Resource>& a_resource, const void* a_pDat
     }
 }
 
-void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AsData& a_as, const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& a_asInputs)
+void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& a_asInputs)
 {
 	auto CreateGpuBuffer = [](u64 a_sizeInBytes, D3D12_RESOURCE_STATES a_initialState)
     {
@@ -590,7 +585,7 @@ void CreateAccelerationStructure(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, A
     dxrCmdList->ResourceBarrier(1, &asbarrier);
 }
 
-void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, BlasData& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const usize a_vsCount, ComPtr<ID3D12Resource> a_idBuffer, const usize a_idCount)
+void CreateBlas(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_as, const ComPtr<ID3D12Resource>& a_vsBuffer, const usize a_vsCount, ComPtr<ID3D12Resource> a_idBuffer, const usize a_idCount)
 {
     const D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE vertexBuffer =
     {
@@ -633,16 +628,16 @@ void CreateModelResources(const Model& a_model)
 {
 	for (const Mesh& mesh : a_model.Meshes)
 	{
-	    BlasData blas;
-	    CreateReadBackBuffer(blas.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
-	    D3D12_NAME_OBJECT(blas.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
-	    CreateReadBackBuffer(blas.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
-	    D3D12_NAME_OBJECT(blas.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
+        SceneObjectRenderData sceneObjectRenderData;
+	    CreateReadBackBuffer(sceneObjectRenderData.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
+	    D3D12_NAME_OBJECT(sceneObjectRenderData.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
+	    CreateReadBackBuffer(sceneObjectRenderData.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
+	    D3D12_NAME_OBJECT(sceneObjectRenderData.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
 
-	    CreateBlas(m_commandList, blas, blas.VertexBuffer, mesh.Vertices.size(), blas.IndexBuffer, mesh.Indices.size());
-	    D3D12_NAME_OBJECT(blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
-	    D3D12_NAME_OBJECT(blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
-        m_blasDataBuffers.push_back(blas);
+	    CreateBlas(m_commandList, sceneObjectRenderData.Blas, sceneObjectRenderData.VertexBuffer, mesh.Vertices.size(), sceneObjectRenderData.IndexBuffer, mesh.Indices.size());
+		D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
+		D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
+        m_sceneObjectRenderDataBuffer.push_back(sceneObjectRenderData);
 	}
 }
 
@@ -650,7 +645,7 @@ void LoadResources()
 {
 	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf");
 	AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf");
-	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf");
+	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf"); -> to test download the sponza from gltf2.0 source repository.
 
 	if (!modelLoader.LoadModel())
 	{
@@ -662,16 +657,23 @@ void LoadResources()
 	D3D12_CHECK(frameResources.CommandAllocator->Reset());
 	D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
-	Model quadModel = BuildQuadModel();
-	quadModel.DebugName = L"Quad";
-	CreateModelResources(quadModel);
 	Model& gltfModel = modelLoader.GetModel();
 	gltfModel.DebugName = L"LoadedModel";
 	CreateModelResources(gltfModel);
+	Model quadModel = BuildQuadModel();
+	quadModel.DebugName = L"Quad";
+	CreateModelResources(quadModel);
 
-    m_scene.AddSceneObject(m_blasDataBuffers[0]);
-    m_scene.AddSceneObject(m_blasDataBuffers[1]);
-    m_scene.AddSceneObject(m_blasDataBuffers[1]);
+    // Sponza code - load all instances of the generated submeshes into the scene.
+    //for (usize blasIdx = 0; blasIdx < m_sceneObjectRenderDataBuffer.size(); blasIdx++)
+    //{
+    //    m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[blasIdx].Blas);
+    //}
+    // EndSponza code.
+    
+    m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[0].Blas);
+    m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[1].Blas);
+    m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[1].Blas);
 
 	D3D12_CHECK(m_commandList->Close());
 	ID3D12CommandList* const lists[] = { m_commandList.Get() };
