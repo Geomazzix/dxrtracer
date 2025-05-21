@@ -116,6 +116,7 @@ struct Scene
             return;
         }        
 
+        // Disable when rendering sponza
 		static fp32 time = 0.0f;
 		time += a_dt;
         
@@ -135,6 +136,7 @@ struct Scene
 		floor *= XMMatrixScaling(5, 5, 5);
 		floor *= XMMatrixTranslation(0, 0, 2);
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjects[2].Transform), floor);
+        // end disable when rendering sponza
 
         m_isDirty = true;
     }
@@ -671,9 +673,11 @@ void LoadResources()
     //}
     // EndSponza code.
     
+    // Disable when rendering sponza
     m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[0].Blas);
     m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[1].Blas);
     m_scene.AddSceneObject(m_sceneObjectRenderDataBuffer[1].Blas);
+    // end disable when rendering sponza
 
 	D3D12_CHECK(m_commandList->Close());
 	ID3D12CommandList* const lists[] = { m_commandList.Get() };
