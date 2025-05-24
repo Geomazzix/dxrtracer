@@ -36,7 +36,6 @@ namespace dxray
 
 	void AssimpModelLoader::ProcessNode(const aiNode* a_pNode, const aiScene* a_pScene)
 	{
-		DXRAY_INFO("MeshIds: {}", a_pNode->mNumMeshes);
 		for (u32 meshIdx = 0; meshIdx < a_pNode->mNumMeshes; ++meshIdx)
 		{
 			const aiMesh* mesh = a_pScene->mMeshes[meshIdx];
