@@ -91,18 +91,18 @@ void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a
 {
     switch (InstanceID())
     {
-        case 0:
-            HitMesh(a_payload, a_attrib.barycentrics);
-            break;
-        case 1:
-            HitMirror(a_payload, a_attrib.barycentrics);
-            break;
-        case 2:
-            HitFloor(a_payload, a_attrib.barycentrics);
-            break;
-        default:
-            a_payload.Colour = float3(1, 0, 1);
-            break;
+    case 0:
+        HitMesh(a_payload, a_attrib.barycentrics);
+        break;
+    case 1:
+        HitMirror(a_payload, a_attrib.barycentrics);
+        break;
+    case 2:
+        HitFloor(a_payload, a_attrib.barycentrics);
+        break;
+    default:
+        a_payload.Colour = float3(1, 0, 1);
+        break;
     }
 }
 

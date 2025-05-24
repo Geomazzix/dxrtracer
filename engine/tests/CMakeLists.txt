@@ -21,7 +21,7 @@ set(DEPS
 )
 
 project_add_target(
-	NAME UnitTestSuite
+	NAME unitTestSuite
 	VERSION ${TEST_SUITE_VERSION}
 	TYPE EXECUTABLE
 	HEADERS ""

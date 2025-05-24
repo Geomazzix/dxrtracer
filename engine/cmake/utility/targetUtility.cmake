@@ -21,7 +21,6 @@ function(map_source_to_filter)
             get_filename_component(FILTER_PATH "${RELATIVE_FILE_PATH}" DIRECTORY)           
             string(REPLACE "/" "\\" SOURCE_PATH_MSVC "${SOURCE_FILTER_ROOT}/${FILTER_PATH}")
             source_group("${SOURCE_PATH_MSVC}" FILES "${FILE_PATH}")
-
         endforeach()
     else()
         message(FATAL_ERROR "The currently defined IDE does not have an implementation for source mappings. Ensure to define behaviour for this IDE.")
@@ -70,10 +69,10 @@ function(project_add_interface)
         TARGET
         "NO_INSTALL"
         "NAME;FILTER"
-        "HEADERS;LINK_DEPS"
+        "HEADERS;FILES;LINK_DEPS"
         ${ARGN}
     )
-    
+  
     add_library(
         ${TARGET_NAME} 
         INTERFACE
@@ -90,13 +89,8 @@ function(project_add_interface)
     INTERFACE 
         ${TARGET_LINK_DEPS}
     )
-    
-    target_set_ide_folders(
-        NAME ${TARGET_NAME}
-        FILTER ${TARGET_FILTER}
-        HEADERS ${HEADERS}
-        SOURCE ${SOURCE}
-    )
+
+    # Todo: Add source file mapping as this is currently hardcoded for Header files and Source files.
 
     MESSAGE(STATUS "[module] ${TARGET_NAME}")
 endfunction(project_add_interface)
@@ -143,14 +137,14 @@ function(project_add_target)
     target_set_ide_folders(
         NAME ${TARGET_NAME}
         FILTER ${TARGET_FILTER}
-        HEADERS ${HEADERS}
-        SOURCE ${SOURCE}
+        HEADERS ${TARGET_HEADERS}
+        SOURCE ${TARGET_SOURCE}
     )
 
     if(NOT "${TARGET_TYPE}" STREQUAL "EXECUTABLE")
-        MESSAGE(STATUS "[module] ${TARGET_NAME}")
+        message(STATUS "[module] ${TARGET_NAME}")
     else()
-        MESSAGE(STATUS "[executable] ${TARGET_NAME}")
+        message(STATUS "[executable] ${TARGET_NAME}")
     endif()
 
     #Target setup.

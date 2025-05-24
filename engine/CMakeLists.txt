@@ -11,10 +11,8 @@ include(external/findExternals)
 #Define global directories - Note: Not sure about having these global, they might only be needed on the executable target.
 message("Configuring the engine")
 set(ENGINE_ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/samples/assets/")
-set(ENGINE_SHADER_DIRECTORY "${ENGINE_DIRECTORY}/shaders")
 set(ENGINE_CACHE_DIRECTORY "${CMAKE_BINARY_DIR}/cache")
 message(STATUS "[Config] Engine Asset directory pointing to: ${ENGINE_ASSET_DIRECTORY}")
-message(STATUS "[Config] Engine Shader directory pointing to: ${ENGINE_SHADER_DIRECTORY}")
 message(STATUS "[Config] Engine Cache directory pointing to: ${ENGINE_CACHE_DIRECTORY}")
 
 #Now include subdirectories.

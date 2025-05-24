@@ -745,7 +745,8 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
 
     //#Todo: Move the inline compilation to a different place once abstraction begins.
     ShaderCompilationOutput compileRes;
-    if (!ShaderCompiler::CompileShaderFile(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", Path(ENGINE_CACHE_DIRECTORY) / "shaders", options, compileRes))
+    Path path = Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl";
+    if (!ShaderCompiler::CompileShaderFile(path, Path(ENGINE_CACHE_DIRECTORY) / "shaders", options, compileRes))
     {
         return;
     }
