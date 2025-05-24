@@ -17,22 +17,22 @@ struct Payload
     bool Missed;
 };
 
-RaytracingAccelerationStructure scene : register(t0);
+RaytracingAccelerationStructure SceneTlas : register(t0);
 RWTexture2D<float4> OutRenderTarget : register(u0);
 
 // #Todo: All values defined below before shader logic should be added into a constant buffer based on scene/camera descriptions.
 static const float CameraFovInDeg = 70;
 static const float CameraFocalLength = 2;
-static const float4x4 cameraWorldTransform = float4x4(
+static const float4x4 CameraWorldTransform = float4x4(
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
     0, 1.5, -7, 1
 );
 
-static const float3 lightPosition = float3(0, 200, 0);
-static const float3 skyTopColour = float3(0.24, 0.44, 0.72);
-static const float3 skyBottomColour = float3(0.75, 0.86, 0.93);
+static const float3 LightPosition = float3(0, 200, 0);
+static const float3 SkyTopColour = float3(0.24, 0.44, 0.72);
+static const float3 SkyBottomColour = float3(0.75, 0.86, 0.93);
 
 [shader("raygeneration")]
 void RayGeneration()
@@ -45,8 +45,8 @@ void RayGeneration()
     const float2 imagePlaneOffset = -0.5f * imagePlaneDims;
     const float2 pixelDelta = imagePlaneDims / pixelTotal;
     
-    const float3 cameraPosition = float3(cameraWorldTransform[3][0], cameraWorldTransform[3][1], cameraWorldTransform[3][2]);
-    const float4 rayDirection = mul(cameraWorldTransform, float4(
+    const float3 cameraPosition = float3(CameraWorldTransform[3][0], CameraWorldTransform[3][1], CameraWorldTransform[3][2]);
+    const float4 rayDirection = mul(CameraWorldTransform, float4(
         imagePlaneOffset.x + pixelIdx.x * pixelDelta.x,
         imagePlaneOffset.y + pixelIdx.y * pixelDelta.y,
         CameraFocalLength,
@@ -68,7 +68,7 @@ void RayGeneration()
 		false
     };
 
-    TraceRay(scene, RAY_FLAG_NONE, 0xFF, 0, 0, 0, rayDesc, rayPayload);
+    TraceRay(SceneTlas, RAY_FLAG_NONE, 0xFF, 0, 0, 0, rayDesc, rayPayload);
 
     OutRenderTarget[pixelIdx] = float4(rayPayload.Colour, 1);
 }
@@ -78,7 +78,7 @@ void Miss(inout Payload a_payload)
 {
     const float slope = normalize(WorldRayDirection()).y;
     const float t = saturate(slope * 5 + 0.5);
-    a_payload.Colour = lerp(skyBottomColour, skyTopColour, t);
+    a_payload.Colour = lerp(SkyBottomColour, SkyTopColour, t);
     a_payload.Missed = true;
 }
 
@@ -131,7 +131,7 @@ void HitMirror(inout Payload a_payload, float2 a_uv)
     };
 
     a_payload.AllowReflection = false;
-    TraceRay(scene, RAY_FLAG_NONE, 0xFF, 0, 0, 0, mirrorRayDesc, a_payload);
+    TraceRay(SceneTlas, RAY_FLAG_NONE, 0xFF, 0, 0, 0, mirrorRayDesc, a_payload);
 }
 
 void HitFloor(inout Payload a_payload, float2 a_uv)
@@ -144,7 +144,7 @@ void HitFloor(inout Payload a_payload, float2 a_uv)
     {
         rayHitPosition,
 		0.001,
-		lightPosition - rayHitPosition,
+		LightPosition - rayHitPosition,
 		1
     };
     
@@ -155,7 +155,7 @@ void HitFloor(inout Payload a_payload, float2 a_uv)
 		false
     };
     
-    TraceRay(scene, RAY_FLAG_NONE, 0xFF, 0, 0, 0, shadowRayDesc, shadowPayload);
+    TraceRay(SceneTlas, RAY_FLAG_NONE, 0xFF, 0, 0, 0, shadowRayDesc, shadowPayload);
 
     if (!shadowPayload.Missed)
     {

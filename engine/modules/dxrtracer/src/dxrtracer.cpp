@@ -24,8 +24,8 @@ World (geometry data):
 //#Todo: When abstracting the CreateBlas into something class/data oriented ensure less arguments, this sucks :(
 //#Todo: Change the "<type>Data" into something more descriptive........
 
-u32 windowSurfaceWidth = 1600;
-u32 windowSurfaceHeight = 900;
+u32 windowSurfaceWidth = 1920;
+u32 windowSurfaceHeight = 1080;
 Stopwatchf m_time;
 std::unique_ptr<WinApiWindow> m_window;
 
@@ -120,7 +120,7 @@ struct Scene
 		static fp32 time = 0.0f;
 		time += a_dt;
         
-		auto mesh = XMMatrixScaling(4, 4, 4);
+		auto mesh = XMMatrixScaling(2, 2, 2);
 		mesh *= XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
 		mesh *= XMMatrixTranslation(-1.5, 2, 2);
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjects[0].Transform), mesh);
@@ -645,8 +645,8 @@ void CreateModelResources(const Model& a_model)
 
 void LoadResources()
 {
-	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf");
-	AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf");
+	AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf");
+	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf");
 	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf"); -> to test download the sponza from gltf2.0 source repository.
 
 	if (!modelLoader.LoadModel())
@@ -905,6 +905,8 @@ void Render()
 			.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + 2 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
 			.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
 		},
+
+        // These 3 values map to DispatchRaysDimensions.
 		.Width = windowSurfaceWidth,
 		.Height = windowSurfaceHeight,
 		.Depth = 1
