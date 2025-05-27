@@ -176,10 +176,10 @@ namespace dxray
 			L"-T", a_compilationInput.TargetProfile.c_str(),
 
 			//#Note_dxc: It's recommended to strip everything from the shader output blob and retrieve it separately later - this saves diskspace in shipped applications.
-			L"Qstrip_debug",
-			L"Qstrip_reflect",
-			L"Qstrip_priv",
-			L"Qstrip_rootsignature"
+			L"-Qstrip_debug",
+			L"-Qstrip_reflect",
+			L"-Qstrip_priv",
+			L"-Qstrip_rootsignature"
 		};
 
 		if (a_compilationInput.WarningsAreErrors)
@@ -235,7 +235,7 @@ namespace dxray
 			if (errorBlob != nullptr && errorBlob->GetStringLength() > 0)
 			{
 				DXRAY_ERROR("Shader compilation failed: {}", static_cast<const char*>(errorBlob->GetBufferPointer()));
-				DXRAY_ASSERT(true); //#Todo_dxc: This assert should be replaced if shader hot-reloading ever becomes a thing.
+				DXRAY_ASSERT(false); //#Todo_dxc: This assert should be replaced if shader hot-reloading ever becomes a thing.
 				return false;
 			}
 		}

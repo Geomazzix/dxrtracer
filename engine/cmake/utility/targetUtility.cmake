@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
-#Maps the given sources to a filter in Visual studio - 
-function(map_source_to_filter)
+# Maps provided files to a filter within the supported IDEs.
+function(map_files_to_filter)
     cmake_parse_arguments(
         SOURCE
         ""
@@ -25,11 +25,11 @@ function(map_source_to_filter)
     else()
         message(FATAL_ERROR "The currently defined IDE does not have an implementation for source mappings. Ensure to define behaviour for this IDE.")
     endif()
-endfunction(map_source_to_filter)
+endfunction(map_files_to_filter)
 
 
-#Setup of virtual folder structure within IDE
-function(target_set_ide_folders)
+# Maps target files into folders within supported IDEs.
+function(map_target_to_filter)
     cmake_parse_arguments(
         TARGET
         ""
@@ -38,20 +38,20 @@ function(target_set_ide_folders)
         ${ARGN}
     )
 
-    #Setup of the msvc filters.
+    # Setup of the msvc filters.
     if (CMAKE_GENERATOR MATCHES "Visual Studio")
-        map_source_to_filter(
+        map_files_to_filter(
             STRIP_PREFIX "include/${TARGET_NAME}"
             FILTER_ROOT "Header Files"
             FILES "${TARGET_HEADERS}"
         )
-        map_source_to_filter(
+        map_files_to_filter(
             STRIP_PREFIX "src" 
             FILTER_ROOT "Source Files"
             FILES "${TARGET_SOURCE}"
         )
 
-        #Append the target to the modules filter if its not a runnable instance.
+        # Append the target to the modules filter if its not a runnable instance.
         if("${TARGET_FILTER}" STREQUAL "")
             set(TARGET_FILTER "modules")
         endif()
@@ -60,10 +60,10 @@ function(target_set_ide_folders)
             set_target_properties(${TARGET_NAME} PROPERTIES FOLDER ${TARGET_FILTER})
         endif()
     endif()
-endfunction(target_set_ide_folders)
+endfunction(map_target_to_filter)
 
 
-#Adds a non-compilable target to the project.
+# Adds a non-compilable target to the project.
 function(project_add_interface)
     cmake_parse_arguments(
         TARGET
@@ -92,11 +92,11 @@ function(project_add_interface)
 
     # Todo: Add source file mapping as this is currently hardcoded for Header files and Source files.
 
-    MESSAGE(STATUS "[module] ${TARGET_NAME}")
+    message(STATUS "[module] ${TARGET_NAME}")
 endfunction(project_add_interface)
 
 
-#Adds a compilable target to the project.
+# Adds a compilable target to the project.
 function(project_add_target)
     cmake_parse_arguments(
         TARGET
@@ -106,7 +106,7 @@ function(project_add_target)
         ${ARGN}
     )
 
-    #When the module is forced to be build as shared make sure to export the windows symbols.
+    # When the module is forced to be build as shared make sure to export the windows symbols.
     if("${TARGET_TYPE}" STREQUAL "SHARED")
         add_library(
             ${TARGET_NAME} 
@@ -115,7 +115,7 @@ function(project_add_target)
             ${TARGET_SOURCE}
         )
 
-        #When using MSVC the cmake build type cannot be traced with CMAKE_BUILD_TYPE. - #Todo set this in the cmakepreset.
+        # When using MSVC the cmake build type cannot be traced with CMAKE_BUILD_TYPE. - #Todo set this in the cmakepreset.
         if (MSVC AND WIN32 AND ${CMAKE_CONFIGURATION_TYPES} STREQUAL "Debug")
             set_target_properties(${TARGET_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
         endif()
@@ -126,6 +126,7 @@ function(project_add_target)
             ${TARGET_SOURCE}
         )
     else()
+        # If none of the above is selected it means the target is either a static/module target. These can both be added in a similar manner.
         add_library(
             ${TARGET_NAME} 
             ${TARGET_TYPE} 
@@ -134,7 +135,7 @@ function(project_add_target)
         )
     endif()
     
-    target_set_ide_folders(
+    map_target_to_filter(
         NAME ${TARGET_NAME}
         FILTER ${TARGET_FILTER}
         HEADERS ${TARGET_HEADERS}
@@ -147,7 +148,7 @@ function(project_add_target)
         message(STATUS "[executable] ${TARGET_NAME}")
     endif()
 
-    #Target setup.
+    # Target setup.
     target_include_directories(${TARGET_NAME} 
     PUBLIC
 	    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>
@@ -161,17 +162,17 @@ function(project_add_target)
     
     target_compile_definitions(${TARGET_NAME}
     PRIVATE
-        #Target needs to export any API functionality if shared/module.
+        # Target needs to export any API functionality if shared/module.
         SHARED_LIB_EXPORT
 
-    	#Configs
+    	# Configs
         $<$<CONFIG:Debug>:CONFIG_DEBUG>
 	    $<$<CONFIG:RelWithDebInfo>:CONFIG_DEVELOPMENT>
         $<$<CONFIG:Release>:CONFIG_RELEASE>
         
-        #Platforms.
+        # Platforms.
         $<$<PLATFORM_ID:Windows>:PLATFORM_WINDOWS>
-        #Note: Add new platform macros here!
+        # Note: Add new platform macros here!
     )
 
     if(${TARGET_PCH_ON})

@@ -18,7 +18,7 @@ set(stb_headers
     "${stb_external_SOURCE_DIR}/stbImageResize.h"
 )
 
-target_set_ide_folders(
+map_target_to_filter(
 	NAME "stb"
 	FILTER "${THIRD_PARTY_FOLDER}"
 	HEADERS ${stb_headers}

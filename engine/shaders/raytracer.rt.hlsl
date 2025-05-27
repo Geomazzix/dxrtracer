@@ -1,24 +1,25 @@
-static const float Pi = 3.14159265f; // #Todo: move this into a seperate shader file (perhaps a bridge to vath?)
+#include "math.hlsl"
 
-inline float DegToRad(in float a_deg)
-{
-    return a_deg * (Pi / 180);
-};
+RaytracingAccelerationStructure SceneTlas : register(t0);
+RWTexture2D<float4> OutRenderTarget : register(u0);
 
-inline float RadToDeg(in float a_rad)
-{
-    return a_rad * (180 / Pi);
-};
+
+
+//struct Vertex
+//{
+//    float3 Position;
+//    float3 Normal;
+//};
+//
+//StructuredBuffer<float3> VertexPositions : register(t1);
+//StructuredBuffer<float3> VertexNormals : register(t2);
 
 struct Payload
 {
     float3 Colour;
-    bool AllowReflection; //#Todo: optimize this - can be turned into bitwise flags.
+    bool AllowReflection; // #Todo: optimize this - can be turned into bitwise flags.
     bool Missed;
 };
-
-RaytracingAccelerationStructure SceneTlas : register(t0);
-RWTexture2D<float4> OutRenderTarget : register(u0);
 
 // #Todo: All values defined below before shader logic should be added into a constant buffer based on scene/camera descriptions.
 static const float CameraFovInDeg = 70;
@@ -45,7 +46,7 @@ void RayGeneration()
     const float2 imagePlaneOffset = -0.5f * imagePlaneDims;
     const float2 pixelDelta = imagePlaneDims / pixelTotal;
     
-    const float3 cameraPosition = float3(CameraWorldTransform[3][0], CameraWorldTransform[3][1], CameraWorldTransform[3][2]);
+    const float3 cameraPosition = float3(CameraWorldTransform[3].xyz);
     const float4 rayDirection = mul(CameraWorldTransform, float4(
         imagePlaneOffset.x + pixelIdx.x * pixelDelta.x,
         imagePlaneOffset.y + pixelIdx.y * pixelDelta.y,
@@ -108,7 +109,8 @@ void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a
 
 void HitMesh(inout Payload a_payload, float2 a_uv)
 {
-    a_payload.Colour = float3(1, 1, 1);
+    const float depthScale = 1.0 / RayTCurrent();
+    a_payload.Colour = float3(depthScale, depthScale, depthScale);
 }
 
 void HitMirror(inout Payload a_payload, float2 a_uv)
