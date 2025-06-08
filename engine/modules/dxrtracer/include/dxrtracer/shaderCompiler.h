@@ -1,5 +1,6 @@
 #pragma once
 #include <core/fileSystem/fileIO.h>
+#include <core/containers/array.h>
 
 namespace dxray
 {
@@ -83,7 +84,7 @@ namespace dxray
 	 */
 	struct ShaderCompilationOptions
 	{
-		std::vector<MacroDefinition> MacroDefinitions;
+		Array<MacroDefinition> MacroDefinitions;
 		EOptimizeLevel OptimizeLevel;
 		EShaderModel ShaderModel;
 		String EntryPoint;
@@ -102,7 +103,7 @@ namespace dxray
 		const bool HasSymbols() const;
 		const bool HasReflection() const;
 
-		std::vector<u8> ShaderHash;
+		Array<u8> ShaderHash;
 		DataBlob Binary;
 		DataBlob Symbols;
 		DataBlob Reflection;

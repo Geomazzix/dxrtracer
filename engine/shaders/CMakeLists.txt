@@ -4,7 +4,7 @@ set(ENGINE_SHADER_DIRECTORY "${ENGINE_DIRECTORY}/shaders" CACHE STRING "The sour
 message(STATUS "[Config] Engine shader directory pointing to: ${ENGINE_SHADER_DIRECTORY}")
 
 set(SHADER_FILES
-	"${CMAKE_CURRENT_SOURCE_DIR}/math.hlsl"
+	"${CMAKE_CURRENT_SOURCE_DIR}/math.hlsli"
 	"${CMAKE_CURRENT_SOURCE_DIR}/raytracer.rt.hlsl"
 )
 

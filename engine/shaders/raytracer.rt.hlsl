@@ -1,18 +1,17 @@
-#include "math.hlsl"
+static const float Pi = 3.14159265f; // #Todo: move this into a separate shader file (perhaps a bridge to vath?)
+
+inline float DegToRad(in float a_deg)
+{
+    return a_deg * (Pi / 180);
+};
+
+inline float RadToDeg(in float a_rad)
+{
+    return a_rad * (180 / Pi);
+};
 
 RaytracingAccelerationStructure SceneTlas : register(t0);
 RWTexture2D<float4> OutRenderTarget : register(u0);
-
-
-
-//struct Vertex
-//{
-//    float3 Position;
-//    float3 Normal;
-//};
-//
-//StructuredBuffer<float3> VertexPositions : register(t1);
-//StructuredBuffer<float3> VertexNormals : register(t2);
 
 struct Payload
 {

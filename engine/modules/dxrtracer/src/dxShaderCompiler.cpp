@@ -1,6 +1,7 @@
 #include "dxrtracer/shaderCompiler.h"
 #include <core/fileSystem/fileIO.h>
 #include <core/vath/vath.h>
+#include <core/containers/string.h>
 
 #define DXC_CHECK(hr) DXRAY_ASSERT(SUCCEEDED(hr))
 
@@ -11,10 +12,10 @@ namespace dxray
 	 */
 	struct ShaderCompilationInput
 	{
-		std::vector<MacroDefinition> MacroDefinitions;
+		Array<MacroDefinition> MacroDefinitions;
 		const DxcBuffer* SourceBuffer;
 		Path ShaderFile;
-		Path ShaderBinDirectory;
+		Path ShaderCacheDirectory;
 		WString TargetProfile;
 		WString EntryPoint;
 		EOptimizeLevel OptimizationLevel;
@@ -169,13 +170,9 @@ namespace dxray
 
 	bool DxShaderCompiler::CompileShaderSource(const ShaderCompilationInput& a_compilationInput, ShaderCompilationOutput& a_compilationOutput)
 	{
-		std::vector<const wchar*> arguments =
+		Array<const wchar*> arguments =
 		{
-			a_compilationInput.ShaderFile.c_str(),
-			L"-E", a_compilationInput.EntryPoint.c_str(),
-			L"-T", a_compilationInput.TargetProfile.c_str(),
-
-			//#Note_dxc: It's recommended to strip everything from the shader output blob and retrieve it separately later - this saves diskspace in shipped applications.
+			L"-HV 2018",
 			L"-Qstrip_debug",
 			L"-Qstrip_reflect",
 			L"-Qstrip_priv",
@@ -216,35 +213,65 @@ namespace dxray
 			}
 		}
 
+		Array<DxcDefine> shaderMacros(a_compilationInput.MacroDefinitions.size());
 		for (u32 i = 0; i < a_compilationInput.MacroDefinitions.size(); i++)
 		{
-			arguments.push_back(L"-D");
-			arguments.push_back(std::format(L"{}={}",
-				StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Macro),
-				StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Value)).c_str()
-			);
+			shaderMacros.push_back(
+			{
+				.Name = StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Macro).c_str(),
+				.Value = StringEncoder::Utf8ToUnicode(a_compilationInput.MacroDefinitions[i].Value).c_str()
+			});
 		}
 
-		ComPtr<IDxcResult> compileResult = nullptr;
-		DXC_CHECK(m_compiler->Compile(a_compilationInput.SourceBuffer, arguments.data(), static_cast<u32>(arguments.size()), m_includeHandler.Get(), IID_PPV_ARGS(&compileResult)));
+		ComPtr<IDxcCompilerArgs> compileArgs = nullptr;
+		m_utilities->BuildArguments(
+			a_compilationInput.ShaderFile.c_str(),
+			a_compilationInput.EntryPoint.c_str(),
+			a_compilationInput.TargetProfile.c_str(),
+			arguments.data(),
+			static_cast<u32>(arguments.size()),
+			shaderMacros.data(),
+			static_cast<u32>(shaderMacros.size()),
+			&compileArgs
+		);
 
-		if (compileResult->HasOutput(DXC_OUT_ERRORS))
+		ComPtr<IDxcResult> compileResult = nullptr;
+		DXC_CHECK(m_compiler->Compile(
+			a_compilationInput.SourceBuffer, 
+			compileArgs->GetArguments(), 
+			compileArgs->GetCount(), 
+			m_includeHandler.Get(), 
+			IID_PPV_ARGS(&compileResult))
+		);
+
+		ComPtr<IDxcBlobUtf8> errorBlob = nullptr;
+		DXC_CHECK(compileResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorBlob), nullptr));
+		if (errorBlob != nullptr && errorBlob->GetStringLength() > 0)
 		{
-			ComPtr<IDxcBlobUtf8> errorBlob = nullptr;
-			DXC_CHECK(compileResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorBlob), nullptr));
-			if (errorBlob != nullptr && errorBlob->GetStringLength() > 0)
-			{
-				DXRAY_ERROR("Shader compilation failed: {}", static_cast<const char*>(errorBlob->GetBufferPointer()));
-				DXRAY_ASSERT(false); //#Todo_dxc: This assert should be replaced if shader hot-reloading ever becomes a thing.
-				return false;
-			}
+			DXRAY_ERROR("Shader compilation failed: {}", static_cast<const char*>(errorBlob->GetStringPointer()));
+			DXRAY_ASSERT(false); //#Todo_dxc: This assert should be replaced if shader hot-reloading ever becomes a thing.
+			return false;
+		}
+
+		if (compileResult->HasOutput(DXC_OUT_OBJECT))
+		{
+			IDxcBlob* shaderBinary = nullptr;
+			DXC_CHECK(compileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBinary), nullptr));
+			a_compilationOutput.Binary.Data = shaderBinary->GetBufferPointer();
+			a_compilationOutput.Binary.SizeInBytes = shaderBinary->GetBufferSize();
+			dxray::WriteBinaryFile(a_compilationInput.ShaderCacheDirectory / L"bin" / a_compilationInput.ShaderFile.stem().stem() += L".dxil", a_compilationOutput.Binary);
+		}
+		else
+		{
+			DXRAY_ERROR("No shader binary found for: {}", a_compilationInput.ShaderFile.string());
+			return false;
 		}
 
 		WString shaderHashString = L"";
 		if (compileResult->HasOutput(DXC_OUT_SHADER_HASH))
 		{
 			DxcShaderHash* shaderHash = nullptr;
-			ComPtr<IDxcBlob> shaderHashBlob = nullptr;
+			IDxcBlob* shaderHashBlob = nullptr;
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
 			shaderHash = static_cast<DxcShaderHash*>(shaderHashBlob->GetBufferPointer());
 
@@ -267,49 +294,33 @@ namespace dxray
 			return false;
 		}
 
-		if (compileResult->HasOutput(DXC_OUT_OBJECT))
-		{
-			ComPtr<IDxcBlob> shaderBinary = nullptr;
-			DXC_CHECK(compileResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBinary), nullptr));
-			a_compilationOutput.Binary.Data = shaderBinary->GetBufferPointer();
-			a_compilationOutput.Binary.SizeInBytes = shaderBinary->GetBufferSize();
-			dxray::WriteBinaryFile(a_compilationInput.ShaderBinDirectory / L"bin" / a_compilationInput.ShaderFile.stem().stem() += L".dxil", a_compilationOutput.Binary);
-		}
-		else
-		{
-			DXRAY_ERROR("No shader binary found for: {}", a_compilationInput.ShaderFile.string());
-			return false;
-		}
-
 		if (compileResult->HasOutput(DXC_OUT_PDB) && a_compilationInput.SaveSymbols)
 		{
-			ComPtr<IDxcBlob> shaderSymbols = nullptr;
+			IDxcBlob* shaderSymbols = nullptr;
 			ComPtr<IDxcBlobUtf16> shaderSymbolsPath = nullptr;
 
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderSymbols), &shaderSymbolsPath));
 			a_compilationOutput.Symbols.Data = shaderSymbols->GetBufferPointer();
 			a_compilationOutput.Symbols.SizeInBytes = shaderSymbols->GetBufferSize();
 
-			dxray::WriteBinaryFile(Path(a_compilationInput.ShaderBinDirectory / L"debug" / shaderSymbolsPath->GetStringPointer()), a_compilationOutput.Symbols);
+			dxray::WriteBinaryFile(Path(a_compilationInput.ShaderCacheDirectory / L"symbols" / shaderSymbolsPath->GetStringPointer()), a_compilationOutput.Symbols);
 		}
 		else
 		{
 			DXRAY_WARN("No shader symbols found for: {}", a_compilationInput.ShaderFile.string());
-			return false;
 		}
 
 		if (compileResult->HasOutput(DXC_OUT_REFLECTION) && a_compilationInput.SaveReflection)
 		{
-			ComPtr<IDxcBlob> shaderReflection = nullptr;
+			IDxcBlob* shaderReflection = nullptr;
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&shaderReflection), nullptr));
 			a_compilationOutput.Reflection.Data = shaderReflection->GetBufferPointer();
 			a_compilationOutput.Reflection.SizeInBytes = shaderReflection->GetBufferSize();
-			dxray::WriteBinaryFile(Path(a_compilationInput.ShaderBinDirectory / L"debug" / shaderHashString += ".ref"), a_compilationOutput.Reflection);
+			dxray::WriteBinaryFile(Path(a_compilationInput.ShaderCacheDirectory / L"reflection" / shaderHashString += ".ref"), a_compilationOutput.Reflection);
 		}
 		else
 		{
-			DXRAY_WARN("No shader reflection data found for: {}", a_compilationInput.ShaderFile.string());
-			return false;
+			DXRAY_WARN("No shader reflection data found while requested for: {}", a_compilationInput.ShaderFile.string());
 		}
 
 		return true;
@@ -378,7 +389,7 @@ namespace dxray
 			.MacroDefinitions = a_options.MacroDefinitions,
 			.SourceBuffer = &buffer,
 			.ShaderFile = a_filePath,
-			.ShaderBinDirectory = a_binDirectory,
+			.ShaderCacheDirectory = a_binDirectory,
 			.TargetProfile = targetProfile,
 			.EntryPoint = shaderEntryPoint,
 			.OptimizationLevel = a_options.OptimizeLevel,

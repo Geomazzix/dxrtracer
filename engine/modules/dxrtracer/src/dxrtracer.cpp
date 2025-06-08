@@ -131,7 +131,6 @@ struct Scene
 		mirror *= XMMatrixTranslation(2, 2, 2);
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjects[1].Transform), mirror);
 		
-		
 		auto floor = XMMatrixScaling(3, 3, 3);
 		floor *= XMMatrixScaling(5, 5, 5);
 		floor *= XMMatrixTranslation(0, 0, 2);
@@ -645,9 +644,9 @@ void CreateModelResources(const Model& a_model)
 
 void LoadResources()
 {
-	AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf");
-	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf");
-	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf"); -> to test download the sponza from gltf2.0 source repository.
+	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf");
+    AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf");
+	//AssimpModelLoader modelLoader(Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf");// -> to test download the sponza from gltf2.0 source repository.
 
 	if (!modelLoader.LoadModel())
 	{
@@ -739,13 +738,18 @@ void CreateRayTracingPipelineStateObject(RaytracePipelineStateObject& a_rtpso)
 	const ShaderCompilationOptions options =
 	{
 		.ShaderModel = EShaderModel::SM6_3,
+        .WarningsAreErrors = true,
 		.SaveSymbols = true,
         .SaveReflection = true
 	};
 
     //#Todo: Move the inline compilation to a different place once abstraction begins.
     ShaderCompilationOutput compileRes;
-    if (!ShaderCompiler::CompileShaderFile(Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", Path(ENGINE_CACHE_DIRECTORY) / "shaders", options, compileRes))
+    if (!ShaderCompiler::CompileShaderFile(
+        Path(ENGINE_SHADER_DIRECTORY) / "raytracer.rt.hlsl", 
+        Path(ENGINE_CACHE_DIRECTORY) / "shaders", 
+        options, 
+        compileRes))
     {
         return;
     }

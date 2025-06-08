@@ -4,8 +4,8 @@ include_guard()
 message(STATUS "[Thirdparty] DirectX Shader Compiler")
 
 #1. Download the specified release - update version here if required.
-set(DXC_VERSION v1.8.2502)
-set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/${DXC_VERSION}/dxc_2025_02_20.zip")
+set(DXC_VERSION v1.8.2505)
+set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/${DXC_VERSION}/dxc_2025_05_24.zip")
 set(DXC_DIRECTORY "${THIRD_PARTY_DIRECTORY}/dxc/${DXC_VERSION}")
 set(DXC_ARCHIVE "${DXC_DIRECTORY}/dxc.zip")
 
