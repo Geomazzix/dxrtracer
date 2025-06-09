@@ -12,7 +12,43 @@ namespace dxray
 
 	void RenderPass::Execute(ComPtr<ID3D12GraphicsCommandList>& a_commandList, const RenderPassExecuteInfo& a_execInfo)
 	{
-		
+		ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
+		D3D12_CHECK(a_commandList.As(&dxrCmdList));
+
+		dxrCmdList->SetPipelineState1(m_rtpso.Pso.Get());
+		dxrCmdList->SetComputeRootSignature(m_rootSig.Get());
+		dxrCmdList->SetDescriptorHeaps(1, a_execInfo.UavHeap.GetAddressOf());
+
+		const u32 descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		const CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable(a_execInfo.UavHeap->GetGPUDescriptorHandleForHeapStart(), a_execInfo.SwapchainIndex, descriptorSize);
+		dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
+		dxrCmdList->SetComputeRootShaderResourceView(1, a_execInfo.TlasBuffer->GetGPUVirtualAddress());
+
+		D3D12_DISPATCH_RAYS_DESC dispatchDesc =
+		{
+			.RayGenerationShaderRecord =
+			{
+				.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress(),
+				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+			},
+			.MissShaderTable =
+			{
+				.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
+				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+			},
+			.HitGroupTable =
+			{
+				.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + 2 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
+				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+			},
+
+			// These 3 values map to DispatchRaysDimensions.
+			.Width = a_execInfo.SurfaceWidth,
+			.Height = a_execInfo.SurfaceHeight,
+			.Depth = 1
+		};
+
+		dxrCmdList->DispatchRays(&dispatchDesc);
 	}
 
 	void RenderPass::CreateRayTraceDemoRootSig()

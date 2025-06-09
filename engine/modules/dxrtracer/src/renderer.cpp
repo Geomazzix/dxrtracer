@@ -35,25 +35,25 @@ namespace dxray
 	}
 
 
-	D3d12CommandQueue::D3d12CommandQueue() :
+	CommandQueue::CommandQueue() :
 		Handle(nullptr),
 		Fence(nullptr),
 		FenceEvent(0),
 		FenceValue(0)
 	{}
 
-	D3d12CommandQueue::~D3d12CommandQueue()
+	CommandQueue::~CommandQueue()
 	{
 		CloseHandle(FenceEvent);
 	}
 
-	u64 D3d12CommandQueue::Signal()
+	u64 CommandQueue::Signal()
 	{
 		D3D12_CHECK(Handle->Signal(Fence.Get(), ++FenceValue));
 		return FenceValue;
 	}
 
-	void D3d12CommandQueue::WaitForFence(const u64 a_fenceValue)
+	void CommandQueue::WaitForFence(const u64 a_fenceValue)
 	{
 		const u64 completedValue = Fence->GetCompletedValue();
 		if (completedValue < a_fenceValue)
@@ -63,16 +63,20 @@ namespace dxray
 		}
 	}
 
-	void D3d12CommandQueue::WaitIdle()
+	void CommandQueue::WaitIdle()
 	{
 		WaitForFence(Fence->GetCompletedValue());
 	}
 
 
-	Renderer::Renderer(const RendererCreateInfo& a_createInfo)
+	Renderer::Renderer(const RendererCreateInfo& a_createInfo) :
+		m_useWarp(false),
+		m_swapchainIndex(0)
 	{
+		m_graphicsQueue = std::make_unique<CommandQueue>();
+
 		CreateDevice();
-		CreateCommandQueue(m_graphicsQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
+		CreateCommandQueue(*m_graphicsQueue.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 		CreateSwapchain(a_createInfo.SwapchainInfo);
 		CreateFrameResources();
 
@@ -81,13 +85,13 @@ namespace dxray
 
 	Renderer::~Renderer()
 	{
-		m_graphicsQueue.WaitIdle();
+		m_graphicsQueue->WaitIdle();
 	}
 
 	void Renderer::Render(std::shared_ptr<Scene>& a_pScene)
 	{
 		FrameResources& frameResources = m_frameResources[m_swapchainIndex];
-		m_graphicsQueue.WaitForFence(frameResources.FenceValue);
+		m_graphicsQueue->WaitForFence(frameResources.FenceValue);
 
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
@@ -97,71 +101,24 @@ namespace dxray
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
 		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
 		
-		//const RenderPassExecuteInfo executionInfo = 
-		//{
-		//	.UavHeap = m_uavHeap,
-		//	.TlasBuffer = frameResources.WorldTlas.Buffer,
-		//	.SwapchainIndex = m_swapchainIndex,
-		//	.SurfaceWidth = swapchainDesc.Width,
-		//	.SurfaceHeight = swapchainDesc.Height
-		//};
-		//m_renderPass->Execute(m_commandList, executionInfo);
-		
-		ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
-		D3D12_CHECK(m_commandList.As(&dxrCmdList));
-
-		dxrCmdList->SetPipelineState1(m_renderPass->m_rtpso.Pso.Get());
-		dxrCmdList->SetComputeRootSignature(m_renderPass->m_rootSig.Get());
-		dxrCmdList->SetDescriptorHeaps(1, m_uavHeap.GetAddressOf());
-
-		const CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_swapchainIndex, m_uavDescriptorSize);
-		dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
-		dxrCmdList->SetComputeRootShaderResourceView(1, frameResources.WorldTlas.Buffer->GetGPUVirtualAddress());
-
-		D3D12_DISPATCH_RAYS_DESC dispatchDesc =
+		const RenderPassExecuteInfo executionInfo = 
 		{
-			.RayGenerationShaderRecord =
-			{
-				.StartAddress = m_renderPass->m_rtpso.ShaderIds->GetGPUVirtualAddress(),
-				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
-			},
-			.MissShaderTable =
-			{
-				.StartAddress = m_renderPass->m_rtpso.ShaderIds->GetGPUVirtualAddress() + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
-				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
-			},
-			.HitGroupTable =
-			{
-				.StartAddress = m_renderPass->m_rtpso.ShaderIds->GetGPUVirtualAddress() + 2 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
-				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
-			},
-
-			// These 3 values map to DispatchRaysDimensions.
-			.Width = swapchainDesc.Width,
-			.Height = swapchainDesc.Height,
-			.Depth = 1
+			.UavHeap = m_uavHeap,
+			.TlasBuffer = frameResources.WorldTlas.Buffer,
+			.SwapchainIndex = m_swapchainIndex,
+			.SurfaceWidth = swapchainDesc.Width,
+			.SurfaceHeight = swapchainDesc.Height
 		};
-
-		dxrCmdList->DispatchRays(&dispatchDesc);
-
-
-
-
-
-
-
-
-
-
-
+		m_renderPass->Execute(m_commandList, executionInfo);
+		
 		Present(frameResources.RaytraceRenderTarget);
 
 		D3D12_CHECK(m_commandList->Close());
 		ID3D12CommandList* const lists[] = { m_commandList.Get() };
-		m_graphicsQueue.Handle->ExecuteCommandLists(1, lists);
+		m_graphicsQueue->Handle->ExecuteCommandLists(1, lists);
 
 		D3D12_CHECK(m_swapchain->Present(1, 0));
-		frameResources.FenceValue = m_graphicsQueue.Signal();
+		frameResources.FenceValue = m_graphicsQueue->Signal();
 		m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();
 	}
 
@@ -217,7 +174,7 @@ namespace dxray
 
 		//Device creation.
 		D3D12_CHECK(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
-		if (!m_bUseWarp)
+		if (!m_useWarp)
 		{
 			ComPtr<IDXGIAdapter1> hardwareAdapter = nullptr;
 			//#Todo: Could possibly query for specific GPUs - if the wrong GPU is ever selected.
@@ -229,12 +186,13 @@ namespace dxray
 			}
 		}
 
-		if (m_device == nullptr || m_bUseWarp)
+		if (m_device == nullptr || m_useWarp)
 		{
 			ComPtr<IDXGIAdapter> warpAdapter = nullptr;
 			D3D12_CHECK(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 			D3D12_CHECK(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
 			D3D12_NAME_OBJECT(m_device, WString(L"D3D12WarpDevice"));
+			DXRAY_CRITICAL("While warp is initializable - is does not support raytracing and should not be used!");
 		}
 
 #ifndef CONFIG_RELEASE
@@ -270,7 +228,7 @@ namespace dxray
 #endif
 	}
 
-	void Renderer::CreateCommandQueue(D3d12CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type)
+	void Renderer::CreateCommandQueue(CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type)
 	{
 		const D3D12_COMMAND_QUEUE_DESC queueInfo =
 		{
@@ -310,7 +268,7 @@ namespace dxray
 
 		ComPtr<IDXGISwapChain1> swapchain;
 		D3D12_CHECK(m_factory->CreateSwapChainForHwnd(
-			m_graphicsQueue.Handle.Get(),
+			m_graphicsQueue->Handle.Get(),
 			static_cast<HWND>(a_swapchainInfo.Window->GetNativeHandle()),
 			&swapChainDesc,
 			nullptr,
@@ -448,19 +406,19 @@ namespace dxray
 	void Renderer::LoadModel(std::shared_ptr<Scene>& a_pScene, Model& a_model)
 	{
 		CreateModelResources(m_commandList, a_model);
-
-		for (usize blasIdx = 0; blasIdx < m_sceneObjectRenderDataBuffer.size(); blasIdx++)
-		{
-		    a_pScene->AddSceneObjectInstance(m_sceneObjectRenderDataBuffer[blasIdx].Blas);
-		}		
 	}
 
-	void Renderer::EndResourceLoading()
+	void Renderer::EndResourceLoading(std::shared_ptr<Scene>& a_pScene)
 	{
+		for (usize blasIdx = 0; blasIdx < m_sceneObjectRenderDataBuffer.size(); blasIdx++)
+		{
+			a_pScene->AddSceneObjectInstance(m_sceneObjectRenderDataBuffer[blasIdx].Blas);
+		}
+
 		D3D12_CHECK(m_commandList->Close());
 		ID3D12CommandList* const lists[] = { m_commandList.Get() };
-		m_graphicsQueue.Handle->ExecuteCommandLists(1, lists);
-		m_graphicsQueue.WaitForFence(m_graphicsQueue.Signal());
+		m_graphicsQueue->Handle->ExecuteCommandLists(1, lists);
+		m_graphicsQueue->WaitForFence(m_graphicsQueue->Signal());
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------------------------------------------------

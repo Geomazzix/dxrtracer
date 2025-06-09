@@ -57,10 +57,10 @@ int main(int argc, char** argv)
 	Model quad = BuildQuadModel();
 
 	m_renderer->BeginResourceLoading();
-	m_renderer->LoadModel(m_scene, quad);
-	m_renderer->LoadModel(m_scene, quad);
 	m_renderer->LoadModel(m_scene, modelLoader.GetModel());
-	m_renderer->EndResourceLoading();
+	m_renderer->LoadModel(m_scene, quad);
+	m_renderer->LoadModel(m_scene, quad);
+	m_renderer->EndResourceLoading(m_scene);
 
 	fp32 elapsedInterval = 0.0f;
 	fp32 prevFrameSample = 0.0f;

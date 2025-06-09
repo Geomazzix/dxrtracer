@@ -38,10 +38,10 @@ namespace dxray
 	/**
 	 * @brief Wrapper object for a command queue - internally tracks submission and synchronization based on provided primitives.
 	 */
-	struct D3d12CommandQueue
+	struct CommandQueue
 	{
-		D3d12CommandQueue();
-		~D3d12CommandQueue();
+		CommandQueue();
+		~CommandQueue();
 
 		ComPtr<ID3D12CommandQueue> Handle;
 		ComPtr<ID3D12Fence> Fence;
@@ -85,38 +85,36 @@ namespace dxray
 
 		void BeginResourceLoading();
 		void LoadModel(std::shared_ptr<Scene>& a_pScene, Model& a_model);
-		void EndResourceLoading();
+		void EndResourceLoading(std::shared_ptr<Scene>& a_pScene);
 		void Render(std::shared_ptr<Scene>& a_pScene);
 
 	private:
 		void Present(ComPtr<ID3D12Resource>& a_renderTargetOutput);
 		
 		void CreateDevice();
-		void CreateCommandQueue(D3d12CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type);
+		void CreateCommandQueue(CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type);
 		void CreateSwapchain(const SwapchainCreateInfo& a_swapchainCreateInfo);
 		void CreateFrameResources();
 
 		void CreateModelResources(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, const Model& a_model);
 
-		bool m_bUseWarp;
+		Array<SceneObjectRenderData> m_sceneObjectRenderDataBuffer;
+		std::unique_ptr<RenderPass> m_renderPass;
+		std::unique_ptr<CommandQueue> m_graphicsQueue;
+		ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
 		ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<ID3D12Device> m_device;
 
 		const static u32 SwapchainBackbufferCount = 3;
 		FixedArray<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
 		FixedArray<FrameResources, SwapchainBackbufferCount> m_frameResources;
-		u32 m_swapchainIndex = 0;
-		ComPtr<ID3D12DescriptorHeap> m_rtvHeap = nullptr;
-		u32 m_rtvDescriptorSize = 0;
-		ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
-
-		ComPtr<ID3D12DescriptorHeap> m_uavHeap = nullptr;
-		u32 m_uavDescriptorSize = 0;
-
-		D3d12CommandQueue m_graphicsQueue;
-		ComPtr<ID3D12GraphicsCommandList> m_commandList;
-
-		std::unique_ptr<RenderPass> m_renderPass;
-		Array<SceneObjectRenderData> m_sceneObjectRenderDataBuffer;
+		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+		ComPtr<IDXGISwapChain3> m_swapchain;
+		ComPtr<ID3D12DescriptorHeap> m_uavHeap;
+		u32 m_swapchainIndex;
+		u32 m_rtvDescriptorSize;
+		u32 m_uavDescriptorSize;
+		bool m_useWarp;
 	};
 }

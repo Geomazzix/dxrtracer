@@ -63,10 +63,10 @@ namespace dxray
 
 	void Scene::UpdateTlas(ComPtr<ID3D12Device> a_device, ComPtr<ID3D12GraphicsCommandList>& a_cmdList, AccelerationStructure& a_tlas, ComPtr<ID3D12Resource>& a_instanceBuffer)
 	{
-		//if (!m_isDirty)
-		//{
-		//	return;
-		//}
+		if (!m_isDirty)
+		{
+			return;
+		}
 
 		const D3D12_RESOURCE_DESC bufferDesc =
 		{
