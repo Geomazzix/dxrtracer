@@ -12,8 +12,6 @@ namespace dxray
 	struct Vertex
 	{
 		vath::Vector3f Position;
-		//vath::Vector3f Normals;
-
 		static constexpr usize Stride = sizeof(vath::Vector3f);
 	};
 
@@ -30,6 +28,7 @@ namespace dxray
 		Array<Mesh> Meshes;
 		WString DebugName;
 	};
+
 
 	inline Model BuildQuadModel()
 	{
