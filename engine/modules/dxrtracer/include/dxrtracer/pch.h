@@ -19,7 +19,7 @@
 #define VC_EXTRALEAN
 #endif
 #include <windows.h>
-#include <wrl.h>
+#include <wrl/client.h>
 #include <shellapi.h>
 
 #include <directx/d3dx12.h>

@@ -8,8 +8,7 @@ namespace dxray
 	struct RaytracePipelineStateObject
 	{
 		ComPtr<ID3D12StateObject> Pso;
-		ComPtr<ID3D12Resource> ShaderIds;
-		const u32 NumShaderIds = 3;
+		ComPtr<ID3D12Resource> ShaderTable;
 	};
 
 
@@ -33,7 +32,7 @@ namespace dxray
 	class RenderPass
 	{
 	public:
-		RenderPass(ComPtr<ID3D12Device>& a_device);
+		RenderPass(ComPtr<ID3D12Device> a_device);
 		~RenderPass() = default;
 
 		void Execute(ComPtr<ID3D12GraphicsCommandList>& a_commandList, const RenderPassExecuteInfo& a_execInfo);
@@ -41,6 +40,7 @@ namespace dxray
 	public:
 		void CreateRayTraceDemoRootSig();
 		void CreateRayTracingPipelineStateObject();
+		void CreateShaderTable();
 
 		RaytracePipelineStateObject m_rtpso;
 		ComPtr<ID3D12RootSignature> m_rootSig;

@@ -3,11 +3,12 @@
 
 namespace dxray
 {
-	RenderPass::RenderPass(ComPtr<ID3D12Device>& a_device) :
+	RenderPass::RenderPass(ComPtr<ID3D12Device> a_device) :
 		m_device(a_device)
 	{
 		CreateRayTraceDemoRootSig();
 		CreateRayTracingPipelineStateObject();
+		CreateShaderTable();
 	}
 
 	void RenderPass::Execute(ComPtr<ID3D12GraphicsCommandList>& a_commandList, const RenderPassExecuteInfo& a_execInfo)
@@ -24,22 +25,28 @@ namespace dxray
 		dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
 		dxrCmdList->SetComputeRootShaderResourceView(1, a_execInfo.TlasBuffer->GetGPUVirtualAddress());
 
-		D3D12_DISPATCH_RAYS_DESC dispatchDesc =
+		// #note_renderPass: A ray dispatch configures the shader table, consisting of shader records which identify how the GPU can find the resources
+		// to invoke the attached shader. As the application currently only uses a global root signature these are sized to the shader identifier and aligned
+		// to the SHADER_TABLE_BYTE_SIZE.
+		const u64 ShaderTableGpuAddr = m_rtpso.ShaderTable->GetGPUVirtualAddress();
+		const D3D12_DISPATCH_RAYS_DESC dispatchDesc =
 		{
 			.RayGenerationShaderRecord =
 			{
-				.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress(),
+				.StartAddress = ShaderTableGpuAddr,
 				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
 			},
 			.MissShaderTable =
 			{
-				.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
-				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+				.StartAddress = ShaderTableGpuAddr + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
+				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES,
+				.StrideInBytes = 0
 			},
 			.HitGroupTable =
 			{
-				.StartAddress = m_rtpso.ShaderIds->GetGPUVirtualAddress() + 2 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
-				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+				.StartAddress = ShaderTableGpuAddr + 2 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
+				.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES,
+				.StrideInBytes = 0
 			},
 
 			// These 3 values map to DispatchRaysDimensions.
@@ -100,7 +107,6 @@ namespace dxray
 
 	void RenderPass::CreateRayTracingPipelineStateObject()
 	{
-		//1. Compile the shader and create a sub object for it.
 		const ShaderCompilationOptions options =
 		{
 			.ShaderModel = EShaderModel::SM6_3,
@@ -120,6 +126,28 @@ namespace dxray
 			return;
 		}
 
+		const FixedArray<D3D12_EXPORT_DESC, 3> shaderExports =
+		{
+			D3D12_EXPORT_DESC
+			{
+				.Name = L"LightPassRGS",
+				.ExportToRename = L"RayGeneration",
+				.Flags = D3D12_EXPORT_FLAG_NONE
+			},
+			D3D12_EXPORT_DESC
+			{
+				.Name = L"LightPassCHS",
+				.ExportToRename = L"ClosestHit",
+				.Flags = D3D12_EXPORT_FLAG_NONE
+			},
+			D3D12_EXPORT_DESC
+			{
+				.Name = L"LightPassMHS",
+				.ExportToRename = L"Miss",
+				.Flags = D3D12_EXPORT_FLAG_NONE
+			}
+		};
+
 		const D3D12_DXIL_LIBRARY_DESC libDesc =
 		{
 			.DXILLibrary =
@@ -127,44 +155,67 @@ namespace dxray
 				compileRes.Binary.Data,
 				compileRes.Binary.SizeInBytes
 			},
-			.NumExports = 0,
-			.pExports = nullptr
+			.NumExports = static_cast<u32>(shaderExports.size()),
+			.pExports = shaderExports.data()
 		};
 
-		//2. Define a hit group, which the dispatched rays refer to when looking for intersections. These include any form of hit shaders.
 		const D3D12_HIT_GROUP_DESC hitGroupDesc =
 		{
-			.HitGroupExport = L"HitGroup",
+			.HitGroupExport = L"LightPassHG",
 			.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES,
-			.ClosestHitShaderImport = L"ClosestHit"
+			.ClosestHitShaderImport = L"LightPassCHS"
 		};
 
-		//3. The shader config is responsible for matching the ray payload, defined in the file - #Todo: Investigate shader reflection possabilities.
 		const D3D12_RAYTRACING_SHADER_CONFIG shaderConfig =
 		{
 			.MaxPayloadSizeInBytes = 20,
 			.MaxAttributeSizeInBytes = 8
 		};
 
-		//4. Define a global root signature - #Todo: Investigate local root signatures https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html#local-root-signatures-vs-global-root-signatures
-		const D3D12_GLOBAL_ROOT_SIGNATURE globalSig =
-		{
-			m_rootSig.Get()
-		};
+		// hmmmmm, do I need this? Global signature shows not necessarily, though I'm unsure :/
+		//const D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION hitgroupAssociation =
+		//{
+		//	.pSubobjectToAssociate = shaderConfig
+		//};
 
-		//5. Define the max bounds configuration, going above this will result in a driver crash.
 		const D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig =
 		{
 			.MaxTraceRecursionDepth = 3
 		};
 
-		//6. Pack the subobjects into an array and create the rtpso.
-		std::array<D3D12_STATE_SUBOBJECT, 5> subObjects;
-		subObjects[0] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, .pDesc = &libDesc };
-		subObjects[1] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, .pDesc = &hitGroupDesc };
-		subObjects[2] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, .pDesc = &shaderConfig };
-		subObjects[3] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, .pDesc = &globalSig };
-		subObjects[4] = { .Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, .pDesc = &pipelineConfig };
+		const D3D12_GLOBAL_ROOT_SIGNATURE globalSig =
+		{
+			.pGlobalRootSignature = m_rootSig.Get()
+		};	
+
+		const FixedArray<D3D12_STATE_SUBOBJECT, 5> subObjects =
+		{
+			D3D12_STATE_SUBOBJECT
+			{
+				.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, 
+				.pDesc = &libDesc 
+			},
+			D3D12_STATE_SUBOBJECT
+			{
+				.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, 
+				.pDesc = &hitGroupDesc 
+			},
+			D3D12_STATE_SUBOBJECT
+			{
+				.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, 
+				.pDesc = &shaderConfig 
+			},
+			D3D12_STATE_SUBOBJECT
+			{
+				.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, 
+				.pDesc = &globalSig 
+			},
+			D3D12_STATE_SUBOBJECT
+			{
+				.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, 
+				.pDesc = &pipelineConfig 
+			}
+		};
 
 		const D3D12_STATE_OBJECT_DESC rtpsoDesc =
 		{
@@ -175,14 +226,18 @@ namespace dxray
 
 		ComPtr<ID3D12Device5> dxrDevice;
 		D3D12_CHECK(m_device.As(&dxrDevice));
-		D3D12_CHECK(dxrDevice->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(&m_rtpso.Pso)));
+		D3D12_CHECK(dxrDevice->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(&m_rtpso.Pso)));		
+	}
 
-		//7. Store the shader Ids so they can be identified when the rays have to be dispatched.
+	void RenderPass::CreateShaderTable()
+	{
+		// #note_renderpass: Currently hard coded once/if the shader file splits up in multiple files for each hit group this will not be hardcoded anymore.
+		const u32 NumInternalShaders = 3; //raygen, closesthit and miss.
 		const D3D12_RESOURCE_DESC resourceDesc =
 		{
 			.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
 			.Alignment = 0,
-			.Width = m_rtpso.NumShaderIds * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, //#Note: shader ids are 32-byte, the other 32 byte required for alignment can be used for root params.
+			.Width = NumInternalShaders * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
 			.Height = 1,
 			.DepthOrArraySize = 1,
 			.MipLevels = 1,
@@ -197,8 +252,8 @@ namespace dxray
 			.Type = D3D12_HEAP_TYPE_UPLOAD
 		};
 
-		D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_rtpso.ShaderIds)));
-		if (!m_rtpso.ShaderIds)
+		D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_rtpso.ShaderTable)));
+		if (!m_rtpso.ShaderTable)
 		{
 			DXRAY_ERROR("Failed to create rtpso shader ids buffer!");
 			return;
@@ -207,23 +262,22 @@ namespace dxray
 		ComPtr<ID3D12StateObjectProperties> psoProps = nullptr;
 		D3D12_CHECK(m_rtpso.Pso.As(&psoProps));
 
-		void* data = nullptr;
-		m_rtpso.ShaderIds->Map(0, nullptr, &data);
-
-		//#Note: Size doesn't matter here as the shaderids are hardcoded anyways :/
-		const std::vector<void*> shaderIds =
+		const FixedArray<void*, NumInternalShaders> shaderIds =
 		{
-			psoProps->GetShaderIdentifier(L"RayGeneration"),
-			psoProps->GetShaderIdentifier(L"Miss"),
-			psoProps->GetShaderIdentifier(L"HitGroup")
+			psoProps->GetShaderIdentifier(L"LightPassRGS"),
+			psoProps->GetShaderIdentifier(L"LightPassMHS"),
+			psoProps->GetShaderIdentifier(L"LightPassHG")
 		};
 
-		for (u32 i = 0; i < m_rtpso.NumShaderIds; i++)
+		void* data = nullptr;
+		D3D12_CHECK(m_rtpso.ShaderTable->Map(0, nullptr, &data));
+
+		for (u32 i = 0; i < shaderIds.size(); i++)
 		{
 			memcpy(data, shaderIds[i], D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 			data = static_cast<u8*>(data) + D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 		}
 
-		m_rtpso.ShaderIds->Unmap(0, nullptr);
+		m_rtpso.ShaderTable->Unmap(0, nullptr);
 	}
 }

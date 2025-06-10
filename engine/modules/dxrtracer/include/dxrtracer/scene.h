@@ -3,6 +3,8 @@
 #include "dxrtracer/accelerationStructure.h"
 
 // #note_scene: Should the scene contain the tlas update? Even better, do we have to keep track of 3 Tlas, due to in-flight generation?
+// #todo: add a form of scene objects/instances so the D3D12_RAYTRACING_INSTANCE_DESC can be moved into a Tlas abstraction. This will
+// help with the instances book-keeping.
 
 namespace dxray
 {
