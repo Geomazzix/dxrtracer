@@ -1,15 +1,8 @@
 #pragma once
 
-/*#Todo: Abstract acceleration structures into a scalable world hierarchy:
-World (geometry data):
-- Tlas (main all-owning Tlas)
-	- Tlas (scene/chunk tlas - depending on whether world partitioning is a thing and whether depth based updating is a thing - see Cascaded Shadow Map update rates.)
-		- Blas (x-amount per Tlas *should* be reusable. Note that the way these are constructed is heavily dependant on the type of geometry, see D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS.)
-
-- Each Blas should be assigned to a mesh/model (or multiple, depending on the level of abstraction/optimization).
-- Each Tlas should be owned by the world and managed by the world, update on the CPU, rebuild on the GPU.
-- Each mesh/model has indices/handles that can be used to identify and set the PSO/rootsigs accordingly.
-*/
+// #Todo_accelerationStructure: add copy commands for serialization/deserialization, meaning the Tlas/Blas can be saved to disk
+// thereby re-purposed for application launch (i.e. an object might only need their blas, vertex/index buffer and transform), while
+// the Tlas could be stored in a world/scene file.
 
 namespace dxray
 {
