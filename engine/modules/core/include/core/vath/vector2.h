@@ -7,10 +7,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Vector 2 specialization, represented by value type T.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Vector 2 specialization, represented by value type T.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Vector<2, T> final
 	{
@@ -44,6 +44,21 @@ namespace dxray::vath
 			struct { T u, v; };
 		};
 	};
+
+
+	//--- Vector definition ---
+
+	using Vector2u8 = Vector<2, u8>;
+	using Vector2u16 = Vector<2, u16>;
+	using Vector2u32 = Vector<2, u32>;
+	using Vector2u64 = Vector<2, u64>;
+	using Vector2i8 = Vector<2, i8>;
+	using Vector2i16 = Vector<2, i16>;
+	using Vector2i32 = Vector<2, i32>;
+	using Vector2i64 = Vector<2, i64>;
+	using Vector2f = Vector<2, fp32>;
+	using Vector2d = Vector<2, fp64>;
+	using Vector2 = Vector2f;
 
 
 	//--- Vector construction/destruction ---
@@ -250,7 +265,6 @@ namespace dxray::vath
 	{
 		return (a_lhs - a_rhs * (Dot(a_lhs, a_rhs) / Dot(a_rhs, a_rhs)));
 	}
-
 }
 
 #pragma warning(pop)

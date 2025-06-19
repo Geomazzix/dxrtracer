@@ -31,6 +31,7 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathUtility.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/rect.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathTemplate.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathHlsl.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vath.h"
 )
 
@@ -53,6 +54,7 @@ project_add_target(
 target_compile_definitions("core"
 PUBLIC
 	ENGINE_ROOT_DIRECTORY="${CMAKE_SOURCE_DIR}"
+	ENGINE_MODULE_DIRECTORY="${ENGINE_MODULE_DIRECTORY}"
 	PROJECT_NAME="${CMAKE_PROJECT_NAME}"
 	
 	# These should *actually* be defined in an asset interface project that is linked to an offline asset builder.

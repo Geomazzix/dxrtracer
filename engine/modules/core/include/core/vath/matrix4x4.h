@@ -9,10 +9,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Specialization of a 4x4 matrix, represented by the value type T.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Specialization of a 4x4 matrix, represented by the value type T.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Matrix<4, 4, T>
 	{
@@ -56,6 +56,22 @@ namespace dxray::vath
 	private:
 		ColumnType m_data[4];
 	};
+
+
+	//--- Matrix definitions ---
+
+	using Matrix4x4u8 = Matrix<4, 4, u8>;
+	using Matrix4x4u16 = Matrix<4, 4, u16>;
+	using Matrix4x4u32 = Matrix<4, 4, u32>;
+	using Matrix4x4u64 = Matrix<4, 4, u64>;
+	using Matrix4x4i8 = Matrix<4, 4, i8>;
+	using Matrix4x4i16 = Matrix<4, 4, i16>;
+	using Matrix4x4i32 = Matrix<4, 4, i32>;
+	using Matrix4x4i64 = Matrix<4, 4, i64>;
+	using Matrix4x4i32 = Matrix<4, 4, i32>;
+	using Matrix4x4f = Matrix<4, 4, fp32>;
+	using Matrix4x4d = Matrix<4, 4, fp64>;
+	using Matrix4x4 = Matrix4x4f;
 
 
 	//--- Matrix construction/destruction ---
@@ -400,7 +416,6 @@ namespace dxray::vath
 			a_position.x, a_position.y, a_position.z, static_cast<T>(1)
 		);
 	}
-
 }
 
 #pragma warning(pop)

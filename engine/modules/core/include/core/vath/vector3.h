@@ -8,10 +8,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Vector 3 specialization, represented by value type T.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Vector 3 specialization, represented by value type T.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Vector<3, T> final
 	{
@@ -50,6 +50,22 @@ namespace dxray::vath
 			struct { T u, v, w; };
 		};
 	};
+
+
+	//--- Vector definitions ---
+
+	using Vector3u8 = Vector<3, u8>;
+	using Vector3u16 = Vector<3, u16>;
+	using Vector3u32 = Vector<3, u32>;
+	using Vector3u64 = Vector<3, u64>;
+	using Vector3i8 = Vector<3, i8>;
+	using Vector3i16 = Vector<3, i16>;
+	using Vector3i32 = Vector<3, i32>;
+	using Vector3i64 = Vector<3, i64>;
+	using Vector3f = Vector<3, fp32>;
+	using Vector3d = Vector<3, fp64>;
+	using Vector3 = Vector3f;
+
 
 	//--- Vector construction/destruction ---
 

@@ -45,7 +45,7 @@ namespace dxray
 			ULONG Release() override;
 
 		private:
-			std::unordered_set<WString> m_includedFiles;
+			std::unordered_set<Path> m_includedFiles;
 			ComPtr<IDxcUtils> m_dxcUtilities;
 			volatile ULONG m_refCount;
 		};
@@ -76,10 +76,10 @@ namespace dxray
 	HRESULT STDMETHODCALLTYPE DxShaderCompiler::IncludeHandler::LoadSource(_In_ LPCWSTR a_pFilename, _COM_Outptr_result_maybenull_ IDxcBlob** a_ppIncludeSource)
 	{
 		ComPtr<IDxcBlobEncoding> pEncoding;
-		const WString path = a_pFilename;
+		const Path resolveSourcePath = ResolveWildCard(StringEncoder::UnicodeToUtf8(a_pFilename));
 
 		//Check for duplicate includes.
-		if (m_includedFiles.find(path) != m_includedFiles.end())
+		if (m_includedFiles.find(resolveSourcePath) != m_includedFiles.end())
 		{
 			static const char nullStr[] = " ";
 			m_dxcUtilities->CreateBlobFromPinned(nullStr, ARRAYSIZE(nullStr), DXC_CP_ACP, pEncoding.GetAddressOf());
@@ -88,10 +88,10 @@ namespace dxray
 		}
 
 		//If found, load the file add it to the included files and return the load result.
-		HRESULT hr = m_dxcUtilities->LoadFile(a_pFilename, nullptr, pEncoding.GetAddressOf());
+		HRESULT hr = m_dxcUtilities->LoadFile(resolveSourcePath.c_str(), nullptr, pEncoding.GetAddressOf());
 		if (SUCCEEDED(hr))
 		{
-			m_includedFiles.insert(path);
+			m_includedFiles.insert(resolveSourcePath);
 			*a_ppIncludeSource = pEncoding.Detach();
 		}
 

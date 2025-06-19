@@ -79,6 +79,7 @@ namespace dxray
 		CreateCommandQueue(*m_graphicsQueue.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 		CreateSwapchain(a_createInfo.SwapchainInfo);
 		CreateFrameResources();
+		CreateConstantBuffers();
 
 		m_renderPass = std::make_unique<RenderPass>(m_device);
 	}
@@ -328,9 +329,54 @@ namespace dxray
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
 		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
 
+		const vath::Vector3f cameraPosition = vath::Vector3f(0.0f, 1.0f, -7.0f);
+		const vath::Matrix4x4f cameraViewRH = vath::LookAtRH(cameraPosition, vath::Vector3f(0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
+		const vath::Matrix4x4f perspectiveFovRH;
+		const vath::Matrix4x4f viewProjection = cameraViewRH * perspectiveFovRH;
+
 		for (u32 i = 0; i < SwapchainBackbufferCount; i++)
 		{
 			FrameResources& frameResources = m_frameResources[i];
+			
+			/*
+				static const float CameraFovInDeg = 70;
+				static const float CameraFocalLength = 2;
+				static const float4x4 CameraWorldTransform = float4x4(
+					1, 0, 0, 0,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 1.5, -7, 1
+				);
+
+				static const float3 LightPosition = float3(0, 200, 0);
+				static const float3 SkyTopColour = float3(0.24, 0.44, 0.72);
+				static const float3 SkyBottomColour = float3(0.75, 0.86, 0.93);
+
+
+				=== inside function ===
+
+				const float imagePlaneScale = tan(DegToRad(CameraFovInDeg) / 2.0);
+				const float2 imagePlaneDims = float2(2.0f * imagePlaneScale * (pixelTotal.x / pixelTotal.y), -2.0f * imagePlaneScale);
+				const float2 imagePlaneOffset = -0.5f * imagePlaneDims;
+				const float2 pixelDelta = imagePlaneDims / pixelTotal;
+
+				const float3 cameraPosition = float3(CameraWorldTransform[3].xyz);
+				const float4 rayDirection = mul(CameraWorldTransform, float4(
+					imagePlaneOffset.x + pixelIdx.x * pixelDelta.x,
+					imagePlaneOffset.y + pixelIdx.y * pixelDelta.y,
+					CameraFocalLength,
+					0
+				));
+			*/
+
+			frameResources.SceneConstantBufferData =
+			{
+				.ProjectionToWorld = Inverse(viewProjection),
+				.CameraPosition = vath::Vector4f(cameraPosition),
+				.SkyColour = vath::Vector4f(0.24f, 0.44f, 0.72f, 1.0),
+				.SunDirection = vath::Vector4f(0.0f, 200.0f, 0.0f, 1.0f) // #Todo: Replace with direction - currently using position for the shadow ray description.
+			};
+			
 			D3D12_CHECK(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frameResources.CommandAllocator)));
 			D3D12_NAME_OBJECT(frameResources.CommandAllocator, std::format(L"D3D12{}CommandAllocator_{}", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT), std::to_wstring(i)));
 
@@ -375,6 +421,15 @@ namespace dxray
 		m_commandList->Close();
 	}
 
+	void Renderer::CreateConstantBuffers()
+	{
+		const D3D12_HEAP_PROPERTIES uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * CalculateConstantBufferSize(sizeof(SceneConstantBuffer)));
+
+		D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_sceneCB)));
+		D3D12_NAME_OBJECT(m_sceneCB, WString(L"SceneCB{}"));
+		D3D12_CHECK(m_sceneCB->Map(0, nullptr, &m_sceneCBAddr)); // Kept mapped for the lifetime of the application, values in here are nearly 100% to change every frame.
+	}
 
 	//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 	// #note_renderer: Resource loading methods below are sort of a hack. These could be abstracted into a proper api if command list pooling were to be supported.

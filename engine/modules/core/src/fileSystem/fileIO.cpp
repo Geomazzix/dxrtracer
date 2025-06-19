@@ -2,6 +2,36 @@
 
 namespace dxray
 {
+	Path ResolveWildCard(const String& a_wildCardFilePath)
+	{
+		const usize wildCardStart = a_wildCardFilePath.find_first_of('[') + 1;
+		const usize seperator = a_wildCardFilePath.find_last_of(':');
+		const usize wildcardEnd = a_wildCardFilePath.find_last_of(']');
+		const usize fileNameLength = a_wildCardFilePath.length() - wildcardEnd;
+
+		// No wildCard seperator was found - meaning the substr of the full wildCard should be taken.
+		const String wildCardType = seperator <= wildCardStart
+			? a_wildCardFilePath.substr(wildCardStart, wildcardEnd - wildCardStart)
+			: a_wildCardFilePath.substr(wildCardStart, seperator - wildCardStart);
+		const String fileName = a_wildCardFilePath.substr(wildcardEnd + 2, fileNameLength);
+		DXRAY_ASSERT(!wildCardType.empty());
+
+		if (wildCardType == "shader")
+		{
+			return Path(ENGINE_SHADER_DIRECTORY) / fileName;
+		}
+		// Only if source is specified does a module need to be appended.
+		else if (wildCardType == "source")
+		{
+			const String wildCardModule = a_wildCardFilePath.substr(seperator + 1, wildcardEnd - seperator - 1);
+			DXRAY_ASSERT(!wildCardModule.empty());
+			return Path(ENGINE_MODULE_DIRECTORY) / wildCardModule / "include" / wildCardModule / fileName;
+		}
+
+		// No wildcards were found, the path remains the same.
+		return Path(a_wildCardFilePath);
+	}
+
 	String ReadFile(const Path& a_filePath, bool a_bIsBinary /*= false*/)
 	{
 		String content("");

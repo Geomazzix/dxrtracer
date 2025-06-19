@@ -8,6 +8,7 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/renderPass.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/accelerationStructure.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/scene.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/shaderConstructs.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/renderer.h"
 )
 

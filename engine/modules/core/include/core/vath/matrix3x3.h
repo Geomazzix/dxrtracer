@@ -8,10 +8,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Specialization of a 3x3 matrix, represented by the value type T.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Specialization of a 3x3 matrix, represented by the value type T.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Matrix<3, 3, T> final
 	{
@@ -53,6 +53,23 @@ namespace dxray::vath
 	private:
 		ColumnType m_data[3];
 	};
+
+
+	//--- Matrix definitions ---
+
+	using Matrix3x3u8 = Matrix<3, 3, u8>;
+	using Matrix3x3u16 = Matrix<3, 3, u16>;
+	using Matrix3x3u32 = Matrix<3, 3, u32>;
+	using Matrix3x3u64 = Matrix<3, 3, u64>;
+	using Matrix3x3i8 = Matrix<3, 3, i8>;
+	using Matrix3x3i16 = Matrix<3, 3, i16>;
+	using Matrix3x3i32 = Matrix<3, 3, i32>;
+	using Matrix3x3i64 = Matrix<3, 3, i64>;
+	using Matrix3x3i32 = Matrix<3, 3, i32>;
+	using Matrix3x3f = Matrix<3, 3, fp32>;
+	using Matrix3x3d = Matrix<3, 3, fp64>;
+	using Matrix3x3 = Matrix3x3f;
+
 
 	//--- Matrix construction/destruction ---
 

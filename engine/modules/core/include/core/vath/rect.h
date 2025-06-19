@@ -9,6 +9,10 @@
 
 namespace dxray::vath
 {
+    /**
+     * @brief Utility class for rects being used by various APIs.
+     * @tparam T 
+     */
     template<Arithmetic T>
     class Rect final
     {
@@ -26,6 +30,23 @@ namespace dxray::vath
             struct { Vector<2, T> Offset; Vector<2, T> Dimensions; };
         };
     };
+
+
+    //--- Rect definitions ---
+
+	using Rectu8 = Rect<u8>;
+	using Rectu16 = Rect<u16>;
+	using Rectu32 = Rect<u32>;
+	using Rectu64 = Rect<u64>;
+	using Recti8 = Rect<i8>;
+	using Recti16 = Rect<i16>;
+	using Recti32 = Rect<i32>;
+	using Recti64 = Rect<i64>;
+	using Rectf = Rect<fp32>;
+	using Rectd = Rect<fp64>;
+
+
+    //--- Rect construction/destruction ---
 
     template<Arithmetic T>
     constexpr Rect<T>::Rect() :

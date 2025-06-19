@@ -1,4 +1,4 @@
-#include "math.hlsli"
+#include "global.hlsli"
 
 RaytracingAccelerationStructure SceneTlas : register(t0);
 RWTexture2D<float4> OutRenderTarget : register(u0);
@@ -10,19 +10,7 @@ struct Payload
     bool Missed;
 };
 
-// #Todo: All values defined below before shader logic should be added into a constant buffer based on scene/camera descriptions.
-static const float CameraFovInDeg = 70;
-static const float CameraFocalLength = 2;
-static const float4x4 CameraWorldTransform = float4x4(
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 1.5, -7, 1
-);
-
-static const float3 LightPosition = float3(0, 200, 0);
-static const float3 SkyTopColour = float3(0.24, 0.44, 0.72);
-static const float3 SkyBottomColour = float3(0.75, 0.86, 0.93);
+ConstantBuffer<SceneConstantBuffer> SceneCB : register(b0);
 
 [shader("raygeneration")]
 void RayGeneration()
@@ -30,24 +18,13 @@ void RayGeneration()
     const uint2 pixelIdx = DispatchRaysIndex().xy;
     const float2 pixelTotal = DispatchRaysDimensions().xy;
 
-    const float imagePlaneScale = tan(DegToRad(CameraFovInDeg) / 2.0);
-    const float2 imagePlaneDims = float2(2.0f * imagePlaneScale * (pixelTotal.x / pixelTotal.y), -2.0f * imagePlaneScale);
-    const float2 imagePlaneOffset = -0.5f * imagePlaneDims;
-    const float2 pixelDelta = imagePlaneDims / pixelTotal;
-    
-    const float3 cameraPosition = float3(CameraWorldTransform[3].xyz);
-    const float4 rayDirection = mul(CameraWorldTransform, float4(
-        imagePlaneOffset.x + pixelIdx.x * pixelDelta.x,
-        imagePlaneOffset.y + pixelIdx.y * pixelDelta.y,
-        CameraFocalLength,
-        0
-    ));
+    const float3 CameraRayDirection = float3(0,0,0); // #Todo: Calculate the new camera ray direction using the projection matrix.
 
     const RayDesc rayDesc =
     {
-        cameraPosition,
+        SceneCB.CameraPosition.xyz,
 		0.001,
-		rayDirection.xyz,
+		CameraRayDirection,
 		1000
     };
 
@@ -66,9 +43,7 @@ void RayGeneration()
 [shader("miss")]
 void Miss(inout Payload a_payload)
 {
-    const float slope = normalize(WorldRayDirection()).y;
-    const float t = saturate(slope * 5 + 0.5);
-    a_payload.Colour = lerp(SkyBottomColour, SkyTopColour, t);
+    a_payload.Colour = SceneCB.SkyColour.xyz;
     a_payload.Missed = true;
 }
 
@@ -135,7 +110,7 @@ void HitFloor(inout Payload a_payload, float2 a_uv)
     {
         rayHitPosition,
 		0.001,
-		LightPosition - rayHitPosition,
+		SceneCB.SunDirection.xyz - rayHitPosition,
 		1
     };
     

@@ -7,10 +7,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Vector 4 specialization, represented by value type T.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Vector 4 specialization, represented by value type T.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Vector<4, T> final
 	{
@@ -22,6 +22,7 @@ namespace dxray::vath
 		constexpr explicit Vector(T a_scalar);
 		constexpr Vector(T a_x, T a_y, T a_z, T a_w);
 		constexpr Vector(T* a_pData);
+		constexpr Vector(const Vector<3, T>& a_rhs);
 		~Vector<4, T>() = default;
 
 		constexpr Vector<4, T>(const Vector<4, T>& a_rhs) = default;
@@ -43,6 +44,21 @@ namespace dxray::vath
 			struct { T r, g, b, a; };
 		};
 	};
+
+
+	//--- Vector definitions ---
+
+	using Vector4u8 = Vector<4, u8>;
+	using Vector4u16 = Vector<4, u16>;
+	using Vector4u32 = Vector<4, u32>;
+	using Vector4u64 = Vector<4, u64>;
+	using Vector4i8 = Vector<4, i8>;
+	using Vector4i16 = Vector<4, i16>;
+	using Vector4i32 = Vector<4, i32>;
+	using Vector4i64 = Vector<4, i64>;
+	using Vector4f = Vector<4, fp32>;
+	using Vector4d = Vector<4, fp64>;
+	using Vector4 = Vector4f;
 
 
 	//--- Vector construction/destruction ---
@@ -76,6 +92,14 @@ namespace dxray::vath
 	{
 		memcpy(Data, a_pData, GetLength() * sizeof(T));
 	}
+
+	template<typename T>
+	constexpr Vector<4, T>::Vector(const Vector<3, T>& a_rhs) :
+		x(a_rhs.x),
+		y(a_rhs.y),
+		z(a_rhs.z),
+		w(a_rhs.w)
+	{}
 
 
 	//--- Vector getters/setters ---

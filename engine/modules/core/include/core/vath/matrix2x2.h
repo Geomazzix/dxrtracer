@@ -7,10 +7,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Specialization of a 2x2 matrix, represented by the value type T.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Specialization of a 2x2 matrix, represented by the value type T.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Matrix<2, 2, T> final
 	{
@@ -51,6 +51,22 @@ namespace dxray::vath
 	private:
 		ColumnType m_data[2];
 	};
+
+
+	//--- Matrix definitions ---
+
+	using Matrix2x2u8 = Matrix<2, 2, u8>;
+	using Matrix2x2u16 = Matrix<2, 2, u16>;
+	using Matrix2x2u32 = Matrix<2, 2, u32>;
+	using Matrix2x2u64 = Matrix<2, 2, u64>;
+	using Matrix2x2i8 = Matrix<2, 2, i8>;
+	using Matrix2x2i16 = Matrix<2, 2, i16>;
+	using Matrix2x2i32 = Matrix<2, 2, i32>;
+	using Matrix2x2i64 = Matrix<2, 2, i64>;
+	using Matrix2x2i32 = Matrix<2, 2, i32>;
+	using Matrix2x2f = Matrix<2, 2, fp32>;
+	using Matrix2x2d = Matrix<2, 2, fp64>;
+	using Matrix2x2 = Matrix2x2f;
 
 
 	//--- Matrix construction/destruction ---

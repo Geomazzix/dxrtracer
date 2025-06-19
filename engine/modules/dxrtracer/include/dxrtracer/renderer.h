@@ -1,6 +1,7 @@
 #pragma once
 #include <core/valueTypes.h>
 #include <core/containers/array.h>
+#include "dxrtracer/shaderConstructs.h"
 #include "dxrtracer/accelerationStructure.h"
 
 namespace dxray
@@ -9,6 +10,18 @@ namespace dxray
 	class Scene;
 	class RenderPass;
 	struct Model;
+
+
+	/**
+	 * @brief Constantbuffers require alignment to 255 bytes.
+	 * @param a_size the size of the constant buffer to be aligned.
+	 * @return A 255 aligned size.s
+	 */
+	inline usize CalculateConstantBufferSize(const usize a_size)
+	{
+		return (a_size + 255) & ~255;
+	}
+
 
 	/**
 	* @brief Render data of a singular scene render-able - this data can and should be instanced.
@@ -26,6 +39,8 @@ namespace dxray
 	 */
 	struct FrameResources
 	{
+		SceneConstantBuffer SceneConstantBufferData;
+
 		ComPtr<ID3D12Resource> WorldTlasInstancesData = nullptr;
 		AccelerationStructure WorldTlas;
 
@@ -95,6 +110,7 @@ namespace dxray
 		void CreateCommandQueue(CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type);
 		void CreateSwapchain(const SwapchainCreateInfo& a_swapchainCreateInfo);
 		void CreateFrameResources();
+		void CreateConstantBuffers();
 
 		void CreateModelResources(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, const Model& a_model);
 
@@ -102,6 +118,9 @@ namespace dxray
 		std::unique_ptr<RenderPass> m_renderPass;
 		std::unique_ptr<CommandQueue> m_graphicsQueue;
 		ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
+		ComPtr<ID3D12Resource> m_sceneCB;
+		void* m_sceneCBAddr;
 
 		ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<ID3D12Device> m_device;

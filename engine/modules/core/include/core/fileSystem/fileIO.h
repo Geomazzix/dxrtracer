@@ -1,7 +1,7 @@
 #pragma once
 #include "core/containers/string.h"
 
-//#Todo: Implement a proper filereader/writer class, these functions are quite messy on the inside.
+//#Todo: Implement a wrapper class for file system handling. The current approach breaks the decoupling of shaders from the core...
 
 namespace dxray
 {
@@ -14,6 +14,13 @@ namespace dxray
 		const void* Data = nullptr;
 		usize SizeInBytes = 0;
 	};
+
+	/**
+	 * @brief Wildcards come in the form of [<type>:<module>] - i.e. [source:core].
+	 * @param a_wildCardFilePath [<type>:<module>] - i.e. [source:core]
+	 * @return A raw valid path pointing to the provided wild card location.
+	 */
+	Path ResolveWildCard(const String& a_wildCardFilePath);
 
 	/*!
 	 * @brief Opens a file input stream to read the file contents.

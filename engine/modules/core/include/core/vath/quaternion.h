@@ -8,10 +8,10 @@
 
 namespace dxray::vath
 {
-	/// <summary>
-	/// Quat implementation, used to rotate objects preventing them from suffering from Gimbal lock.
-	/// </summary>
-	/// <typeparam name="T">Value type of elements.</typeparam>
+	/**
+	 * @brief Quat implementation, used to rotate objects preventing them from suffering from Gimbal lock.
+	 * @tparam T Value type of elements.
+	 */
 	template<typename T>
 	class Quat final
 	{
@@ -49,6 +49,14 @@ namespace dxray::vath
 			struct { T r, g, b, a; };
 		};
 	};
+
+
+	//--- Quaternion definitions ---
+
+	using Quaternionf = Quat<fp32>;
+	using Quaterniond = Quat<fp64>;
+	using Quaternion = Quaternionf;
+
 
 	//--- Quat construction/destruction ---
 
