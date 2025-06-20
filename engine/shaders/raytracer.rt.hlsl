@@ -15,15 +15,22 @@ struct Payload
 void RayGeneration()
 {
     const uint2 pixelIdx = DispatchRaysIndex().xy;
-    const float2 pixelTotal = DispatchRaysDimensions().xy;
+    const uint2 pixelTotal = DispatchRaysDimensions().xy;
 
-    const float3 CameraRayDirection = float3(1,0,1); // #Todo: Calculate the new camera ray direction using the projection matrix.
-
+    float2 imagePlanePos = (pixelIdx + 0.5f) / pixelTotal * 2.0f - 1.0f;
+    imagePlanePos.y = -imagePlanePos.y;
+    
+    float4 localRayDirection = mul(float4(imagePlanePos, SceneCB.CameraPosition.w, 0), SceneCB.ProjectionToWorld);
+    localRayDirection.xyz /= localRayDirection.w;
+    
+    const float3 rayOrigin = SceneCB.CameraPosition.xyz;
+    const float3 rayDir = localRayDirection.xyz - rayOrigin;
+    
     const RayDesc rayDesc =
     {
-        SceneCB.CameraPosition.xyz,
+        rayOrigin,
 		0.001,
-		CameraRayDirection,
+		rayDir,
 		1000
     };
 
@@ -68,12 +75,13 @@ void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a
         a_payload.Colour = float3(1, 0, 1);
         break;
     }
+
+    //HitFloor(a_payload, a_attrib.barycentrics);
 }
 
 void HitMesh(inout Payload a_payload, float2 a_uv)
 {
-    const float depthScale = 1.0 / RayTCurrent();
-    a_payload.Colour = float3(depthScale, depthScale, depthScale);
+    a_payload.Colour = float3(1, 0, 1);
 }
 
 void HitMirror(inout Payload a_payload, float2 a_uv)

@@ -13,11 +13,7 @@ namespace dxray::riow
     Renderer::Renderer() :
 		m_taskScheduler(2),
 		m_backgroundColor(0.0f)
-    { 
-		CreateDevice(m_device);
-		CreateCommandQueue(m_commandQueue, D3D12_COMMAND_LIST_TYPE_DIRECT);
-		CreateSwapchain(m_swapchain, windowInfo.Rect.Width, windowInfo.Rect.Height);
-	}
+    {}
 
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{

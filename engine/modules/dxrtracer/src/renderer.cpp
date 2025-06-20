@@ -89,7 +89,7 @@ namespace dxray
 		m_graphicsQueue->WaitIdle();
 	}
 
-	void Renderer::Render(std::shared_ptr<Scene>& a_pScene)
+	void Renderer::Render(std::shared_ptr<Scene>& a_pScene, const fp32 a_dt)
 	{
 		FrameResources& frameResources = m_frameResources[m_swapchainIndex];
 		m_graphicsQueue->WaitForFence(frameResources.FenceValue);
@@ -97,8 +97,31 @@ namespace dxray
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 		
+		//===================================================================================================
+		// #Todo: Move the camera update code into a camera class that can be added to the scene.
+
+		static float time = 0.0f;
+		time += a_dt;
+
+		frameResources.SceneConstantBufferData.CameraPosition.x = cosf(time) * 3.0f;
+		frameResources.SceneConstantBufferData.CameraPosition.y = 5.0f + sinf(time) * 3.0f;
+		frameResources.SceneConstantBufferData.CameraPosition.z = -5.0f;
+		frameResources.SceneConstantBufferData.CameraPosition.w = sinf(time) * 0.5f - 1.3f;
+
+		const vath::Matrix4x4f cameraViewRH = vath::Transpose(vath::LookAtRH(Vector3f(frameResources.SceneConstantBufferData.CameraPosition), vath::Vector3f(0.0f, 2.0f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f)));
+		const vath::Matrix4x4f perspectiveFovRH = vath::Transpose(vath::Perspective(vath::DegToRad(70.0f), 1920.0f / 1080.0f, 0.1f, 100.0f));
+		frameResources.SceneConstantBufferData.ProjectionToWorld = Inverse(cameraViewRH * perspectiveFovRH);
+
+		//===================================================================================================
+
+		//===================================================================================================
+		// #Todo: Move the constant buffer data update into the renderpass most likely... it doesn't really belong to the renderer as post 
+		// processing shouldn't concern itself with the scene data.
+
 		const usize sceneCbvDataSize = CalculateConstantBufferSize(sizeof(SceneConstantBuffer));
 		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + sceneCbvDataSize * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
+
+		//===================================================================================================
 
 		a_pScene->UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, frameResources.WorldTlasInstancesData);
 		
@@ -122,7 +145,7 @@ namespace dxray
 		ID3D12CommandList* const lists[] = { m_commandList.Get() };
 		m_graphicsQueue->Handle->ExecuteCommandLists(1, lists);
 
-		D3D12_CHECK(m_swapchain->Present(1, 0));
+		D3D12_CHECK(m_swapchain->Present(0, 0));
 		frameResources.FenceValue = m_graphicsQueue->Signal();
 		m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();
 	}
@@ -334,12 +357,6 @@ namespace dxray
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
 		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
 
-		// #Todo_Renderer: Time to move these into the scene as a camera class instance.
-		const vath::Vector3f cameraPosition = vath::Vector3f(0.0f, 1.0f, -7.0f);
-		const vath::Matrix4x4f cameraViewRH = vath::LookAtRH(cameraPosition, vath::Vector3f(0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
-		const vath::Matrix4x4f perspectiveFovRH;
-		const vath::Matrix4x4f viewProjection = cameraViewRH * perspectiveFovRH;
-
 		for (u32 i = 0; i < SwapchainBackbufferCount; i++)
 		{
 			FrameResources& frameResources = m_frameResources[i];
@@ -377,8 +394,8 @@ namespace dxray
 
 			frameResources.SceneConstantBufferData =
 			{
-				.ProjectionToWorld = Inverse(viewProjection),
-				.CameraPosition = vath::Vector4f(cameraPosition),
+				.ProjectionToWorld = Matrix4x4f(),
+				.CameraPosition = vath::Vector3(),
 				.SkyColour = vath::Vector4f(0.24f, 0.44f, 0.72f, 1.0),
 				.SunDirection = vath::Vector4f(0.0f, 200.0f, 0.0f, 1.0f) // #Todo: Replace with direction - currently using position for the shadow ray description.
 			};
@@ -436,23 +453,6 @@ namespace dxray
 	//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 	// #note_renderer: Resource loading methods below are sort of a hack. These could be abstracted into a proper api if command list pooling were to be supported.
 
-	void Renderer::CreateModelResources(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, const Model& a_model)
-	{
-		for (const Mesh& mesh : a_model.Meshes)
-		{
-			SceneObjectRenderData sceneObjectRenderData;
-			CreateReadBackBuffer(m_device, sceneObjectRenderData.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
-			D3D12_NAME_OBJECT(sceneObjectRenderData.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
-			CreateReadBackBuffer(m_device, sceneObjectRenderData.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
-			D3D12_NAME_OBJECT(sceneObjectRenderData.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
-
-			CreateBlas(m_device, a_cmdList, sceneObjectRenderData.Blas, sceneObjectRenderData.VertexBuffer, mesh.Vertices.size(), sceneObjectRenderData.IndexBuffer, mesh.Indices.size());
-			D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
-			D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
-			m_sceneObjectRenderDataBuffer.push_back(sceneObjectRenderData);
-		}
-	}
-
 	void Renderer::BeginResourceLoading()
 	{
 		FrameResources& frameResources = m_frameResources[m_swapchainIndex];
@@ -462,7 +462,19 @@ namespace dxray
 
 	void Renderer::LoadModel(std::shared_ptr<Scene>& a_pScene, Model& a_model)
 	{
-		CreateModelResources(m_commandList, a_model);
+		for (const Mesh& mesh : a_model.Meshes)
+		{
+			SceneObjectRenderData sceneObjectRenderData;
+			CreateReadBackBuffer(m_device, sceneObjectRenderData.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
+			D3D12_NAME_OBJECT(sceneObjectRenderData.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
+			CreateReadBackBuffer(m_device, sceneObjectRenderData.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
+			D3D12_NAME_OBJECT(sceneObjectRenderData.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
+
+			CreateBlas(m_device, m_commandList, sceneObjectRenderData.Blas, sceneObjectRenderData.VertexBuffer, mesh.Vertices.size(), sceneObjectRenderData.IndexBuffer, mesh.Indices.size());
+			D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
+			D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
+			m_sceneObjectRenderDataBuffer.push_back(sceneObjectRenderData);
+		}
 	}
 
 	void Renderer::EndResourceLoading(std::shared_ptr<Scene>& a_pScene)

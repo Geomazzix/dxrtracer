@@ -72,7 +72,7 @@ int main(int argc, char** argv)
 		prevFrameSample = appTime.GetElapsedSeconds();
 
 		m_scene->Tick(dt);
-		m_renderer->Render(m_scene);
+		m_renderer->Render(m_scene, dt);
 
 		elapsedInterval += dt;
 		++fps;

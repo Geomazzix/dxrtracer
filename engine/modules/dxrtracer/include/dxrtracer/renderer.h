@@ -101,7 +101,7 @@ namespace dxray
 		void BeginResourceLoading();
 		void LoadModel(std::shared_ptr<Scene>& a_pScene, Model& a_model);
 		void EndResourceLoading(std::shared_ptr<Scene>& a_pScene);
-		void Render(std::shared_ptr<Scene>& a_pScene);
+		void Render(std::shared_ptr<Scene>& a_pScene, const fp32 a_dt); // #Todo: Remove dt here -> left in for debugging though should move to tick only when camera update is abstracted.
 
 	private:
 		void Present(ComPtr<ID3D12Resource>& a_renderTargetOutput);
@@ -111,8 +111,6 @@ namespace dxray
 		void CreateSwapchain(const SwapchainCreateInfo& a_swapchainCreateInfo);
 		void CreateFrameResources();
 		void CreateConstantBuffers();
-
-		void CreateModelResources(ComPtr<ID3D12GraphicsCommandList>& a_cmdList, const Model& a_model);
 
 		Array<SceneObjectRenderData> m_sceneObjectRenderDataBuffer;
 		std::unique_ptr<RenderPass> m_renderPass;

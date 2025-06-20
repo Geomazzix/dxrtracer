@@ -24,18 +24,18 @@ namespace dxray
 
 		auto mesh = XMMatrixScaling(2, 2, 2);
 		mesh *= XMMatrixRotationRollPitchYaw(time / 2, time / 3, time / 5);
-		mesh *= XMMatrixTranslation(-1.5, 2, 2);
+		mesh *= XMMatrixTranslation(0.0f, 2.0f, 0.0f);
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjectInstances[0].Transform), mesh);
-
+		
 		auto mirror = XMMatrixScaling(3, 3, 3);
-		mirror *= XMMatrixRotationX(-1.8f);
-		mirror *= XMMatrixRotationY(XMScalarSinEst(time) / 8 + 1);
-		mirror *= XMMatrixTranslation(2, 2, 2);
+		mirror *= XMMatrixRotationX(1.8f);
+		mirror *= XMMatrixRotationY(XMScalarSinEst(time) / 8 + 2);
+		mirror *= XMMatrixTranslation(0.0f, 2.0f, 1.0f);
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjectInstances[1].Transform), mirror);
 
 		auto floor = XMMatrixScaling(3, 3, 3);
 		floor *= XMMatrixScaling(5, 5, 5);
-		floor *= XMMatrixTranslation(0, 0, 2);
+		floor *= XMMatrixTranslation(0, 0, 0);
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(&m_sceneObjectInstances[2].Transform), floor);
 		// end disable when rendering sponza
 

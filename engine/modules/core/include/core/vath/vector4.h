@@ -98,7 +98,7 @@ namespace dxray::vath
 		x(a_rhs.x),
 		y(a_rhs.y),
 		z(a_rhs.z),
-		w(a_rhs.w)
+		w(1.0f)
 	{}
 
 
