@@ -119,8 +119,8 @@ namespace dxray
 		std::unique_ptr<CommandQueue> m_graphicsQueue;
 		ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
-		ComPtr<ID3D12Resource> m_sceneCB;
-		void* m_sceneCBAddr;
+		ComPtr<ID3D12Resource> m_cbvSceneHeap;
+		void* m_cbvSceneHeapAddr;
 
 		ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<ID3D12Device> m_device;
@@ -129,11 +129,11 @@ namespace dxray
 		FixedArray<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
 		FixedArray<FrameResources, SwapchainBackbufferCount> m_frameResources;
 		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-		ComPtr<IDXGISwapChain3> m_swapchain;
 		ComPtr<ID3D12DescriptorHeap> m_uavHeap;
+		ComPtr<IDXGISwapChain3> m_swapchain;
 		u32 m_swapchainIndex;
 		u32 m_rtvDescriptorSize;
-		u32 m_uavDescriptorSize;
+		u32 m_uavCbvSrvDescriptorSize;
 		bool m_useWarp;
 	};
 }

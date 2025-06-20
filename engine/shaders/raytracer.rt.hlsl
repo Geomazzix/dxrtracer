@@ -1,7 +1,8 @@
-#include "global.hlsli"
+#include "[shader]/global.hlsli"
 
-RaytracingAccelerationStructure SceneTlas : register(t0);
-RWTexture2D<float4> OutRenderTarget : register(u0);
+ConstantBuffer<SceneConstantBuffer> SceneCB : register(b0, space0);
+RaytracingAccelerationStructure SceneTlas : register(t0, space0);
+RWTexture2D<float4> OutRenderTarget : register(u0, space0);
 
 struct Payload
 {
@@ -10,15 +11,13 @@ struct Payload
     bool Missed;
 };
 
-ConstantBuffer<SceneConstantBuffer> SceneCB : register(b0);
-
 [shader("raygeneration")]
 void RayGeneration()
 {
     const uint2 pixelIdx = DispatchRaysIndex().xy;
     const float2 pixelTotal = DispatchRaysDimensions().xy;
 
-    const float3 CameraRayDirection = float3(0,0,0); // #Todo: Calculate the new camera ray direction using the projection matrix.
+    const float3 CameraRayDirection = float3(1,0,1); // #Todo: Calculate the new camera ray direction using the projection matrix.
 
     const RayDesc rayDesc =
     {

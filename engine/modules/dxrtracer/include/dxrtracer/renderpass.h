@@ -19,6 +19,7 @@ namespace dxray
 	{
 		ComPtr<ID3D12DescriptorHeap>& UavHeap;
 		ComPtr<ID3D12Resource>& TlasBuffer;
+		ComPtr<ID3D12Resource>& SceneCbv;
 
 		u32 SwapchainIndex;
 		u32 SurfaceWidth;

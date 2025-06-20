@@ -188,7 +188,6 @@ namespace dxray
 		{
 			arguments.push_back(L"-Od");
 			arguments.push_back(L"-Zs"); //#Note_dxc: using slim pdbs here - only supported by PIX.
-			arguments.push_back(L"-Zss");
 		}
 		else
 		{
@@ -274,11 +273,6 @@ namespace dxray
 			IDxcBlob* shaderHashBlob = nullptr;
 			DXC_CHECK(compileResult->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
 			shaderHash = static_cast<DxcShaderHash*>(shaderHashBlob->GetBufferPointer());
-
-			if (!(shaderHash->Flags & DXC_HASHFLAG_INCLUDES_SOURCE))
-			{
-				DXRAY_WARN("Shader hash did not take source into account, which can result shader collisions: {}", a_compilationInput.ShaderFile.string());
-			}
 			shaderHashString = DxcHashToWideString(shaderHash->HashDigest);
 
 			const usize hashSize = _countof(shaderHash->HashDigest);

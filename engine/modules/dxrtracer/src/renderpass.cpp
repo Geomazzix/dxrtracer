@@ -24,6 +24,7 @@ namespace dxray
 		const CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable(a_execInfo.UavHeap->GetGPUDescriptorHandleForHeapStart(), a_execInfo.SwapchainIndex, descriptorSize);
 		dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
 		dxrCmdList->SetComputeRootShaderResourceView(1, a_execInfo.TlasBuffer->GetGPUVirtualAddress());
+		dxrCmdList->SetComputeRootConstantBufferView(2, a_execInfo.SceneCbv->GetGPUVirtualAddress());
 
 		// #note_renderPass: A ray dispatch configures the shader table, consisting of shader records which identify how the GPU can find the resources
 		// to invoke the attached shader. As the application currently only uses a global root signature these are sized to the shader identifier and aligned
@@ -60,49 +61,22 @@ namespace dxray
 
 	void RenderPass::CreateRayTraceDemoRootSig()
 	{
-		const D3D12_DESCRIPTOR_RANGE uavRange =
-		{
-			.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
-			.NumDescriptors = 1,
-		};
+		CD3DX12_DESCRIPTOR_RANGE uavRange;
+		uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
-		std::array<D3D12_ROOT_PARAMETER, 2> params;
+		FixedArray<CD3DX12_ROOT_PARAMETER, 3> rootParams;
+		rootParams[0].InitAsDescriptorTable(1, &uavRange);
+		rootParams[1].InitAsShaderResourceView(0, 0);
+		rootParams[2].InitAsConstantBufferView(0, 0);
 
-		//Render target binding.
-		params[0] =
-		{
-			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-			.DescriptorTable =
-			{
-				.NumDescriptorRanges = 1,
-				.pDescriptorRanges = &uavRange
-			}
-		};
-
-		//TLas binding.
-		params[1] =
-		{
-			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-			.Descriptor =
-			{
-				.ShaderRegister = 0,
-				.RegisterSpace = 0
-			}
-		};
-
-		const D3D12_ROOT_SIGNATURE_DESC desc =
-		{
-			.NumParameters = static_cast<u32>(params.size()),
-			.pParameters = params.data(),
-			.NumStaticSamplers = 0,
-			.pStaticSamplers = nullptr,
-			.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE
-		};
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
+		rootSigDesc.Init_1_0(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
 		//#Todo: Add proper error checking on the return blob.
 		ComPtr<ID3DBlob> blob = nullptr;
-		D3D12_CHECK(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, nullptr));
+		D3D12_CHECK(D3D12SerializeVersionedRootSignature(&rootSigDesc, &blob, nullptr));
 		D3D12_CHECK(m_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_rootSig)));
+		D3D12_NAME_OBJECT(m_rootSig, WString(L"RenderPass_RootSig"));
 	}
 
 	void RenderPass::CreateRayTracingPipelineStateObject()
