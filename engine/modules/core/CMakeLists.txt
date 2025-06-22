@@ -33,6 +33,9 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathTemplate.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vathHlsl.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/vath/vath.h"
+
+	# Memory
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/core/memory/memory.h"
 )
 
 set(SOURCE

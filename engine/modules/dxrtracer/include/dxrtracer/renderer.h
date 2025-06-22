@@ -1,6 +1,7 @@
 #pragma once
 #include <core/valueTypes.h>
 #include <core/containers/array.h>
+#include <core/memory/memory.h>
 #include "dxrtracer/shaderConstructs.h"
 #include "dxrtracer/accelerationStructure.h"
 
@@ -15,11 +16,11 @@ namespace dxray
 	/**
 	 * @brief Constantbuffers require alignment to 255 bytes.
 	 * @param a_size the size of the constant buffer to be aligned.
-	 * @return A 255 aligned size.s
+	 * @return A 255 aligned size.
 	 */
 	inline usize CalculateConstantBufferSize(const usize a_size)
 	{
-		return (a_size + 255) & ~255;
+		return Align<usize>(a_size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	}
 
 
