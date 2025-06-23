@@ -20,7 +20,7 @@ void RayGeneration()
     float2 imagePlanePos = (pixelIdx + 0.5f) / pixelTotal * 2.0f - 1.0f;
     imagePlanePos.y = -imagePlanePos.y;
     
-    float4 localRayDirection = mul(float4(imagePlanePos, SceneCB.CameraPosition.w, 0), SceneCB.ProjectionToWorld);
+    float4 localRayDirection = mul(float4(imagePlanePos, SceneCB.CameraPosition.w, 1), SceneCB.ProjectionToWorld);
     localRayDirection.xyz /= localRayDirection.w;
     
     const float3 rayOrigin = SceneCB.CameraPosition.xyz;
@@ -60,28 +60,29 @@ void HitFloor(inout Payload a_payload, float2 a_uv);
 [shader("closesthit")]
 void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a_attrib)
 {
-    switch (InstanceID())
-    {
-    case 0:
-        HitMesh(a_payload, a_attrib.barycentrics);
-        break;
-    case 1:
-        HitMirror(a_payload, a_attrib.barycentrics);
-        break;
-    case 2:
-        HitFloor(a_payload, a_attrib.barycentrics);
-        break;
-    default:
-        a_payload.Colour = float3(1, 0, 1);
-        break;
-    }
+    //switch (InstanceID())
+    //{
+    //case 0:
+    //    HitMesh(a_payload, a_attrib.barycentrics);
+    //    break;
+    //case 1:
+    //    HitMirror(a_payload, a_attrib.barycentrics);
+    //    break;
+    //case 2:
+    //    HitFloor(a_payload, a_attrib.barycentrics);
+    //    break;
+    //default:
+    //    a_payload.Colour = float3(1, 0, 1);
+    //    break;
+    //}
+    
+    HitMesh(a_payload, a_attrib.barycentrics);
 
-    //HitFloor(a_payload, a_attrib.barycentrics);
 }
 
 void HitMesh(inout Payload a_payload, float2 a_uv)
 {
-    a_payload.Colour = float3(1, 0, 1);
+    a_payload.Colour = float3(RayTCurrent(), RayTCurrent(), RayTCurrent());
 }
 
 void HitMirror(inout Payload a_payload, float2 a_uv)

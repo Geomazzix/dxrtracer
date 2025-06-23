@@ -49,9 +49,9 @@ bool EngineInitialize()
 	const Model& quad = BuildQuadModel();
 
 	m_renderer->BeginResourceLoading();
-	m_renderer->LoadModel(vath::Vector3f(0.0f, 2.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(2.0f), modelLoader.GetModel());
-	m_renderer->LoadModel(vath::Vector3f(0.0f, 2.0f, 1.0f), vath::Vector3f(1.8f, 0.0f, 0.0f), vath::Vector3f(3.0f), quad);
-	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
+	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(3.0f), modelLoader.GetModel());
+	//m_renderer->LoadModel(vath::Vector3f(0.0f, 2.0f, 1.0f), vath::Vector3f(1.8f, 0.0f, 0.0f), vath::Vector3f(3.0f), quad);
+	//m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
 	m_renderer->EndResourceLoading();
 
 	DXRAY_INFO("Initialization completed in: {}", m_appTime.GetElapsedSeconds());

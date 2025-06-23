@@ -108,7 +108,6 @@ namespace dxray
 		void CreateCommandQueue(CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type);
 		void CreateSwapchain(const SwapchainCreateInfo& a_swapchainCreateInfo);
 		void CreateFrameResources();
-		void CreateConstantBuffers();
 
 		Array<D3D12Mesh> m_meshes;
 		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;

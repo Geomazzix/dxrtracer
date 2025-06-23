@@ -79,7 +79,6 @@ namespace dxray
 		CreateCommandQueue(*m_graphicsQueue.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 		CreateSwapchain(a_createInfo.SwapchainInfo);
 		CreateFrameResources();
-		CreateConstantBuffers();
 
 		m_renderPass = std::make_unique<RenderPass>(m_device);
 	}
@@ -94,6 +93,9 @@ namespace dxray
 		FrameResources& frameResources = m_frameResources[m_swapchainIndex];
 		m_graphicsQueue->WaitForFence(frameResources.FenceValue);
 
+		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
+		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
+
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 		
@@ -103,13 +105,14 @@ namespace dxray
 		static float time = 0.0f;
 		time += a_dt;
 
-		frameResources.SceneConstantBufferData.CameraPosition.x = cosf(time) * 3.0f;
-		frameResources.SceneConstantBufferData.CameraPosition.y = 5.0f + sinf(time) * 3.0f;
-		frameResources.SceneConstantBufferData.CameraPosition.z = -5.0f;
-		frameResources.SceneConstantBufferData.CameraPosition.w = sinf(time) * 0.5f - 1.3f;
+		frameResources.SceneConstantBufferData.CameraPosition.x = 2.0f;//cosf(time) * 3.0f;
+		frameResources.SceneConstantBufferData.CameraPosition.y = 5.0f;// + sinf(time) * 3.0f;
+		frameResources.SceneConstantBufferData.CameraPosition.z = 0.0f;
+		frameResources.SceneConstantBufferData.CameraPosition.w = 0.0f;//sinf(time) * 0.5f - 1.3f;
 
-		const vath::Matrix4x4f cameraViewRH = vath::Transpose(vath::LookAtRH(Vector3f(frameResources.SceneConstantBufferData.CameraPosition), vath::Vector3f(0.0f, 2.0f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f)));
-		const vath::Matrix4x4f perspectiveFovRH = vath::Transpose(vath::Perspective(vath::DegToRad(70.0f), 1920.0f / 1080.0f, 0.1f, 100.0f));
+		// #Todo: Test the perspective matrix - looks to be rowmajor by default?
+		const vath::Matrix4x4f cameraViewRH = vath::Transpose(vath::LookAtRH(Vector3f(frameResources.SceneConstantBufferData.CameraPosition), vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f)));
+		const vath::Matrix4x4f perspectiveFovRH = vath::Perspective(vath::DegToRad(70.0f), static_cast<fp32>(swapchainDesc.Width) / swapchainDesc.Height, 0.1f, 100.0f);
 		frameResources.SceneConstantBufferData.ProjectionToWorld = Inverse(cameraViewRH * perspectiveFovRH);
 
 		//===================================================================================================
@@ -129,9 +132,6 @@ namespace dxray
 			UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
 			m_forceTlasRebuild = false;
 		}
-		
-		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
-		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
 		
 		const RenderPassExecuteInfo executionInfo = 
 		{
@@ -355,10 +355,20 @@ namespace dxray
 		D3D12_CHECK(m_device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_uavHeap)));
 		D3D12_NAME_OBJECT(m_uavHeap, std::format(L"UavDescriptorHeap"));
 
+		
+		// Scene constants
+		const D3D12_HEAP_PROPERTIES uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * CalculateConstantBufferSize(sizeof(SceneConstantBuffer)));
+
+		D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_cbvSceneHeap)));
+		D3D12_NAME_OBJECT(m_cbvSceneHeap, WString(L"CbvSceneHeap{}"));
+		D3D12_CHECK(m_cbvSceneHeap->Map(0, nullptr, &m_cbvSceneHeapAddr)); // Kept mapped for the lifetime of the application, values in here are nearly 100% to change every frame.
+
+
+		// Backbuffer dependent resources (i.e. the ones that need to exist x amount of times to account for in-flight/recording data).
 		m_uavCbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetCPUDescriptorHandleForHeapStart());
 
-		// Backbuffer dependent resources (i.e. the ones that need to exist x amount of times to account for in-flight/recording data).
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
 		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
 
@@ -377,17 +387,7 @@ namespace dxray
 			D3D12_CHECK(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frameResources.CommandAllocator)));
 			D3D12_NAME_OBJECT(frameResources.CommandAllocator, std::format(L"D3D12{}CommandAllocator_{}", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT), std::to_wstring(i)));
 
-			const D3D12_RESOURCE_DESC shaderRtDesc =
-			{
-				.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-				.Width = swapchainDesc.Width,
-				.Height = swapchainDesc.Height,
-				.DepthOrArraySize = 1,
-				.MipLevels = 1,
-				.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-				.SampleDesc = { 1, 0 },
-				.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
-			};
+			const CD3DX12_RESOURCE_DESC shaderRtDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, swapchainDesc.Width, swapchainDesc.Height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 			const CD3DX12_HEAP_PROPERTIES shaderRtHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
 			D3D12_CHECK(m_device->CreateCommittedResource(&shaderRtHeapProps, D3D12_HEAP_FLAG_NONE, &shaderRtDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&frameResources.RaytraceRenderTarget)));
@@ -412,16 +412,6 @@ namespace dxray
 		D3D12_CHECK(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_frameResources[0].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
 		D3D12_NAME_OBJECT(m_commandList, std::format(L"D3D12{}CommandList", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT)));
 		m_commandList->Close();
-	}
-
-	void Renderer::CreateConstantBuffers()
-	{
-		const D3D12_HEAP_PROPERTIES uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * CalculateConstantBufferSize(sizeof(SceneConstantBuffer)));
-
-		D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_cbvSceneHeap)));
-		D3D12_NAME_OBJECT(m_cbvSceneHeap, WString(L"CbvSceneHeap{}"));
-		D3D12_CHECK(m_cbvSceneHeap->Map(0, nullptr, &m_cbvSceneHeapAddr)); // Kept mapped for the lifetime of the application, values in here are nearly 100% to change every frame.
 	}
 
 
