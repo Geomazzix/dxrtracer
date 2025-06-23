@@ -7,7 +7,6 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/uploadBuffer.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/renderPass.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/accelerationStructure.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/scene.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/shaderConstructs.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/renderer.h"
 )
@@ -19,7 +18,6 @@ set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/uploadBuffer.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/renderPass.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/accelerationStructure.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/scene.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/dxrtracer.cpp"
 )

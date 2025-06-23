@@ -8,7 +8,6 @@
 namespace dxray
 {
 	class WinApiWindow;
-	class Scene;
 	class RenderPass;
 	struct Model;
 
@@ -25,13 +24,13 @@ namespace dxray
 
 
 	/**
-	* @brief Render data of a singular scene render-able - this data can and should be instanced.
+	* @brief Render data as represented by d3d12. Not instanced.
 	*/
-	struct SceneObjectRenderData
+	struct D3D12Mesh
 	{
 		ComPtr<ID3D12Resource> VertexBuffer = nullptr;
 		ComPtr<ID3D12Resource> IndexBuffer = nullptr;
-		AccelerationStructure Blas;
+		BottomLevelAccelerationStructure Blas;
 	};
 
 
@@ -41,9 +40,7 @@ namespace dxray
 	struct FrameResources
 	{
 		SceneConstantBuffer SceneConstantBufferData;
-
-		ComPtr<ID3D12Resource> WorldTlasInstancesData = nullptr;
-		AccelerationStructure WorldTlas;
+		TopLevelAccelerationStructure WorldTlas;
 
 		ComPtr<ID3D12CommandAllocator> CommandAllocator = nullptr;
 		ComPtr<ID3D12Resource> RaytraceRenderTarget = nullptr;
@@ -100,9 +97,9 @@ namespace dxray
 		~Renderer();
 
 		void BeginResourceLoading();
-		void LoadModel(std::shared_ptr<Scene>& a_pScene, Model& a_model);
-		void EndResourceLoading(std::shared_ptr<Scene>& a_pScene);
-		void Render(std::shared_ptr<Scene>& a_pScene, const fp32 a_dt); // #Todo: Remove dt here -> left in for debugging though should move to tick only when camera update is abstracted.
+		void LoadModel(const vath::Vector3f& a_location, const vath::Vector3f& a_eulerRotation, const vath::Vector3f& a_scale, const Model& a_model);
+		void EndResourceLoading();
+		void Render(const fp32 a_dt); // #Todo: Remove dt here -> left in for debugging though should move to tick only when camera update is abstracted.
 
 	private:
 		void Present(ComPtr<ID3D12Resource>& a_renderTargetOutput);
@@ -113,7 +110,11 @@ namespace dxray
 		void CreateFrameResources();
 		void CreateConstantBuffers();
 
-		Array<SceneObjectRenderData> m_sceneObjectRenderDataBuffer;
+		Array<D3D12Mesh> m_meshes;
+		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;
+
+		bool m_forceTlasRebuild;
+
 		std::unique_ptr<RenderPass> m_renderPass;
 		std::unique_ptr<CommandQueue> m_graphicsQueue;
 		ComPtr<ID3D12GraphicsCommandList> m_commandList;

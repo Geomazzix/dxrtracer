@@ -1,6 +1,5 @@
 #include "dxrtracer/renderer.h"
 #include "dxrtracer/window.h"
-#include "dxrtracer/scene.h"
 #include "dxrtracer/renderpass.h"
 #include "dxrtracer/modelLoader.h"
 #include "dxrtracer/uploadBuffer.h"
@@ -70,6 +69,7 @@ namespace dxray
 
 
 	Renderer::Renderer(const RendererCreateInfo& a_createInfo) :
+		m_forceTlasRebuild(true),
 		m_useWarp(false),
 		m_swapchainIndex(0)
 	{
@@ -89,7 +89,7 @@ namespace dxray
 		m_graphicsQueue->WaitIdle();
 	}
 
-	void Renderer::Render(std::shared_ptr<Scene>& a_pScene, const fp32 a_dt)
+	void Renderer::Render(const fp32 a_dt)
 	{
 		FrameResources& frameResources = m_frameResources[m_swapchainIndex];
 		m_graphicsQueue->WaitForFence(frameResources.FenceValue);
@@ -123,7 +123,12 @@ namespace dxray
 
 		//===================================================================================================
 
-		a_pScene->UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, frameResources.WorldTlasInstancesData);
+		m_forceTlasRebuild = true;
+		if (m_forceTlasRebuild)
+		{
+			UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
+			m_forceTlasRebuild = false;
+		}
 		
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
 		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
@@ -360,37 +365,6 @@ namespace dxray
 		for (u32 i = 0; i < SwapchainBackbufferCount; i++)
 		{
 			FrameResources& frameResources = m_frameResources[i];
-			
-			/*
-				static const float CameraFovInDeg = 70;
-				static const float CameraFocalLength = 2;
-				static const float4x4 CameraWorldTransform = float4x4(
-					1, 0, 0, 0,
-					0, 1, 0, 0,
-					0, 0, 1, 0,
-					0, 1.5, -7, 1
-				);
-
-				static const float3 LightPosition = float3(0, 200, 0);
-				static const float3 SkyTopColour = float3(0.24, 0.44, 0.72);
-				static const float3 SkyBottomColour = float3(0.75, 0.86, 0.93);
-
-
-				=== inside function ===
-
-				const float imagePlaneScale = tan(DegToRad(CameraFovInDeg) / 2.0);
-				const float2 imagePlaneDims = float2(2.0f * imagePlaneScale * (pixelTotal.x / pixelTotal.y), -2.0f * imagePlaneScale);
-				const float2 imagePlaneOffset = -0.5f * imagePlaneDims;
-				const float2 pixelDelta = imagePlaneDims / pixelTotal;
-
-				const float3 cameraPosition = float3(CameraWorldTransform[3].xyz);
-				const float4 rayDirection = mul(CameraWorldTransform, float4(
-					imagePlaneOffset.x + pixelIdx.x * pixelDelta.x,
-					imagePlaneOffset.y + pixelIdx.y * pixelDelta.y,
-					CameraFocalLength,
-					0
-				));
-			*/
 
 			frameResources.SceneConstantBufferData =
 			{
@@ -450,6 +424,7 @@ namespace dxray
 		D3D12_CHECK(m_cbvSceneHeap->Map(0, nullptr, &m_cbvSceneHeapAddr)); // Kept mapped for the lifetime of the application, values in here are nearly 100% to change every frame.
 	}
 
+
 	//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 	// #note_renderer: Resource loading methods below are sort of a hack. These could be abstracted into a proper api if command list pooling were to be supported.
 
@@ -460,30 +435,48 @@ namespace dxray
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 	}
 
-	void Renderer::LoadModel(std::shared_ptr<Scene>& a_pScene, Model& a_model)
+	void Renderer::LoadModel(const vath::Vector3f& a_location, const vath::Vector3f& a_eulerRotation, const vath::Vector3f& a_scale, const Model& a_model)
 	{
+		static u32 objectCount = 0;
 		for (const Mesh& mesh : a_model.Meshes)
 		{
-			SceneObjectRenderData sceneObjectRenderData;
-			CreateReadBackBuffer(m_device, sceneObjectRenderData.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
-			D3D12_NAME_OBJECT(sceneObjectRenderData.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
-			CreateReadBackBuffer(m_device, sceneObjectRenderData.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
-			D3D12_NAME_OBJECT(sceneObjectRenderData.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
+			D3D12Mesh d3d12Mesh;
+		
+			// Create the data buffers.
+			CreateReadBackBuffer(m_device, d3d12Mesh.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
+			D3D12_NAME_OBJECT(d3d12Mesh.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
+			CreateReadBackBuffer(m_device, d3d12Mesh.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
+			D3D12_NAME_OBJECT(d3d12Mesh.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
 
-			CreateBlas(m_device, m_commandList, sceneObjectRenderData.Blas, sceneObjectRenderData.VertexBuffer, mesh.Vertices.size(), sceneObjectRenderData.IndexBuffer, mesh.Indices.size());
-			D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
-			D3D12_NAME_OBJECT(sceneObjectRenderData.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
-			m_sceneObjectRenderDataBuffer.push_back(sceneObjectRenderData);
+			// Then create the bottom-level acceleration structure.
+			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexBuffer, mesh.Vertices.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
+			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
+			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
+			m_meshes.push_back(d3d12Mesh);
+
+			// Lastly specify the instance data.
+			D3D12_RAYTRACING_INSTANCE_DESC desc =
+			{
+				.InstanceID = objectCount++,						// InstanceID in hlsl.
+				.InstanceMask = 1,									// Unique to dxr - can be used to mask out the execution of this *group* of geometry completely. See TraceRay for index - non-0 for inclusion.
+				.InstanceContributionToHitGroupIndex = 0,			// Used to specify which hitgroup in the SBT to execute.
+				.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE,
+				.AccelerationStructure = d3d12Mesh.Blas.Buffer->GetGPUVirtualAddress()
+			};
+
+			const DirectX::XMFLOAT3 euler(a_eulerRotation.x, a_eulerRotation.y, a_eulerRotation.z);
+			auto transform = DirectX::XMMatrixScaling(a_scale.x, a_scale.y, a_scale.z);
+			transform *= DirectX::XMMatrixRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&euler));
+			transform *= DirectX::XMMatrixTranslation(a_location.x, a_location.y, a_location.z);
+			XMStoreFloat3x4(reinterpret_cast<DirectX::XMFLOAT3X4*>(&desc.Transform), transform);
+
+			m_sceneObjectInstances.push_back(desc);
 		}
 	}
 
-	void Renderer::EndResourceLoading(std::shared_ptr<Scene>& a_pScene)
+	void Renderer::EndResourceLoading()
 	{
-		for (usize blasIdx = 0; blasIdx < m_sceneObjectRenderDataBuffer.size(); blasIdx++)
-		{
-			a_pScene->AddSceneObjectInstance(m_sceneObjectRenderDataBuffer[blasIdx].Blas);
-		}
-
+		m_forceTlasRebuild = true;
 		D3D12_CHECK(m_commandList->Close());
 		ID3D12CommandList* const lists[] = { m_commandList.Get() };
 		m_graphicsQueue->Handle->ExecuteCommandLists(1, lists);
