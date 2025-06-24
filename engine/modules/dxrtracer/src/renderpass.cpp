@@ -23,8 +23,8 @@ namespace dxray
 		const u32 descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		const CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable(a_execInfo.UavHeap->GetGPUDescriptorHandleForHeapStart(), a_execInfo.SwapchainIndex, descriptorSize);
 		dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
-		dxrCmdList->SetComputeRootShaderResourceView(1, a_execInfo.TlasBuffer->GetGPUVirtualAddress());
-		dxrCmdList->SetComputeRootConstantBufferView(2, a_execInfo.SceneCbv->GetGPUVirtualAddress());
+		dxrCmdList->SetComputeRootShaderResourceView(1, a_execInfo.TlasBufferAddr);
+		dxrCmdList->SetComputeRootConstantBufferView(2, a_execInfo.SceneCbvAddr);
 
 		// #note_renderPass: A ray dispatch configures the shader table, consisting of shader records which identify how the GPU can find the resources
 		// to invoke the attached shader. As the application currently only uses a global root signature these are sized to the shader identifier and aligned
@@ -142,7 +142,7 @@ namespace dxray
 
 		const D3D12_RAYTRACING_SHADER_CONFIG shaderConfig =
 		{
-			.MaxPayloadSizeInBytes = 20,
+			.MaxPayloadSizeInBytes = 24,
 			.MaxAttributeSizeInBytes = 8
 		};
 

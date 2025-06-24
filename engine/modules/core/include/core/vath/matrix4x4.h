@@ -88,7 +88,13 @@ namespace dxray::vath
 
 	template<typename T>
 	constexpr Matrix<4, 4, T>::Matrix(T a_x0, T a_y0, T a_z0, T a_w0, T a_x1, T a_y1, T a_z1, T a_w1, T a_x2, T a_y2, T a_z2, T a_w2, T a_x3, T a_y3, T a_z3, T a_w3) :
-		m_data{ ColumnType(a_x0, a_y0, a_z0, a_w0), ColumnType(a_x1, a_y1, a_z1, a_w1), ColumnType(a_x2, a_y2, a_z2, a_w2), ColumnType(a_x3, a_y3, a_z3, a_w3) }
+		m_data
+		{ 
+			ColumnType(a_x0, a_y0, a_z0, a_w0), 
+			ColumnType(a_x1, a_y1, a_z1, a_w1), 
+			ColumnType(a_x2, a_y2, a_z2, a_w2), 
+			ColumnType(a_x3, a_y3, a_z3, a_w3) 
+		}
 	{}
 
 	template<typename T>
@@ -340,26 +346,24 @@ namespace dxray::vath
 		const Vector<3, T> c2 = Cross(d, u) + s * w;
 		const Vector<3, T> c3 = Cross(u, c) - s * z;
 
-		return Matrix<4, 4, T>(
+		return (Matrix<4, 4, T>(
 			c0[0], c1[0], c2[0], c3[0],
 			c0[1], c1[1], c2[1], c3[1],
 			c0[2], c1[2], c2[2], c3[2],
 			-Dot(b, t), Dot(a, t), -Dot(d, s), Dot(c, s)
-		);
+		));
 	}
 
 	template<typename T>
 	constexpr Matrix<4, 4, T> Perspective(T a_fovInRad, T a_aspectRatio, T a_zNear, T a_zFar)
 	{
-		//#Todo: Implement proper perspective projection for multiple coordinate systems.
-		//This implementation supports 0 to 1 NDC Right-handed coordinate systems.
 		const T halfFov = std::tan(a_fovInRad / 2);
 
 		return Matrix<4, 4, T>(
 			static_cast<T>(1) / (a_aspectRatio * halfFov), 0, 0, 0,
 			0, static_cast<T>(1) / halfFov, 0, 0,
-			0, 0, a_zFar / (a_zNear - a_zFar), -static_cast<T>(1),
-			0, 0, -(a_zFar * a_zNear) / (a_zFar - a_zNear), 1
+			0, 0, -(a_zFar + a_zNear) / (a_zFar - a_zNear), -static_cast<T>(1),
+			0, 0, -(static_cast<T>(2) * a_zFar * a_zNear) / (a_zFar - a_zNear), 0
 		);
 	}
 
@@ -392,14 +396,12 @@ namespace dxray::vath
 		const Vector<3, T> right(Normalize(Cross(a_worldUp, forward)));
 		const Vector<3, T> up(Cross(forward, right));
 
-		Matrix<4, 4, T> lookAt(
-            right[0], up[0], -forward[0], static_cast<T>(0),
-            right[1], up[1], -forward[1], static_cast<T>(0),
-            right[2], up[2], -forward[2], static_cast<T>(0),
-			a_position.x, a_position.y, a_position.z, static_cast<T>(1)
+		return Matrix<4, 4, T>(
+			right[0], right[1], right[2], vath::Dot(right, -a_position),
+			up[0], up[1], up[2], vath::Dot(up, -a_position),
+			forward[0], forward[1], forward[2], vath::Dot(forward, -a_position),
+			static_cast<T>(0), static_cast<T>(0), static_cast<T>(0), static_cast<T>(1)
 		);
-
-		return lookAt;
 	}
 
 	template<typename T>
@@ -409,11 +411,11 @@ namespace dxray::vath
 		const Vector<3, T> right(Normalize(Cross(a_worldUp, forward)));
 		const Vector<3, T> up(Cross(forward, right));
 
-		Matrix<4, 4, T> lookAt(
-			right[0], up[0], forward[0], static_cast<T>(0),
-			right[1], up[1], forward[1], static_cast<T>(0),
-			right[2], up[2], forward[2], static_cast<T>(0),
-			a_position.x, a_position.y, a_position.z, static_cast<T>(1)
+		return Matrix<4, 4, T>(
+			right[0], right[1], right[2], vath::Dot(right, -a_position),
+			up[0], up[1], up[2], vath::Dot(up, -a_position),
+			-forward[0], -forward[1], -forward[2], vath::Dot(forward, -a_position),
+			static_cast<T>(0), static_cast<T>(0), static_cast<T>(0), static_cast<T>(1)
 		);
 	}
 }

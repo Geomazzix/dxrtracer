@@ -7,6 +7,7 @@ RWTexture2D<float4> OutRenderTarget : register(u0, space0);
 struct Payload
 {
     float3 Colour;
+    float T;
     bool AllowReflection; // #Todo: optimize this - can be turned into bitwise flags.
     bool Missed;
 };
@@ -17,14 +18,12 @@ void RayGeneration()
     const uint2 pixelIdx = DispatchRaysIndex().xy;
     const uint2 pixelTotal = DispatchRaysDimensions().xy;
 
-    float2 imagePlanePos = (pixelIdx + 0.5f) / pixelTotal * 2.0f - 1.0f;
-    imagePlanePos.y = -imagePlanePos.y;
+    float2 pixelCenter = pixelIdx + 0.5f;
+    float2 imagePlanePos = (pixelCenter / pixelTotal) * 2.0f - 1.0f;
     
-    float4 localRayDirection = mul(float4(imagePlanePos, SceneCB.CameraPosition.w, 1), SceneCB.ProjectionToWorld);
-    localRayDirection.xyz /= localRayDirection.w;
-    
-    const float3 rayOrigin = SceneCB.CameraPosition.xyz;
-    const float3 rayDir = localRayDirection.xyz - rayOrigin;
+    const float3 rayOrigin = mul(SceneCB.InverseView, float4(0, 0, 0, 1)).xyz;
+    const float4 target = mul(SceneCB.InverseProjection, float4(imagePlanePos.x, -imagePlanePos.y, 1, 1));
+    const float3 rayDir = mul(SceneCB.InverseView, float4(target.xyz, 0)).xyz;
     
     const RayDesc rayDesc =
     {
@@ -37,6 +36,7 @@ void RayGeneration()
     Payload rayPayload =
     {
         float3(0.0, 0.0, 0.0),
+        0.0f,
 		true,
 		false
     };
@@ -60,10 +60,15 @@ void HitFloor(inout Payload a_payload, float2 a_uv);
 [shader("closesthit")]
 void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a_attrib)
 {
+    a_payload.T += RayTCurrent();
+    
     switch (InstanceID())
     {
     case 0:
         HitFloor(a_payload, a_attrib.barycentrics);
+        break;
+    case 1:
+        HitMirror(a_payload, a_attrib.barycentrics);
         break;
     default:
         HitMesh(a_payload, a_attrib.barycentrics);
@@ -73,7 +78,8 @@ void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a
 
 void HitMesh(inout Payload a_payload, float2 a_uv)
 {
-    a_payload.Colour = 1.0f / float3(RayTCurrent(), RayTCurrent(), RayTCurrent()) * 0.3f;
+    a_payload.Colour = 1.0f - 1.0f / float3(a_payload.T, a_payload.T, a_payload.T);
+    
 }
 
 void HitMirror(inout Payload a_payload, float2 a_uv)
@@ -116,6 +122,7 @@ void HitFloor(inout Payload a_payload, float2 a_uv)
     Payload shadowPayload =
     {
         float3(0.0, 0.0, 0.0),
+        0.0f,
 		false,
 		false
     };

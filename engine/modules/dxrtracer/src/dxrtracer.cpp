@@ -31,8 +31,8 @@ bool EngineInitialize()
 	};
 	m_window = std::make_shared<WinApiWindow>(windowInfo);
 	
-	m_camera = std::make_unique<Camera>(vath::DegToRad(70.0f), static_cast<fp32>(m_windowSurfaceWidth) / m_windowSurfaceHeight, 0.1f, 1000.0f);
-	m_camera->LookAt(vath::Vector3f(2.0f, 5.0f, 0.0f), vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
+	m_camera = std::make_unique<Camera>(vath::DegToRad(45.0f), static_cast<fp32>(m_windowSurfaceWidth) / m_windowSurfaceHeight, 0.1f, 1000.0f);
+	m_camera->LookAt(vath::Vector3f(6.5f, 4.0f, -2.0f), vath::Vector3f(4.0f, 2.5f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
 
 	const RendererCreateInfo rendererInfo =
 	{
@@ -56,8 +56,8 @@ bool EngineInitialize()
 
 	m_renderer->BeginResourceLoading();
 	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
-	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(0.002f), modelLoader.GetModel());
-	//m_renderer->LoadModel(vath::Vector3f(0.0f, 2.0f, 1.0f), vath::Vector3f(1.8f, 0.0f, 0.0f), vath::Vector3f(3.0f), quad);
+	m_renderer->LoadModel(vath::Vector3f(1.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(3.0f, 0.1f, 3.0f), quad);
+	m_renderer->LoadModel(vath::Vector3f(0.0f), vath::Vector3f(0.0f), vath::Vector3f(0.008f), modelLoader.GetModel());
 	m_renderer->EndResourceLoading();
 
 	DXRAY_INFO("Initialization completed in: {}", m_appTime.GetElapsedSeconds());
@@ -67,7 +67,7 @@ bool EngineInitialize()
 
 void EngineTick(const fp32 a_dt)
 {
-	m_camera->LookAt(vath::Vector3f(2.0f + cosf(m_appTime.GetElapsedSeconds()) * 3.0f, 5.0f + sinf(m_appTime.GetElapsedSeconds()) * 3.0f, 0.0f), vath::Vector3f(0.0f));
+	//m_camera->LookAt(vath::Vector3f(2.0f + cosf(m_appTime.GetElapsedSeconds()) * 3.0f, 5.0f + sinf(m_appTime.GetElapsedSeconds()) * 3.0f, 0.0f), vath::Vector3f(0.0f));
 }
 
 void EngineLoop()
@@ -82,7 +82,7 @@ void EngineLoop()
 		prevFrameSample = m_appTime.GetElapsedSeconds();
 
 		EngineTick(dt);
-		m_renderer->Render(dt);
+		m_renderer->Render(m_appTime.GetElapsedSeconds());
 
 		elapsedInterval += dt;
 		++fps;

@@ -4,6 +4,7 @@
 #include "dxrtracer/modelLoader.h"
 #include "dxrtracer/uploadBuffer.h"
 #include "dxrtracer/camera.h"
+#include <core/vath/vector4.h>
 
 namespace dxray
 {
@@ -68,6 +69,7 @@ namespace dxray
 		WaitForFence(Fence->GetCompletedValue());
 	}
 
+	using namespace DirectX;
 
 	Renderer::Renderer(const RendererCreateInfo& a_createInfo) :
 		m_mainCamera(a_createInfo.MainCam),
@@ -90,6 +92,7 @@ namespace dxray
 		m_graphicsQueue->WaitIdle();
 	}
 
+
 	void Renderer::Render(const fp32 a_dt)
 	{
 		FrameResources& frameResources = m_frameResources[m_swapchainIndex];
@@ -101,22 +104,112 @@ namespace dxray
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
-		frameResources.SceneConstantBufferData.CameraPosition = m_mainCamera->Position;
-		frameResources.SceneConstantBufferData.ProjectionToWorld = m_mainCamera->GetViewProjectionMatrix();
+		frameResources.SceneConstantBufferData.View = vath::Transpose(m_mainCamera->GetViewMatrix());
+		frameResources.SceneConstantBufferData.InverseView = vath::Inverse(vath::Transpose(m_mainCamera->GetViewMatrix()));
+		frameResources.SceneConstantBufferData.Projection = vath::Transpose(m_mainCamera->GetProjectionMatrix());
+		frameResources.SceneConstantBufferData.InverseProjection = vath::Inverse(vath::Transpose(m_mainCamera->GetProjectionMatrix()));
+
+		// Initialize the view and projection inverse matrices.
+		using namespace DirectX;
+		XMVECTOR m_eye = { 6.5f, 4.0f, -2.0f, 0.0f};
+		XMVECTOR m_at = { 4.0f, 2.5f, 0.0f, 0.0f };
+		XMVECTOR m_up = { 0.0f, 1.0f, 0.0f, 0.0f };
+		
+		XMMATRIX view = XMMatrixLookAtRH(m_eye, m_at, m_up);
+		XMMATRIX proj = XMMatrixPerspectiveFovRH(XMConvertToRadians(45.0f), static_cast<fp32>(swapchainDesc.Width) / swapchainDesc.Height, 1.0f, 1000.0f);
+		XMMATRIX invView = XMMatrixInverse(nullptr, view);
+		XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
+		
+		XMFLOAT4X4 view4x4;
+		XMStoreFloat4x4(&view4x4, view);
+
+		XMFLOAT4X4 invView4x4;
+		XMStoreFloat4x4(&invView4x4, invView);
+
+		XMFLOAT4X4 invProj4x4;
+		XMStoreFloat4x4(&invProj4x4, invProj);
+
+		DXRAY_INFO("");
+		DXRAY_INFO("=================================================================================================");
+		DXRAY_INFO("DirectX::View");
+		for (u32 i = 0; i < 4; i++)
+		{
+			DXRAY_INFO("Row {}: {}, {}, {}, {}", i, 
+				view4x4.m[i][0], 
+				view4x4.m[i][1], 
+				view4x4.m[i][2], 
+				view4x4.m[i][3]);
+		}
+
+		DXRAY_INFO("Vath::View");
+		for (u32 i = 0; i < 4; i++)
+		{
+			DXRAY_INFO("Column {}: {}, {}, {}, {}", i, 
+				frameResources.SceneConstantBufferData.View[i][0],
+				frameResources.SceneConstantBufferData.View[i][1],
+				frameResources.SceneConstantBufferData.View[i][2],
+				frameResources.SceneConstantBufferData.View[i][3]);
+		}
+
+		DXRAY_INFO("=================================================================================================");
+		DXRAY_INFO("DirectX::InverseView");
+		for (u32 i = 0; i < 4; i++)
+		{
+			DXRAY_INFO("Row {}: {}, {}, {}, {}", i, 
+				invView4x4.m[i][0], 
+				invView4x4.m[i][1], 
+				invView4x4.m[i][2], 
+				invView4x4.m[i][3]);
+		}
+
+		DXRAY_INFO("Vath::InverseView");
+		for (u32 i = 0; i < 4; i++)
+		{
+			DXRAY_INFO("Column {}: {}, {}, {}, {}", i,
+				frameResources.SceneConstantBufferData.InverseView[i][0],
+				frameResources.SceneConstantBufferData.InverseView[i][1],
+				frameResources.SceneConstantBufferData.InverseView[i][2],
+				frameResources.SceneConstantBufferData.InverseView[i][3]);
+		}
+
+
+		DXRAY_INFO("=================================================================================================");
+		DXRAY_INFO("DirectX::InverseProjection");
+		for (u32 i = 0; i < 4; i++)
+		{
+			DXRAY_INFO("Row {}: {}, {}, {}, {}", i,
+				invProj4x4.m[i][0],
+				invProj4x4.m[i][1],
+				invProj4x4.m[i][2],
+				invProj4x4.m[i][3]);
+		}
+
+		DXRAY_INFO("Vath::InverseProjection");
+		for (u32 i = 0; i < 4; i++)
+		{
+			DXRAY_INFO("Column {}: {}, {}, {}, {}", i,
+				frameResources.SceneConstantBufferData.InverseProjection[i][0],
+				frameResources.SceneConstantBufferData.InverseProjection[i][1],
+				frameResources.SceneConstantBufferData.InverseProjection[i][2],
+				frameResources.SceneConstantBufferData.InverseProjection[i][3]);
+		}
+
+		DXRAY_INFO("=================================================================================================");
+
+		memcpy(&frameResources.SceneConstantBufferData.View, &view, sizeof(XMMATRIX));
+		memcpy(&frameResources.SceneConstantBufferData.Projection, &proj, sizeof(XMMATRIX));
+		memcpy(&frameResources.SceneConstantBufferData.InverseView, &invView, sizeof(XMMATRIX));
+		memcpy(&frameResources.SceneConstantBufferData.InverseProjection, &invProj, sizeof(XMMATRIX));
+
 		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + CalculateConstantBufferSize(sizeof(SceneConstantBuffer)) * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
 
-		m_forceTlasRebuild = true;
-		if (m_forceTlasRebuild)
-		{
-			UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
-			m_forceTlasRebuild = false;
-		}
+		UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
 		
 		const RenderPassExecuteInfo executionInfo = 
 		{
 			.UavHeap = m_uavHeap,
-			.TlasBuffer = frameResources.WorldTlas.Buffer,
-			.SceneCbv = m_cbvSceneHeap,
+			.TlasBufferAddr = frameResources.WorldTlas.Buffer->GetGPUVirtualAddress(),
+			.SceneCbvAddr = m_cbvSceneHeap->GetGPUVirtualAddress() + CalculateConstantBufferSize(sizeof(SceneConstantBuffer)) * m_swapchainIndex,
 			.SwapchainIndex = m_swapchainIndex,
 			.SurfaceWidth = swapchainDesc.Width,
 			.SurfaceHeight = swapchainDesc.Height
@@ -333,7 +426,6 @@ namespace dxray
 
 		D3D12_CHECK(m_device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_uavHeap)));
 		D3D12_NAME_OBJECT(m_uavHeap, std::format(L"UavDescriptorHeap"));
-
 		
 		// Scene constants
 		const D3D12_HEAP_PROPERTIES uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -342,7 +434,6 @@ namespace dxray
 		D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_cbvSceneHeap)));
 		D3D12_NAME_OBJECT(m_cbvSceneHeap, WString(L"CbvSceneHeap{}"));
 		D3D12_CHECK(m_cbvSceneHeap->Map(0, nullptr, &m_cbvSceneHeapAddr)); // Kept mapped for the lifetime of the application, values in here are nearly 100% to change every frame.
-
 
 		// Backbuffer dependent resources (i.e. the ones that need to exist x amount of times to account for in-flight/recording data).
 		m_uavCbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -357,8 +448,6 @@ namespace dxray
 
 			frameResources.SceneConstantBufferData =
 			{
-				.ProjectionToWorld = Matrix4x4f(),
-				.CameraPosition = vath::Vector3(),
 				.SkyColour = vath::Vector4f(0.24f, 0.44f, 0.72f, 1.0),
 				.SunDirection = vath::Vector4f(0.0f, 200.0f, 0.0f, 1.0f) // #Todo: Replace with direction - currently using position for the shadow ray description.
 			};
@@ -434,11 +523,10 @@ namespace dxray
 			};
 
 			const DirectX::XMFLOAT3 euler(a_eulerRotation.x, a_eulerRotation.y, a_eulerRotation.z);
-			auto transform = DirectX::XMMatrixScaling(a_scale.x, a_scale.y, a_scale.z);
+			DirectX::XMMATRIX transform = DirectX::XMMatrixScaling(a_scale.x, a_scale.y, a_scale.z);
 			transform *= DirectX::XMMatrixRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&euler));
 			transform *= DirectX::XMMatrixTranslation(a_location.x, a_location.y, a_location.z);
 			XMStoreFloat3x4(reinterpret_cast<DirectX::XMFLOAT3X4*>(&desc.Transform), transform);
-
 			m_sceneObjectInstances.push_back(desc);
 		}
 	}

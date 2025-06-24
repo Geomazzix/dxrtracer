@@ -18,8 +18,8 @@ namespace dxray
 	struct RenderPassExecuteInfo
 	{
 		ComPtr<ID3D12DescriptorHeap>& UavHeap;
-		ComPtr<ID3D12Resource>& TlasBuffer;
-		ComPtr<ID3D12Resource>& SceneCbv;
+		D3D12_GPU_VIRTUAL_ADDRESS TlasBufferAddr;
+		D3D12_GPU_VIRTUAL_ADDRESS SceneCbvAddr;
 
 		u32 SwapchainIndex;
 		u32 SurfaceWidth;

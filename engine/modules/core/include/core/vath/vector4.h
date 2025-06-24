@@ -22,7 +22,7 @@ namespace dxray::vath
 		constexpr explicit Vector(T a_scalar);
 		constexpr Vector(T a_x, T a_y, T a_z, T a_w);
 		constexpr Vector(T* a_pData);
-		constexpr Vector(const Vector<3, T>& a_rhs);
+		constexpr Vector(const Vector<3, T>& a_rhs, const T a_w = static_cast<T>(1));
 		~Vector<4, T>() = default;
 
 		constexpr Vector<4, T>(const Vector<4, T>& a_rhs) = default;
@@ -94,11 +94,11 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Vector<4, T>::Vector(const Vector<3, T>& a_rhs) :
+	constexpr Vector<4, T>::Vector(const Vector<3, T>& a_rhs, const T a_w) :
 		x(a_rhs.x),
 		y(a_rhs.y),
 		z(a_rhs.z),
-		w(1.0f)
+		w(a_w)
 	{}
 
 
