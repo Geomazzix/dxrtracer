@@ -3,6 +3,7 @@
 #include "dxrtracer/renderpass.h"
 #include "dxrtracer/modelLoader.h"
 #include "dxrtracer/uploadBuffer.h"
+#include "dxrtracer/camera.h"
 
 namespace dxray
 {
@@ -69,6 +70,7 @@ namespace dxray
 
 
 	Renderer::Renderer(const RendererCreateInfo& a_createInfo) :
+		m_mainCamera(a_createInfo.MainCam),
 		m_forceTlasRebuild(true),
 		m_useWarp(false),
 		m_swapchainIndex(0)
@@ -98,33 +100,10 @@ namespace dxray
 
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
-		
-		//===================================================================================================
-		// #Todo: Move the camera update code into a camera class that can be added to the scene.
 
-		static float time = 0.0f;
-		time += a_dt;
-
-		frameResources.SceneConstantBufferData.CameraPosition.x = 2.0f;//cosf(time) * 3.0f;
-		frameResources.SceneConstantBufferData.CameraPosition.y = 5.0f;// + sinf(time) * 3.0f;
-		frameResources.SceneConstantBufferData.CameraPosition.z = 0.0f;
-		frameResources.SceneConstantBufferData.CameraPosition.w = 0.0f;//sinf(time) * 0.5f - 1.3f;
-
-		// #Todo: Test the perspective matrix - looks to be rowmajor by default?
-		const vath::Matrix4x4f cameraViewRH = vath::Transpose(vath::LookAtRH(Vector3f(frameResources.SceneConstantBufferData.CameraPosition), vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f)));
-		const vath::Matrix4x4f perspectiveFovRH = vath::Perspective(vath::DegToRad(70.0f), static_cast<fp32>(swapchainDesc.Width) / swapchainDesc.Height, 0.1f, 100.0f);
-		frameResources.SceneConstantBufferData.ProjectionToWorld = Inverse(cameraViewRH * perspectiveFovRH);
-
-		//===================================================================================================
-
-		//===================================================================================================
-		// #Todo: Move the constant buffer data update into the renderpass most likely... it doesn't really belong to the renderer as post 
-		// processing shouldn't concern itself with the scene data.
-
-		const usize sceneCbvDataSize = CalculateConstantBufferSize(sizeof(SceneConstantBuffer));
-		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + sceneCbvDataSize * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
-
-		//===================================================================================================
+		frameResources.SceneConstantBufferData.CameraPosition = m_mainCamera->Position;
+		frameResources.SceneConstantBufferData.ProjectionToWorld = m_mainCamera->GetViewProjectionMatrix();
+		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + CalculateConstantBufferSize(sizeof(SceneConstantBuffer)) * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
 
 		m_forceTlasRebuild = true;
 		if (m_forceTlasRebuild)

@@ -3,6 +3,7 @@
 #include "dxrtracer/modelLoader.h"
 #include "dxrtracer/renderer.h"
 #include "dxrtracer/renderpass.h"
+#include "dxrtracer/camera.h"
 
 #include <core/vath/vath.h>
 #include <core/time/stopwatch.h>
@@ -10,14 +11,15 @@
 using namespace dxray;
 
 //const Path modelPath = Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/box/glTF/box.gltf";
-const Path modelPath = Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf";
-//const Path modelPath = Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf";
+//const Path modelPath = Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/waterbottle/glTF/WaterBottle.gltf";
+const Path modelPath = Path(ENGINE_ROOT_DIRECTORY) / "samples/assets/models/sponza/glTF/Sponza.gltf";
 
 u32 m_windowSurfaceWidth = 1920;
 u32 m_windowSurfaceHeight = 1080;
 
 Stopwatchf m_appTime;
 std::shared_ptr<WinApiWindow> m_window;
+std::shared_ptr<Camera> m_camera;
 std::unique_ptr<Renderer> m_renderer;
 
 bool EngineInitialize()
@@ -28,9 +30,13 @@ bool EngineInitialize()
 		.Rect = dxray::vath::Rectu32(0, 0, m_windowSurfaceWidth, m_windowSurfaceHeight)
 	};
 	m_window = std::make_shared<WinApiWindow>(windowInfo);
+	
+	m_camera = std::make_unique<Camera>(vath::DegToRad(70.0f), static_cast<fp32>(m_windowSurfaceWidth) / m_windowSurfaceHeight, 0.1f, 1000.0f);
+	m_camera->LookAt(vath::Vector3f(2.0f, 5.0f, 0.0f), vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
 
 	const RendererCreateInfo rendererInfo =
 	{
+		.MainCam = m_camera,
 		.SwapchainInfo =
 		{
 			.SurfaceWidth = m_windowSurfaceWidth,
@@ -39,7 +45,7 @@ bool EngineInitialize()
 		}
 	};
 	m_renderer = std::make_unique<Renderer>(rendererInfo);
-
+	
 	AssimpModelLoader modelLoader(modelPath);
 	if (!modelLoader.LoadModel())
 	{
@@ -49,14 +55,19 @@ bool EngineInitialize()
 	const Model& quad = BuildQuadModel();
 
 	m_renderer->BeginResourceLoading();
-	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(3.0f), modelLoader.GetModel());
+	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
+	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(0.002f), modelLoader.GetModel());
 	//m_renderer->LoadModel(vath::Vector3f(0.0f, 2.0f, 1.0f), vath::Vector3f(1.8f, 0.0f, 0.0f), vath::Vector3f(3.0f), quad);
-	//m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
 	m_renderer->EndResourceLoading();
 
 	DXRAY_INFO("Initialization completed in: {}", m_appTime.GetElapsedSeconds());
 
 	return true;
+}
+
+void EngineTick(const fp32 a_dt)
+{
+	m_camera->LookAt(vath::Vector3f(2.0f + cosf(m_appTime.GetElapsedSeconds()) * 3.0f, 5.0f + sinf(m_appTime.GetElapsedSeconds()) * 3.0f, 0.0f), vath::Vector3f(0.0f));
 }
 
 void EngineLoop()
@@ -70,6 +81,7 @@ void EngineLoop()
 		const fp32 dt = m_appTime.GetElapsedSeconds() - prevFrameSample;
 		prevFrameSample = m_appTime.GetElapsedSeconds();
 
+		EngineTick(dt);
 		m_renderer->Render(dt);
 
 		elapsedInterval += dt;

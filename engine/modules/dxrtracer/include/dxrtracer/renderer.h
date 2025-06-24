@@ -9,6 +9,7 @@ namespace dxray
 {
 	class WinApiWindow;
 	class RenderPass;
+	struct Camera;
 	struct Model;
 
 
@@ -83,6 +84,7 @@ namespace dxray
 	 */
 	struct RendererCreateInfo
 	{
+		std::shared_ptr<Camera> MainCam;
 		SwapchainCreateInfo SwapchainInfo;
 	};
 
@@ -109,6 +111,7 @@ namespace dxray
 		void CreateSwapchain(const SwapchainCreateInfo& a_swapchainCreateInfo);
 		void CreateFrameResources();
 
+		std::shared_ptr<Camera> m_mainCamera;
 		Array<D3D12Mesh> m_meshes;
 		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;
 

@@ -60,29 +60,20 @@ void HitFloor(inout Payload a_payload, float2 a_uv);
 [shader("closesthit")]
 void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a_attrib)
 {
-    //switch (InstanceID())
-    //{
-    //case 0:
-    //    HitMesh(a_payload, a_attrib.barycentrics);
-    //    break;
-    //case 1:
-    //    HitMirror(a_payload, a_attrib.barycentrics);
-    //    break;
-    //case 2:
-    //    HitFloor(a_payload, a_attrib.barycentrics);
-    //    break;
-    //default:
-    //    a_payload.Colour = float3(1, 0, 1);
-    //    break;
-    //}
-    
-    HitMesh(a_payload, a_attrib.barycentrics);
-
+    switch (InstanceID())
+    {
+    case 0:
+        HitFloor(a_payload, a_attrib.barycentrics);
+        break;
+    default:
+        HitMesh(a_payload, a_attrib.barycentrics);
+        break;
+    }
 }
 
 void HitMesh(inout Payload a_payload, float2 a_uv)
 {
-    a_payload.Colour = float3(RayTCurrent(), RayTCurrent(), RayTCurrent());
+    a_payload.Colour = 1.0f / float3(RayTCurrent(), RayTCurrent(), RayTCurrent()) * 0.3f;
 }
 
 void HitMirror(inout Payload a_payload, float2 a_uv)
