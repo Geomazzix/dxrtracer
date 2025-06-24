@@ -23,7 +23,7 @@ namespace dxray
 			ZNear(a_zNear),
 			ZFar(a_zFar)
 		{
-			m_projection = vath::Perspective(Fov, AspectRatio, ZNear, ZFar);
+			m_projection = vath::PerspectiveFovRH(Fov, AspectRatio, ZNear, ZFar);
 		}
 
 		~Camera() = default;

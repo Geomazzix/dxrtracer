@@ -223,6 +223,9 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Matrix<4, 4, T> operator*(const Matrix<4, 4, T>& a_lhs, const Matrix<4, 4, T>& a_rhs)
 	{
+		// A = n x 
+		// Forumla: AB[i][j] = SUM(
+
 		return Matrix<4, 4, T>(
 			//Col0
 			a_lhs[0][0] * a_rhs[0][0] + a_lhs[1][0] * a_rhs[0][1] + a_lhs[2][0] * a_rhs[0][2] + a_lhs[3][0] * a_rhs[0][3],
@@ -242,7 +245,7 @@ namespace dxray::vath
 			a_lhs[0][2] * a_rhs[2][0] + a_lhs[1][2] * a_rhs[2][1] + a_lhs[2][2] * a_rhs[2][2] + a_lhs[3][2] * a_rhs[2][3],
 			a_lhs[0][3] * a_rhs[2][0] + a_lhs[1][3] * a_rhs[2][1] + a_lhs[2][3] * a_rhs[2][2] + a_lhs[3][3] * a_rhs[2][3],
 		
-			//Col2
+			//Col3
 			a_lhs[0][0] * a_rhs[3][0] + a_lhs[1][0] * a_rhs[3][1] + a_lhs[2][0] * a_rhs[3][2] + a_lhs[3][0] * a_rhs[3][3],
 			a_lhs[0][1] * a_rhs[3][0] + a_lhs[1][1] * a_rhs[3][1] + a_lhs[2][1] * a_rhs[3][2] + a_lhs[3][1] * a_rhs[3][3],
 			a_lhs[0][2] * a_rhs[3][0] + a_lhs[1][2] * a_rhs[3][1] + a_lhs[2][2] * a_rhs[3][2] + a_lhs[3][2] * a_rhs[3][3],
@@ -320,50 +323,55 @@ namespace dxray::vath
 	constexpr Matrix<4, 4, T> Inverse(const Matrix<4, 4, T>& a_rhs)
 	{
 		//#Source: Foundations of game engine development volume 1, chapter 1.7.
+
+		// Take the top 3 row column vectors (3 components).
 		const Vector<3, T>& a = a_rhs[0];
 		const Vector<3, T>& b = a_rhs[1];
 		const Vector<3, T>& c = a_rhs[2];
 		const Vector<3, T>& d = a_rhs[3];
 
-		const T& x = a_rhs[3][0];
-		const T& y = a_rhs[3][1];
-		const T& z = a_rhs[3][2];
+		// Take the remaining row.
+		const T& x = a_rhs[0][3];
+		const T& y = a_rhs[1][3];
+		const T& z = a_rhs[2][3];
 		const T& w = a_rhs[3][3];
 
+		// Define the following vectors to determine the determinant.
 		Vector<3, T> s = Cross(a, b);
 		Vector<3, T> t = Cross(c, d);
 		Vector<3, T> u = a * y - b * x;
 		Vector<3, T> v = c * w - d * z;
-
-		T invDet = static_cast<T>(1) / (Dot(s, v) + Dot(t, u));
+		
+		const T invDet = static_cast<T>(1) / (Dot(s, v) + Dot(t, u));	
 		s *= invDet;
 		t *= invDet;
 		u *= invDet;
 		v *= invDet;
 
-		const Vector<3, T> c0 = Cross(b, v) + t * y;
-		const Vector<3, T> c1 = Cross(v, a) - t * x;
-		const Vector<3, T> c2 = Cross(d, u) + s * w;
-		const Vector<3, T> c3 = Cross(u, c) - s * z;
+		const Vector<3, T> r0 = Cross(b, v) + t * y;
+		const Vector<3, T> r1 = Cross(v, a) - t * x;
+		const Vector<3, T> r2 = Cross(d, u) + s * w;
+		const Vector<3, T> r3 = Cross(u, c) - s * z;
 
-		return (Matrix<4, 4, T>(
-			c0[0], c1[0], c2[0], c3[0],
-			c0[1], c1[1], c2[1], c3[1],
-			c0[2], c1[2], c2[2], c3[2],
+		return Matrix<4, 4, T>(
+			r0.x, r1.x, r2.x, r3.x,
+			r0.y, r1.y, r2.y, r3.y,
+			r0.z, r1.z, r2.z, r3.z,
 			-Dot(b, t), Dot(a, t), -Dot(d, s), Dot(c, s)
-		));
+		);
 	}
 
 	template<typename T>
-	constexpr Matrix<4, 4, T> Perspective(T a_fovInRad, T a_aspectRatio, T a_zNear, T a_zFar)
+	constexpr Matrix<4, 4, T> PerspectiveFovRH(T a_fovInRad, T a_aspectRatio, T a_zNear, T a_zFar)
 	{
-		const T halfFov = std::tan(a_fovInRad / 2);
+		const T focalLength = std::tan(a_fovInRad / 2);
+		const T range = -a_zFar / (a_zFar - a_zNear);
 
 		return Matrix<4, 4, T>(
-			static_cast<T>(1) / (a_aspectRatio * halfFov), 0, 0, 0,
-			0, static_cast<T>(1) / halfFov, 0, 0,
-			0, 0, -(a_zFar + a_zNear) / (a_zFar - a_zNear), -static_cast<T>(1),
-			0, 0, -(static_cast<T>(2) * a_zFar * a_zNear) / (a_zFar - a_zNear), 0
+			static_cast<T>(1) / (a_aspectRatio * focalLength), 0, 0, 0,
+			0, static_cast<T>(1) / focalLength, 0, 0,
+			0, 0, range, range * a_zNear,
+			0, 0, -static_cast<T>(1), 0
 		);
 	}
 
@@ -397,9 +405,9 @@ namespace dxray::vath
 		const Vector<3, T> up(Cross(forward, right));
 
 		return Matrix<4, 4, T>(
-			right[0], right[1], right[2], vath::Dot(right, -a_position),
-			up[0], up[1], up[2], vath::Dot(up, -a_position),
-			forward[0], forward[1], forward[2], vath::Dot(forward, -a_position),
+			right[0], right[1], right[2], -vath::Dot(right, a_position),
+			up[0], up[1], up[2], -vath::Dot(up, a_position),
+			forward[0], forward[1], forward[2], -vath::Dot(forward, a_position),
 			static_cast<T>(0), static_cast<T>(0), static_cast<T>(0), static_cast<T>(1)
 		);
 	}
@@ -412,9 +420,9 @@ namespace dxray::vath
 		const Vector<3, T> up(Cross(forward, right));
 
 		return Matrix<4, 4, T>(
-			right[0], right[1], right[2], vath::Dot(right, -a_position),
-			up[0], up[1], up[2], vath::Dot(up, -a_position),
-			-forward[0], -forward[1], -forward[2], vath::Dot(forward, -a_position),
+			right[0], right[1], right[2], -vath::Dot(right, a_position),
+			up[0], up[1], up[2], -vath::Dot(up, a_position),
+			-forward[0], -forward[1], -forward[2], -vath::Dot(forward, a_position),
 			static_cast<T>(0), static_cast<T>(0), static_cast<T>(0), static_cast<T>(1)
 		);
 	}

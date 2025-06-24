@@ -218,7 +218,7 @@ namespace dxray::vath
 	template<typename T>
 	constexpr bool operator==(const Vector<2, T>& a_lhs, const Vector<2, T>& a_rhs)
 	{
-		return a_lhs[0] == a_rhs[0] && a_lhs[1] == a_rhs[1];
+		return abs(a_lhs[0] - a_rhs[0]) <= vath::Epsilon<T>() && abs(a_lhs[1] - a_rhs[1]) <= vath::Epsilon<T>();
 	}
 
 	template<typename T>

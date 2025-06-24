@@ -22,7 +22,7 @@ void RayGeneration()
     float2 imagePlanePos = (pixelCenter / pixelTotal) * 2.0f - 1.0f;
     
     const float3 rayOrigin = mul(SceneCB.InverseView, float4(0, 0, 0, 1)).xyz;
-    const float4 target = mul(SceneCB.InverseProjection, float4(imagePlanePos.x, -imagePlanePos.y, 1, 1));
+    const float4 target = mul(SceneCB.InverseProjection, float4(imagePlanePos.x, -imagePlanePos.y, -1, 1));
     const float3 rayDir = mul(SceneCB.InverseView, float4(target.xyz, 0)).xyz;
     
     const RayDesc rayDesc =
@@ -78,8 +78,7 @@ void ClosestHit(inout Payload a_payload, BuiltInTriangleIntersectionAttributes a
 
 void HitMesh(inout Payload a_payload, float2 a_uv)
 {
-    a_payload.Colour = 1.0f - 1.0f / float3(a_payload.T, a_payload.T, a_payload.T);
-    
+    a_payload.Colour = lerp(float3(0.4f, 0.4f, 0.4f), float3(0.0f, 0.0f, 0.0f), 1.0f / a_payload.T);
 }
 
 void HitMirror(inout Payload a_payload, float2 a_uv)

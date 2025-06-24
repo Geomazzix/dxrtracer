@@ -68,9 +68,15 @@ TEST(Vector3, Division)
 
 TEST(Vector3, Cross)
 {
-	Vector3 v0 = { 0, 0, 1 };
-	Vector3 v1 = { 1, 0, 0 };
-	Vector3 v2 = Cross(v0, v1);
+	Vector3 i = { 1, 0, 0 };
+	Vector3 j = { 0, 1, 0 };
+	Vector3 k = { 0, 0, 1 };
 
-	EXPECT_EQ(v2, Vector3(0, 1, 0));
+	Vector3 v1 = Cross(i, j);
+	Vector3 v2 = Cross(j, k);
+	Vector3 v3 = Cross(k, i);
+
+	EXPECT_EQ(v1, k);
+	EXPECT_EQ(v2, i);
+	EXPECT_EQ(v3, j);
 }
