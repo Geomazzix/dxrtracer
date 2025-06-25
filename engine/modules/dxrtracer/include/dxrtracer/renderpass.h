@@ -21,6 +21,11 @@ namespace dxray
 		D3D12_GPU_VIRTUAL_ADDRESS TlasBufferAddr;
 		D3D12_GPU_VIRTUAL_ADDRESS SceneCbvAddr;
 
+		ComPtr<ID3D12DescriptorHeap> GeometryVertexPositionAttribDescriptorHeap;
+		ComPtr<ID3D12DescriptorHeap> GeometryVertexNormalAttribDescriptorHeap;
+		ComPtr<ID3D12DescriptorHeap> GeometryVertexUvCoordAttribDescriptorHeap;
+		ComPtr<ID3D12DescriptorHeap> GeometryVertexAttribDescriptorHeap;
+
 		u32 SwapchainIndex;
 		u32 SurfaceWidth;
 		u32 SurfaceHeight;

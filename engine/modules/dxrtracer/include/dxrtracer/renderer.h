@@ -29,8 +29,14 @@ namespace dxray
 	*/
 	struct D3D12Mesh
 	{
-		ComPtr<ID3D12Resource> VertexPositions = nullptr;
+		ComPtr<ID3D12Resource> VertexPositionAttribBuffer = nullptr;
+		ComPtr<ID3D12Resource> VertexNormalAttribBuffer = nullptr;
+		ComPtr<ID3D12Resource> VertexUvAttribBuffer = nullptr;
+		usize VertexCount = 0;
+
 		ComPtr<ID3D12Resource> IndexBuffer = nullptr;
+		usize IndexCount = 0;
+
 		BottomLevelAccelerationStructure Blas;
 	};
 

@@ -20,6 +20,7 @@ typedef float4x4 Matrix4x4f;
 #include <core/vath/vath.h>
 // Downside of this framework needing this bridge. With a lot of effort and extra time this can be abstracted away, this is outside of the scope of the goals of this project though.
 using namespace dxray::vath;
+using namespace dxray;
 
 #endif
 

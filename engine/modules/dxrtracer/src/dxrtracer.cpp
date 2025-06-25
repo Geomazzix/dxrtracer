@@ -54,7 +54,7 @@ bool EngineInitialize()
 
 	m_renderer->BeginResourceLoading();
 	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
-	m_renderer->LoadModel(vath::Vector3f(-6.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(15.0f, 0.1f, 8.0f), quad);
+	m_renderer->LoadModel(vath::Vector3f(-6.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(16.0f, 0.1f, 12.0f), quad);
 	m_renderer->LoadModel(vath::Vector3f(0.0f), vath::Vector3f(0.0f), vath::Vector3f(0.008f), modelLoader.GetModel());
 	m_renderer->EndResourceLoading();
 

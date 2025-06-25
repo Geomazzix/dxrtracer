@@ -405,15 +405,23 @@ namespace dxray
 		{
 			D3D12Mesh d3d12Mesh;
 		
-			// Create the data buffers.
-			CreateReadBackBuffer(m_device, d3d12Mesh.VertexPositions, mesh.Positions.data(), mesh.Positions.size() * sizeof(Vector3f));
-			D3D12_NAME_OBJECT(d3d12Mesh.VertexPositions, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
+			// Create the data attribute buffers.
+			d3d12Mesh.VertexCount = mesh.Positions.size();
+			CreateReadBackBuffer(m_device, d3d12Mesh.VertexPositionAttribBuffer, mesh.Positions.data(), mesh.Positions.size() * sizeof(Vector3f));
+			D3D12_NAME_OBJECT(d3d12Mesh.VertexPositionAttribBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
 
+			CreateReadBackBuffer(m_device, d3d12Mesh.VertexNormalAttribBuffer, mesh.Normals.data(), mesh.Normals.size() * sizeof(Vector3f));
+			D3D12_NAME_OBJECT(d3d12Mesh.VertexNormalAttribBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
+
+			CreateReadBackBuffer(m_device, d3d12Mesh.VertexUvAttribBuffer, mesh.Positions.data(), mesh.Positions.size() * sizeof(Vector2f));
+			D3D12_NAME_OBJECT(d3d12Mesh.VertexUvAttribBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
+
+			d3d12Mesh.IndexCount = mesh.Indices.size();
 			CreateReadBackBuffer(m_device, d3d12Mesh.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
 			D3D12_NAME_OBJECT(d3d12Mesh.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
 
 			// Then create the bottom-level acceleration structure.
-			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexPositions, mesh.Positions.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
+			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexPositionAttribBuffer, mesh.Positions.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
 			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
 			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
 			m_meshes.push_back(d3d12Mesh);
@@ -428,6 +436,7 @@ namespace dxray
 				.AccelerationStructure = d3d12Mesh.Blas.Buffer->GetGPUVirtualAddress()
 			};
 
+			// #Todo: Replace with Vath, get rid of all DirectX math.
 			const DirectX::XMFLOAT3 euler(a_eulerRotation.x, a_eulerRotation.y, a_eulerRotation.z);
 			DirectX::XMMATRIX transform = DirectX::XMMatrixScaling(a_scale.x, a_scale.y, a_scale.z);
 			transform *= DirectX::XMMatrixRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&euler));

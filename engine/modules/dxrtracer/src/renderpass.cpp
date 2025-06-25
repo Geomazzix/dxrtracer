@@ -1,4 +1,5 @@
 #include "dxrtracer/renderpass.h"
+#include "dxrtracer/shaderConstructs.h"
 #include "dxrtracer/shaderCompiler.h"
 
 namespace dxray
@@ -61,8 +62,9 @@ namespace dxray
 
 	void RenderPass::CreateRayTraceDemoRootSig()
 	{
+		// #Todo: Include the UAV into the bindless table as all DXR capable GPUs support bindless resource tier 3.
 		CD3DX12_DESCRIPTOR_RANGE uavRange;
-		uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+		uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
 
 		FixedArray<CD3DX12_ROOT_PARAMETER, 3> rootParams;
 		rootParams[0].InitAsDescriptorTable(1, &uavRange);
@@ -70,7 +72,7 @@ namespace dxray
 		rootParams[2].InitAsConstantBufferView(0, 0);
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
-		rootSigDesc.Init_1_0(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+		rootSigDesc.Init_1_0(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
 
 		//#Todo: Add proper error checking on the return blob.
 		ComPtr<ID3DBlob> blob = nullptr;
@@ -142,7 +144,7 @@ namespace dxray
 
 		const D3D12_RAYTRACING_SHADER_CONFIG shaderConfig =
 		{
-			.MaxPayloadSizeInBytes = 24,
+			.MaxPayloadSizeInBytes = sizeof(HitInfo),
 			.MaxAttributeSizeInBytes = 8
 		};
 
