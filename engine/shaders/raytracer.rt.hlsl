@@ -15,15 +15,19 @@ struct Payload
 [shader("raygeneration")]
 void RayGeneration()
 {
-    const uint2 pixelIdx = DispatchRaysIndex().xy;
-    const uint2 pixelTotal = DispatchRaysDimensions().xy;
+    const uint2 pixel = DispatchRaysIndex().xy;
+    const uint2 resolution = DispatchRaysDimensions().xy;
 
-    float2 pixelCenter = pixelIdx + 0.5f;
-    float2 imagePlanePos = (pixelCenter / pixelTotal) * 2.0f - 1.0f;
+    const float2 imagePlanePos = ((pixel + 0.5f) / resolution) * 2.0f - 1.0f;
+    const float aspectRatio = SceneCB.Projection[1][1] / SceneCB.Projection[0][0];
+    const float tanHalfFovY = 1.0f / SceneCB.Projection[1][1];
     
-    const float3 rayOrigin = mul(SceneCB.InverseView, float4(0, 0, 0, 1)).xyz;
-    const float4 target = mul(SceneCB.InverseProjection, float4(imagePlanePos.x, -imagePlanePos.y, -1, 1));
-    const float3 rayDir = mul(SceneCB.InverseView, float4(target.xyz, 0)).xyz;
+    const float3 rayOrigin = SceneCB.View[3].xyz;
+    const float3 rayDir = normalize(
+        (imagePlanePos.x * SceneCB.View[0].xyz * tanHalfFovY * aspectRatio) -
+        (imagePlanePos.y * SceneCB.View[1].xyz * tanHalfFovY) +
+        SceneCB.View[2].xyz
+    );
     
     const RayDesc rayDesc =
     {
@@ -43,7 +47,7 @@ void RayGeneration()
 
     TraceRay(SceneTlas, RAY_FLAG_NONE, 0xFF, 0, 0, 0, rayDesc, rayPayload);
 
-    OutRenderTarget[pixelIdx] = float4(rayPayload.Colour, 1);
+    OutRenderTarget[pixel] = float4(rayPayload.Colour, 1);
 }
 
 [shader("miss")]

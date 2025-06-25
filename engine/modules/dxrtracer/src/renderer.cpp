@@ -104,11 +104,8 @@ namespace dxray
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
-		frameResources.SceneConstantBufferData.View = vath::Transpose(m_mainCamera->GetViewMatrix());
-		frameResources.SceneConstantBufferData.InverseView = vath::Inverse(vath::Transpose(m_mainCamera->GetViewMatrix()));
-		frameResources.SceneConstantBufferData.Projection = vath::Transpose(m_mainCamera->GetProjectionMatrix());
-		frameResources.SceneConstantBufferData.InverseProjection = vath::Inverse(vath::Transpose(m_mainCamera->GetProjectionMatrix()));
-
+		frameResources.SceneConstantBufferData.View = vath::Inverse(m_mainCamera->GetViewMatrix());
+		frameResources.SceneConstantBufferData.Projection = m_mainCamera->GetProjectionMatrix();
 		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + CalculateConstantBufferSize(sizeof(SceneConstantBuffer)) * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
 
 		UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
@@ -409,13 +406,14 @@ namespace dxray
 			D3D12Mesh d3d12Mesh;
 		
 			// Create the data buffers.
-			CreateReadBackBuffer(m_device, d3d12Mesh.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * Vertex::Stride);
-			D3D12_NAME_OBJECT(d3d12Mesh.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_buffer"));
+			CreateReadBackBuffer(m_device, d3d12Mesh.VertexPositions, mesh.Positions.data(), mesh.Positions.size() * sizeof(Vector3f));
+			D3D12_NAME_OBJECT(d3d12Mesh.VertexPositions, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
+
 			CreateReadBackBuffer(m_device, d3d12Mesh.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
 			D3D12_NAME_OBJECT(d3d12Mesh.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
 
 			// Then create the bottom-level acceleration structure.
-			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexBuffer, mesh.Vertices.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
+			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexPositions, mesh.Positions.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
 			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
 			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
 			m_meshes.push_back(d3d12Mesh);

@@ -52,22 +52,26 @@ namespace dxray
 	{
 		Mesh mesh;
 
-		mesh.Vertices.reserve(a_pMesh->mNumVertices);
+		mesh.Positions.reserve(a_pMesh->mNumVertices);
 		for (usize vertexIdx = 0; vertexIdx < a_pMesh->mNumVertices; ++vertexIdx)
 		{
-			Vertex vertex;
+			DXRAY_ASSERT(a_pMesh->HasPositions());
+
 			aiVector3f position = a_pMesh->mVertices[vertexIdx];
-			vertex.Position = { position.x, position.y, position.z };
+			mesh.Positions.push_back({ position.x, position.y, position.z });
 
-			// #Note: Unsure whether precalulated normals are usable in dxr? - if so I haven't figured out how yet.
-			// Perhaps they are embedded into the Blas?
-			//if (a_pMesh->HasNormals())
-			//{
-			//	//aiVector3f normal = a_pMesh->mNormals[vertexIdx];
-			//	//vertex.Normals = { normal.x, normal.y, normal.z };
-			//}
+			if (a_pMesh->HasNormals())
+			{
+				aiVector3f normal = a_pMesh->mNormals[vertexIdx];
+				mesh.Normals.push_back({ normal.x, normal.y, normal.z });
+			}
 
-			mesh.Vertices.push_back(vertex);
+			// #Todo: support more than one UV channel.
+			if (a_pMesh->HasTextureCoords(0))
+			{
+				aiVector3D uvCoord = a_pMesh->mTextureCoords[0][vertexIdx];
+				mesh.Uvs.push_back({ uvCoord.x, uvCoord.y });
+			}
 		}
 
 		mesh.Indices.reserve(a_pMesh->mNumFaces * 3); // Always force triangulation when importing.

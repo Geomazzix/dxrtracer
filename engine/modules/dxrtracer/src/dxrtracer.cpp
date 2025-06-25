@@ -29,11 +29,9 @@ bool EngineInitialize()
 		.Title = PROJECT_NAME,
 		.Rect = dxray::vath::Rectu32(0, 0, m_windowSurfaceWidth, m_windowSurfaceHeight)
 	};
-	m_window = std::make_shared<WinApiWindow>(windowInfo);
+	m_window = std::make_shared<WinApiWindow>(windowInfo);	
+	m_camera = std::make_unique<Camera>(vath::DegToRad(70.0f), static_cast<fp32>(m_windowSurfaceWidth) / m_windowSurfaceHeight, 0.1f, 1000.0f);
 	
-	m_camera = std::make_unique<Camera>(vath::DegToRad(45.0f), static_cast<fp32>(m_windowSurfaceWidth) / m_windowSurfaceHeight, 0.1f, 1000.0f);
-	m_camera->LookAt(vath::Vector3f(6.5f, 4.0f, 0.0f), vath::Vector3f(4.0f, 2.5f, 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
-
 	const RendererCreateInfo rendererInfo =
 	{
 		.MainCam = m_camera,
@@ -56,7 +54,7 @@ bool EngineInitialize()
 
 	m_renderer->BeginResourceLoading();
 	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
-	m_renderer->LoadModel(vath::Vector3f(-6.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(8.0f, 0.1f, 8.0f), quad);
+	m_renderer->LoadModel(vath::Vector3f(-6.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(15.0f, 0.1f, 8.0f), quad);
 	m_renderer->LoadModel(vath::Vector3f(0.0f), vath::Vector3f(0.0f), vath::Vector3f(0.008f), modelLoader.GetModel());
 	m_renderer->EndResourceLoading();
 
@@ -67,7 +65,7 @@ bool EngineInitialize()
 
 void EngineTick(const fp32 a_dt)
 {
-	m_camera->LookAt(vath::Vector3f(5.0f, 3.0f, 0.0f), vath::Vector3f(-4.0f, 3.5f + sinf(m_appTime.GetElapsedSeconds()), 0.0f));
+	m_camera->LookAt(vath::Vector3f(5.0f, 3.0f, 0.0f), vath::Vector3f(-4.0f, sinf(m_appTime.GetElapsedSeconds()), 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
 }
 
 void EngineLoop()

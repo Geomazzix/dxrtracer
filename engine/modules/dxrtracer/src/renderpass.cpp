@@ -207,24 +207,8 @@ namespace dxray
 	{
 		// #note_renderpass: Currently hard coded once/if the shader file splits up in multiple files for each hit group this will not be hardcoded anymore.
 		const u32 NumInternalShaders = 3; //raygen, closesthit and miss.
-		const D3D12_RESOURCE_DESC resourceDesc =
-		{
-			.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
-			.Alignment = 0,
-			.Width = NumInternalShaders * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT,
-			.Height = 1,
-			.DepthOrArraySize = 1,
-			.MipLevels = 1,
-			.Format = DXGI_FORMAT_UNKNOWN,
-			.SampleDesc = { 1, 0 },
-			.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-			.Flags = D3D12_RESOURCE_FLAG_NONE
-		};
-
-		const D3D12_HEAP_PROPERTIES heapProps =
-		{
-			.Type = D3D12_HEAP_TYPE_UPLOAD
-		};
+		const CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(NumInternalShaders * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+		const CD3DX12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
 		D3D12_CHECK(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_rtpso.ShaderTable)));
 		if (!m_rtpso.ShaderTable)

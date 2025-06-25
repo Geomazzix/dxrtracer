@@ -1,5 +1,6 @@
 #include "dxrtracer/accelerationStructure.h"
 #include "dxrtracer/modelLoader.h"
+#include <core/vath/Vector3.h>
 
 namespace dxray
 {
@@ -35,15 +36,8 @@ namespace dxray
 		dxrCmdList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
 		//#Todo: once queuing for multiple builds ensure that multiple barriers are batched.
-		const D3D12_RESOURCE_BARRIER asbarrier =
-		{
-			.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
-			.UAV =
-			{
-				.pResource = a_buffer.Get()
-			}
-		};
-		dxrCmdList->ResourceBarrier(1, &asbarrier);
+		const CD3DX12_RESOURCE_BARRIER asBarrier = CD3DX12_RESOURCE_BARRIER::UAV(a_buffer.Get());
+		dxrCmdList->ResourceBarrier(1, &asBarrier);
 	}
 
 	void CreateBlas(ComPtr<ID3D12Device>& a_device, ComPtr<ID3D12GraphicsCommandList>& a_cmdList, BottomLevelAccelerationStructure& a_blas, const ComPtr<ID3D12Resource>& a_vsBuffer, const usize a_vsCount, ComPtr<ID3D12Resource> a_idBuffer, const usize a_idCount)
@@ -51,7 +45,7 @@ namespace dxray
 		const D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE vertexBuffer =
 		{
 			.StartAddress = a_vsBuffer->GetGPUVirtualAddress(),
-			.StrideInBytes = Vertex::Stride
+			.StrideInBytes = sizeof(vath::Vector3f)
 		};
 
 		const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC triangleDesc =

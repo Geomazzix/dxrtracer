@@ -29,7 +29,7 @@ namespace dxray
 	*/
 	struct D3D12Mesh
 	{
-		ComPtr<ID3D12Resource> VertexBuffer = nullptr;
+		ComPtr<ID3D12Resource> VertexPositions = nullptr;
 		ComPtr<ID3D12Resource> IndexBuffer = nullptr;
 		BottomLevelAccelerationStructure Blas;
 	};
@@ -123,6 +123,7 @@ namespace dxray
 
 		ComPtr<ID3D12Resource> m_cbvSceneHeap;
 		void* m_cbvSceneHeapAddr;
+		ComPtr<ID3D12DescriptorHeap> m_geometryDescriptors;
 
 		ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<ID3D12Device> m_device;

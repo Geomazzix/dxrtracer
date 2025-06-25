@@ -9,16 +9,11 @@ struct aiScene;
 
 namespace dxray
 {
-	struct Vertex
-	{
-		vath::Vector3f Position;
-		static constexpr usize Stride = sizeof(vath::Vector3f);
-	};
-
-
 	struct Mesh
 	{
-		Array<Vertex> Vertices;
+		Array<vath::Vector3f> Positions;
+		Array<vath::Vector3f> Normals;
+		Array<vath::Vector2f> Uvs;
 		Array<u32> Indices;
 	};
 
@@ -33,11 +28,26 @@ namespace dxray
 	inline Model BuildQuadModel()
 	{
 		Mesh mesh;
-		mesh.Vertices = {
-			{ vath::Vector3f(-0.5f, 0, -0.5f) },
-			{ vath::Vector3f(-0.5f, 0, 0.5f) },
-			{ vath::Vector3f(0.5f, 0, 0.5f) },
-			{ vath::Vector3f(0.5f, 0, -0.5f) },
+		mesh.Positions = {
+			{ -0.5f, 0, -0.5f },
+			{ -0.5f, 0, 0.5f },
+			{ 0.5f, 0, 0.5f },
+			{ 0.5f, 0, -0.5f },
+		};
+
+		mesh.Normals = {
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 0.0f },
+		};
+
+		mesh.Uvs = 
+		{
+			{ 0.0f, 0.0f },
+			{ 0.0f, 1.0f },
+			{ 1.0f, 1.0f },
+			{ 1.0f, 0.0f }
 		};
 
 		mesh.Indices = {
