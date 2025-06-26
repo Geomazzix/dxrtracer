@@ -12,6 +12,18 @@ namespace dxray
 	struct Camera;
 	struct Model;
 
+	/**
+	 * @brief Used to indicate which sample size the shader should use.
+	 * @Note Kept 4 bytes big, as hlsl doesn't support 8 bit types.
+	 */
+	enum class ESuperSampleSize : u32
+	{
+		x1 = 1,
+		x2 = 2,
+		x4 = 4,
+		x8 = 8
+	};
+
 
 	/**
 	 * @brief Constantbuffers require alignment to 255 bytes.
@@ -121,18 +133,11 @@ namespace dxray
 		Array<D3D12Mesh> m_meshes;
 		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;
 
-		bool m_forceTlasRebuild;
-
-		std::unique_ptr<RenderPass> m_renderPass;
-		std::unique_ptr<CommandQueue> m_graphicsQueue;
-		ComPtr<ID3D12GraphicsCommandList> m_commandList;
-
+		// #Todo: Looks this like this resource, regardless of whether the GPU is idle or not, is not being correctly destroyed...? - keep an eye on this.
 		ComPtr<ID3D12Resource> m_cbvSceneHeap;
+		usize m_alignedSceneConstantBufferElementSize;
 		void* m_cbvSceneHeapAddr;
 		ComPtr<ID3D12DescriptorHeap> m_geometryDescriptors;
-
-		ComPtr<IDXGIFactory4> m_factory;
-		ComPtr<ID3D12Device> m_device;
 
 		const static u32 SwapchainBackbufferCount = 3;
 		FixedArray<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
@@ -144,5 +149,12 @@ namespace dxray
 		u32 m_rtvDescriptorSize;
 		u32 m_uavCbvSrvDescriptorSize;
 		bool m_useWarp;
+
+		std::unique_ptr<RenderPass> m_renderPass;
+		std::unique_ptr<CommandQueue> m_graphicsQueue;
+		ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
+		ComPtr<IDXGIFactory4> m_factory;
+		ComPtr<ID3D12Device> m_device;
 	};
 }

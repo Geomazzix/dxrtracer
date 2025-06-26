@@ -22,6 +22,9 @@ struct SceneConstantBuffer
 
 	Vector4f SkyColour;
 	Vector4f SunDirection;
+
+	u32 FrameIndex;
+	u32 SuperSampleSize;
 };
 
 /**

@@ -45,6 +45,7 @@ namespace dxray
 
 	CommandQueue::~CommandQueue()
 	{
+		WaitIdle();
 		CloseHandle(FenceEvent);
 	}
 
@@ -69,13 +70,12 @@ namespace dxray
 		WaitForFence(Fence->GetCompletedValue());
 	}
 
-	using namespace DirectX;
 
 	Renderer::Renderer(const RendererCreateInfo& a_createInfo) :
 		m_mainCamera(a_createInfo.MainCam),
-		m_forceTlasRebuild(true),
 		m_useWarp(false),
-		m_swapchainIndex(0)
+		m_swapchainIndex(0),
+		m_alignedSceneConstantBufferElementSize(CalculateConstantBufferSize(sizeof(SceneConstantBuffer)))
 	{
 		m_graphicsQueue = std::make_unique<CommandQueue>();
 
@@ -106,7 +106,9 @@ namespace dxray
 
 		frameResources.SceneConstantBufferData.View = vath::Inverse(m_mainCamera->GetViewMatrix());
 		frameResources.SceneConstantBufferData.Projection = m_mainCamera->GetProjectionMatrix();
-		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + CalculateConstantBufferSize(sizeof(SceneConstantBuffer)) * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
+		frameResources.SceneConstantBufferData.FrameIndex = m_swapchainIndex;
+		frameResources.SceneConstantBufferData.SuperSampleSize = static_cast<u32>(ESuperSampleSize::x4);
+		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + m_alignedSceneConstantBufferElementSize * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
 
 		UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
 		
@@ -114,7 +116,7 @@ namespace dxray
 		{
 			.UavHeap = m_uavHeap,
 			.TlasBufferAddr = frameResources.WorldTlas.Buffer->GetGPUVirtualAddress(),
-			.SceneCbvAddr = m_cbvSceneHeap->GetGPUVirtualAddress() + CalculateConstantBufferSize(sizeof(SceneConstantBuffer)) * m_swapchainIndex,
+			.SceneCbvAddr = m_cbvSceneHeap->GetGPUVirtualAddress() + m_alignedSceneConstantBufferElementSize * m_swapchainIndex,
 			.SwapchainIndex = m_swapchainIndex,
 			.SurfaceWidth = swapchainDesc.Width,
 			.SurfaceHeight = swapchainDesc.Height
@@ -334,7 +336,7 @@ namespace dxray
 		
 		// Scene constants
 		const D3D12_HEAP_PROPERTIES uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * CalculateConstantBufferSize(sizeof(SceneConstantBuffer)));
+		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * m_alignedSceneConstantBufferElementSize);
 
 		D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_cbvSceneHeap)));
 		D3D12_NAME_OBJECT(m_cbvSceneHeap, WString(L"CbvSceneHeap{}"));
@@ -448,7 +450,6 @@ namespace dxray
 
 	void Renderer::EndResourceLoading()
 	{
-		m_forceTlasRebuild = true;
 		D3D12_CHECK(m_commandList->Close());
 		ID3D12CommandList* const lists[] = { m_commandList.Get() };
 		m_graphicsQueue->Handle->ExecuteCommandLists(1, lists);

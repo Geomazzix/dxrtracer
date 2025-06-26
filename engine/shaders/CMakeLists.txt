@@ -6,6 +6,7 @@ message(STATUS "[Config] Engine shader directory pointing to: ${ENGINE_SHADER_DI
 set(SHADER_HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/global.hlsli"
 	"${CMAKE_CURRENT_SOURCE_DIR}/math.hlsli"
+	"${CMAKE_CURRENT_SOURCE_DIR}/random.hlsli"
 )
 
 set(SHADER_SOURCE

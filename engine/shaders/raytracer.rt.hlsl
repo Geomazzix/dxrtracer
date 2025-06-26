@@ -98,18 +98,34 @@ void RayGeneration()
 {
     const uint2 pixel = DispatchRaysIndex().xy;
     const uint2 resolution = DispatchRaysDimensions().xy;
-
-    const float2 imagePlanePos = ((pixel + 0.5f) / resolution) * 2.0f - 1.0f;
-    RayDesc primaryRayDesc = GeneratePrimaryRay(imagePlanePos);
     
-    HitInfo primaryHitInfo;
-    primaryHitInfo.Colour = float3(0.0f, 0.0f, 0.0f),
-    primaryHitInfo.AllowReflection = true;
-    primaryHitInfo.Distance = 0.0f;
-    primaryHitInfo.Missed = false;
+    uint4 rngSeed = GenerateSeed(pixel, SceneCB.FrameIndex);
+    float3 radiance = float3(0.0f, 0.0f, 0.0f);
+    
+    // Stochastic super sampling - no accumulation buffer has been implemented yet, meaning the rays being casted is currently multiplied by the ssCount.
+    const uint ssSize = SceneCB.SuperSampleSize;
+    const uint ssCount = ssSize * ssSize;
+    const float pxSsSize = 1.0f / ssSize;
+    for (uint sy = 1; sy <= ssSize; ++sy)
+    {
+        for (uint sx = 1; sx <= ssSize; ++sx)
+        {
+            const float2 ssPixel = pixel + float2(pxSsSize * sx, pxSsSize * sy) + float2(Randf(rngSeed), Randf(rngSeed) * pxSsSize);
+            const float2 imagePlanePos = ssPixel / resolution * 2.0f - 1.0f;
+            RayDesc primaryRayDesc = GeneratePrimaryRay(imagePlanePos);
+    
+            HitInfo primaryHitInfo;
+            primaryHitInfo.Colour = float3(0.0f, 0.0f, 0.0f),
+            primaryHitInfo.AllowReflection = true;
+            primaryHitInfo.Distance = 0.0f;
+            primaryHitInfo.Missed = false;
 
-    TraceRay(SceneTlas, RAY_FLAG_NONE, 0xFF, 0, 0, 0, primaryRayDesc, primaryHitInfo);
-    OutRenderTarget[pixel] = float4(primaryHitInfo.Colour, 1);
+            TraceRay(SceneTlas, RAY_FLAG_NONE, 0xFF, 0, 0, 0, primaryRayDesc, primaryHitInfo);
+            radiance += primaryHitInfo.Colour;
+        }
+    }
+    
+    OutRenderTarget[pixel] = float4(radiance / ssCount, 1);
 }
 
 [shader("closesthit")]
