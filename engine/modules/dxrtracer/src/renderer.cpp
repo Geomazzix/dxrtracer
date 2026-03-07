@@ -67,7 +67,7 @@ namespace dxray
 
 	void CommandQueue::WaitIdle()
 	{
-		WaitForFence(Fence->GetCompletedValue());
+		WaitForFence(Signal());
 	}
 
 
@@ -77,10 +77,8 @@ namespace dxray
 		m_swapchainIndex(0),
 		m_alignedSceneConstantBufferElementSize(CalculateConstantBufferSize(sizeof(SceneConstantBuffer)))
 	{
-		m_graphicsQueue = std::make_unique<CommandQueue>();
-
-		CreateDevice();
-		CreateCommandQueue(*m_graphicsQueue.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
+		m_device = CreateDevice();
+		m_graphicsQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		CreateSwapchain(a_createInfo.SwapchainInfo);
 		CreateFrameResources();
 
@@ -89,9 +87,9 @@ namespace dxray
 
 	Renderer::~Renderer()
 	{
+		m_cbvSceneHeap->Unmap(0, nullptr);
 		m_graphicsQueue->WaitIdle();
 	}
-
 
 	void Renderer::Render(const fp32 a_dt)
 	{
@@ -153,7 +151,7 @@ namespace dxray
 		m_commandList->ResourceBarrier(static_cast<u32>(presentationBarriers.size()), presentationBarriers.data());
 	}
 
-	void Renderer::CreateDevice()
+	ComPtr<ID3D12Device> Renderer::CreateDevice()
 	{
 		u32 dxgiFactoryFlags = 0;
 #ifndef CONFIG_RELEASE
@@ -185,32 +183,33 @@ namespace dxray
 #endif
 
 		//Device creation.
+		ComPtr<ID3D12Device> device;
 		D3D12_CHECK(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
 		if (!m_useWarp)
 		{
 			ComPtr<IDXGIAdapter1> hardwareAdapter = nullptr;
 			//#Todo: Could possibly query for specific GPUs - if the wrong GPU is ever selected.
 			//       Ensure that the selected GPU supports the REQUIRED feature set, excluding potential optional features.
-			D3D12_CHECK(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
-			if (m_device != nullptr)
+			D3D12_CHECK(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device)));
+			if (device != nullptr)
 			{
-				D3D12_NAME_OBJECT(m_device, WString(L"D3D12Device"));
+				D3D12_NAME_OBJECT(device, WString(L"D3D12Device"));
 			}
 		}
 
-		if (m_device == nullptr || m_useWarp)
+		if (device == nullptr || m_useWarp)
 		{
 			ComPtr<IDXGIAdapter> warpAdapter = nullptr;
 			D3D12_CHECK(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-			D3D12_CHECK(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
-			D3D12_NAME_OBJECT(m_device, WString(L"D3D12WarpDevice"));
+			D3D12_CHECK(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device)));
+			D3D12_NAME_OBJECT(device, WString(L"D3D12WarpDevice"));
 			DXRAY_CRITICAL("While warp is initializable - is does not support raytracing and should not be used!");
 		}
 
 #ifndef CONFIG_RELEASE
 		{
 			ComPtr<ID3D12InfoQueue> pInfoQueue;
-			if (SUCCEEDED(m_device.As(&pInfoQueue)))
+			if (SUCCEEDED(device.As(&pInfoQueue)))
 			{
 				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
 				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
@@ -238,9 +237,11 @@ namespace dxray
 			}
 		}
 #endif
+
+		return device;
 	}
 
-	void Renderer::CreateCommandQueue(CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type)
+	std::unique_ptr<CommandQueue> Renderer::CreateCommandQueue(const D3D12_COMMAND_LIST_TYPE a_type)
 	{
 		const D3D12_COMMAND_QUEUE_DESC queueInfo =
 		{
@@ -250,15 +251,18 @@ namespace dxray
 			.NodeMask = 0
 		};
 
-		D3D12_CHECK(m_device->CreateCommandQueue(&queueInfo, IID_PPV_ARGS(&a_commandQueue.Handle)));
-		D3D12_NAME_OBJECT(a_commandQueue.Handle, std::format(L"D3D12{}CommandQueue", CommandListTypeToUnicode(a_type)));
+		std::unique_ptr<CommandQueue> commandQueue = std::make_unique<CommandQueue>();
+		D3D12_CHECK(m_device->CreateCommandQueue(&queueInfo, IID_PPV_ARGS(&commandQueue->Handle)));
+		D3D12_NAME_OBJECT(commandQueue->Handle, std::format(L"D3D12{}CommandQueue", CommandListTypeToUnicode(a_type)));
 
-		D3D12_CHECK(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&a_commandQueue.Fence)));
-		D3D12_NAME_OBJECT(a_commandQueue.Fence, std::format(L"D3D12{}CommandQueueFence", CommandListTypeToUnicode(a_type)));
+		D3D12_CHECK(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&commandQueue->Fence)));
+		D3D12_NAME_OBJECT(commandQueue->Fence, std::format(L"D3D12{}CommandQueueFence", CommandListTypeToUnicode(a_type)));
 
-		a_commandQueue.FenceEvent = CreateEvent(nullptr, false, false, nullptr);
-		DXRAY_ASSERT(a_commandQueue.FenceEvent);
-		a_commandQueue.FenceValue = 0;
+		commandQueue->FenceEvent = CreateEvent(nullptr, false, false, nullptr);
+		DXRAY_ASSERT(commandQueue->FenceEvent);
+		commandQueue->FenceValue = 0;
+
+		return std::move(commandQueue);
 	}
 
 	void Renderer::CreateSwapchain(const SwapchainCreateInfo& a_swapchainInfo)

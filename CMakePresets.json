@@ -1,8 +1,8 @@
 {
   "version": 3,
   "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 27,
+    "major": 4,
+    "minor": 0,
     "patch": 0
   },
   "configurePresets": [
@@ -15,7 +15,7 @@
     {
       "name": "msvc-x64",
       "inherits": "base-x64",
-      "generator": "Visual Studio 17 2022",
+      "generator": "Visual Studio 18 2026",
       "environment": {
         "MULTI_CONFIG_C_FLAGS": "",
         "MULTI_CONFIG_CXX_FLAGS": "/W3 /WX /MP /EHsc",

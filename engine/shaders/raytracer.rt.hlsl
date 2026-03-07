@@ -6,8 +6,8 @@ RaytracingAccelerationStructure SceneTlas : register(t0, space0);
 RWTexture2D<float4> OutRenderTarget : register(u0, space0);
 
 // Bindless resources
-ByteAddressBuffer Vertices[] : register(t0, space1);
-ByteAddressBuffer Indices[] : register(t0, space2);
+//ByteAddressBuffer Vertices[] : register(t0, space1);
+//ByteAddressBuffer Indices[] : register(t0, space2);
 //Texture2D<float4> Textures[] : register(t0, space3); - #Todo: implement texture loading.
 //SamplerState LinearSampler : register(s0, space0);
 

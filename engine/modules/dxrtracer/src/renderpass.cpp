@@ -72,7 +72,7 @@ namespace dxray
 		rootParams[2].InitAsConstantBufferView(0, 0);
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
-		rootSigDesc.Init_1_0(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
+		rootSigDesc.Init_1_0(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr);
 
 		//#Todo: Add proper error checking on the return blob.
 		ComPtr<ID3DBlob> blob = nullptr;

@@ -43,13 +43,13 @@ namespace dxray
 
 		void Execute(ComPtr<ID3D12GraphicsCommandList>& a_commandList, const RenderPassExecuteInfo& a_execInfo);
 
-	public:
+	private:
 		void CreateRayTraceDemoRootSig();
 		void CreateRayTracingPipelineStateObject();
 		void CreateShaderTable();
 
-		RaytracePipelineStateObject m_rtpso;
-		ComPtr<ID3D12RootSignature> m_rootSig;
 		ComPtr<ID3D12Device> m_device;
+		ComPtr<ID3D12RootSignature> m_rootSig;
+		RaytracePipelineStateObject m_rtpso;
 	};
 }

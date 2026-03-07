@@ -124,20 +124,17 @@ namespace dxray
 	private:
 		void Present(ComPtr<ID3D12Resource>& a_renderTargetOutput);
 		
-		void CreateDevice();
-		void CreateCommandQueue(CommandQueue& a_commandQueue, const D3D12_COMMAND_LIST_TYPE a_type);
+		ComPtr<ID3D12Device> CreateDevice();
+		std::unique_ptr<CommandQueue> CreateCommandQueue(const D3D12_COMMAND_LIST_TYPE a_type);
 		void CreateSwapchain(const SwapchainCreateInfo& a_swapchainCreateInfo);
 		void CreateFrameResources();
 
-		std::shared_ptr<Camera> m_mainCamera;
-		Array<D3D12Mesh> m_meshes;
-		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;
+		ComPtr<ID3D12Device> m_device;
+		ComPtr<IDXGIFactory4> m_factory;
 
-		// #Todo: Looks this like this resource, regardless of whether the GPU is idle or not, is not being correctly destroyed...? - keep an eye on this.
-		ComPtr<ID3D12Resource> m_cbvSceneHeap;
-		usize m_alignedSceneConstantBufferElementSize;
-		void* m_cbvSceneHeapAddr;
-		ComPtr<ID3D12DescriptorHeap> m_geometryDescriptors;
+		std::unique_ptr<CommandQueue> m_graphicsQueue;
+		ComPtr<ID3D12GraphicsCommandList> m_commandList;
+		std::unique_ptr<RenderPass> m_renderPass;
 
 		const static u32 SwapchainBackbufferCount = 3;
 		FixedArray<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
@@ -145,16 +142,20 @@ namespace dxray
 		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 		ComPtr<ID3D12DescriptorHeap> m_uavHeap;
 		ComPtr<IDXGISwapChain3> m_swapchain;
+
 		u32 m_swapchainIndex;
 		u32 m_rtvDescriptorSize;
 		u32 m_uavCbvSrvDescriptorSize;
 		bool m_useWarp;
 
-		std::unique_ptr<RenderPass> m_renderPass;
-		std::unique_ptr<CommandQueue> m_graphicsQueue;
-		ComPtr<ID3D12GraphicsCommandList> m_commandList;
+		std::shared_ptr<Camera> m_mainCamera;
+		Array<D3D12Mesh> m_meshes;
+		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;
 
-		ComPtr<IDXGIFactory4> m_factory;
-		ComPtr<ID3D12Device> m_device;
+		// #Todo: Looks this like this resource, regardless of whether the GPU is idle or not, is not being correctly destroyed...? - keep an eye on this.
+		ComPtr<ID3D12Resource> m_cbvSceneHeap;
+		ComPtr<ID3D12DescriptorHeap> m_geometryDescriptors;
+		usize m_alignedSceneConstantBufferElementSize;
+		void* m_cbvSceneHeapAddr;
 	};
 }

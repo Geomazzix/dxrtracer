@@ -47,6 +47,7 @@ bool EngineInitialize()
 	AssimpModelLoader modelLoader(modelPath);
 	if (!modelLoader.LoadModel())
 	{
+		assert("Failed to load model");
 		return false;
 	}
 
@@ -104,8 +105,13 @@ int main(int argc, char** argv)
 {
 	m_appTime.Start();
 
-	EngineInitialize();
+	if (!EngineInitialize())
+	{
+		assert("Engine failed to initialize! Shutting down.");
+		return EXIT_FAILURE;
+	}
+
 	EngineLoop();
 
-	return 0;
+	return EXIT_SUCCESS;
 }
