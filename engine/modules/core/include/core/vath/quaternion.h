@@ -101,8 +101,6 @@ namespace dxray::vath
 	template<typename T>
 	Quat<T>::Quat(const Matrix<3, 3, T>& a_rotationMatrix)
 	{
-		Quat<T> quat;
-
 		const T m00 = a_rotationMatrix[0][0];
 		const T m11 = a_rotationMatrix[1][1];
 		const T m22 = a_rotationMatrix[2][2];
@@ -110,36 +108,35 @@ namespace dxray::vath
 
 		if (sum > 0.0)
 		{
-			quat[3] = Sqrt<T>(sum + 1.0) * 0.5;
-			const T f = 0.25 / quat[3];
-			quat[0] = (a_rotationMatrix[2][1] + a_rotationMatrix[1][2]) * f;
-			quat[1] = (a_rotationMatrix[0][2] + a_rotationMatrix[2][0]) * f;
-			quat[2] = (a_rotationMatrix[1][0] + a_rotationMatrix[0][1]) * f;
-
+			w = Sqrt<T>(sum + 1.0) * 0.5;
+			const T f = 0.25 / w;
+			x = (a_rotationMatrix[1][2] - a_rotationMatrix[2][1]) * f;
+			y = (a_rotationMatrix[2][0] - a_rotationMatrix[0][2]) * f;
+			z = (a_rotationMatrix[0][1] - a_rotationMatrix[1][0]) * f;
 		}
 		else if ((m00 > m11) && (m00 > m22))
 		{
-			quat[0] = Sqrt<T>(m00 - m11 - m22 + 1.0) * 0.5;
-			const T f = 0.25 / quat[0];
-			quat[1] = (a_rotationMatrix[1][0] + a_rotationMatrix[0][1]) * f;
-			quat[2] = (a_rotationMatrix[0][2] + a_rotationMatrix[2][0]) * f;
-			quat[3] = (a_rotationMatrix[2][1] + a_rotationMatrix[1][2]) * f;
+			x = Sqrt<T>(m00 - m11 - m22 + 1.0) * 0.5;
+			const T f = 0.25 / x;
+			y = (a_rotationMatrix[0][1] + a_rotationMatrix[1][0]) * f;
+			z = (a_rotationMatrix[2][0] + a_rotationMatrix[0][2]) * f;
+			w = (a_rotationMatrix[1][2] - a_rotationMatrix[2][1]) * f;
 		}
 		else if (m11 > m22)
 		{
-			quat[1] = Sqrt<T>(m11 - m00 - m22 + 1.0) * 0.5;
-			const T f = 0.25 / quat[1];
-			quat[0] = (a_rotationMatrix[1][0] + a_rotationMatrix[0][1]) * f;
-			quat[2] = (a_rotationMatrix[2][1] + a_rotationMatrix[1][2]) * f;
-			quat[3] = (a_rotationMatrix[0][2] + a_rotationMatrix[2][0]) * f;
+			y = Sqrt<T>(m11 - m00 - m22 + 1.0) * 0.5;
+			const T f = 0.25 / y;
+			x = (a_rotationMatrix[0][1] + a_rotationMatrix[1][0]) * f;
+			z = (a_rotationMatrix[1][2] + a_rotationMatrix[2][1]) * f;
+			w = (a_rotationMatrix[2][0] - a_rotationMatrix[0][2]) * f;
 		}
 		else
 		{
-			quat[2] = Sqrt<T>(m22 - m00 - m11 + 1.0) * 0.5;
-			const T f = 0.25 / quat[2];
-			quat[0] = (a_rotationMatrix[0][2] + a_rotationMatrix[2][0]) * f;
-			quat[1] = (a_rotationMatrix[2][1] + a_rotationMatrix[1][2]) * f;
-			quat[3] = (a_rotationMatrix[1][0] + a_rotationMatrix[0][1]) * f;
+			z = Sqrt<T>(m22 - m00 - m11 + 1.0) * 0.5;
+			const T f = 0.25 / z;
+			x = (a_rotationMatrix[2][0] + a_rotationMatrix[0][2]) * f;
+			y = (a_rotationMatrix[1][2] + a_rotationMatrix[2][1]) * f;
+			w = (a_rotationMatrix[0][1] - a_rotationMatrix[1][0]) * f;
 		}
 	}
 
@@ -166,11 +163,11 @@ namespace dxray::vath
 		return Vector<3, T>(x, y, z);
 	}
 
-    template<typename T>
-    constexpr T Quat<T>::GetReal() const 
-    {
-        return w;
-    }
+	template<typename T>
+	constexpr T Quat<T>::GetReal() const
+	{
+		return w;
+	}
 
 	template<typename T>
 	constexpr usize Quat<T>::GetLength() const
@@ -320,16 +317,16 @@ namespace dxray::vath
 		return a_quat / Magnitude(a_quat);
 	}
 
-    template<typename T>
-    constexpr Quat<T> Conjugate(const Quat<T>& a_quat)
-    {
-        return Quat(
-            -a_quat[0],
-            -a_quat[1],
-            -a_quat[2],
-            a_quat[3]
-        );
-    }
+	template<typename T>
+	constexpr Quat<T> Conjugate(const Quat<T>& a_quat)
+	{
+		return Quat(
+			-a_quat[0],
+			-a_quat[1],
+			-a_quat[2],
+			a_quat[3]
+		);
+	}
 
 	template<typename T>
 	constexpr Quat<T> Inverse(const Quat<T>& a_quat)
@@ -341,11 +338,11 @@ namespace dxray::vath
 			-a_quat[2] * denom,
 			a_quat[3] * denom
 		);
-    }
+	}
 
-    template<typename T>
-    constexpr Quat<T> ToQuat(const Vector<3, T>& a_eulerAngles)
-    {
+	template<typename T>
+	constexpr Quat<T> ToQuat(const Vector<3, T>& a_eulerAngles)
+	{
 		const T cosx = std::cos(a_eulerAngles[0] * static_cast<T>(0.5));
 		const T cosy = std::cos(a_eulerAngles[1] * static_cast<T>(0.5));
 		const T cosz = std::cos(a_eulerAngles[2] * static_cast<T>(0.5));
@@ -354,18 +351,18 @@ namespace dxray::vath
 		const T siny = std::sin(a_eulerAngles[1] * static_cast<T>(0.5));
 		const T sinz = std::sin(a_eulerAngles[2] * static_cast<T>(0.5));
 
-        //returned in order: roll(x)-pitch(y)-yaw(z) angles in radians.
+		//returned in order: roll(x)-pitch(y)-yaw(z) angles in radians.
 		return Quat<T>(
 			sinx * cosy * cosz - cosx * siny * sinz,
 			cosx * siny * cosz + sinx * cosy * sinz,
 			cosx * cosy * sinz - sinx * siny * cosz,
 			cosx * cosy * cosz + sinx * siny * sinz
 		);
-    }
+	}
 
-    template<typename T>
-    constexpr Vector<3, T> ToEuler(const Quat<T>& a_quat)
-    {
+	template<typename T>
+	constexpr Vector<3, T> ToEuler(const Quat<T>& a_quat)
+	{
 		Vector<3, T> euler;
 
 		const T sqx = a_quat[0] * a_quat[0];
@@ -376,38 +373,38 @@ namespace dxray::vath
 		//Compute the euler angles with 90 degrees kept in mind as this would normally result in NaN values. This is prevented through the flipping of the values.
 		euler[1] = std::asin(static_cast<T>(2.0) * (a_quat[3] * a_quat[1] - a_quat[0] * a_quat[2]));
 		if ((Pi<T>() * static_cast<T>(0.5)) - Abs<T>(euler[1]) > 1e-5)
-        {
+		{
 			euler[2] = std::atan2(static_cast<T>(2.0) * (a_quat[0] * a_quat[1] + a_quat[3] * a_quat[2]), sqx - sqy - sqz + sqw);
 			euler[0] = std::atan2(static_cast<T>(2.0) * (a_quat[3] * a_quat[0] + a_quat[1] * a_quat[2]), sqw - sqx - sqy + sqz);
 		}
-		else 
-        {
+		else
+		{
 			euler[2] = std::atan2(
-				static_cast<T>(2.0) * a_quat[1] * a_quat[2] - static_cast<T>(2.0) * a_quat[0] * a_quat[3], 
+				static_cast<T>(2.0) * a_quat[1] * a_quat[2] - static_cast<T>(2.0) * a_quat[0] * a_quat[3],
 				static_cast<T>(2.0) * a_quat[0] * a_quat[2] + static_cast<T>(2.0) * a_quat[1] * a_quat[3]
 			);
 			euler[0] = static_cast<T>(0.0);
 
 			if (euler[1] < static_cast<T>(0.0))
-            {
+			{
 				euler[2] = Pi<T>() - euler[2];
-            }
+			}
 		}
 		return euler;
-    }
+	}
 
 	template<typename T>
-	constexpr Quat<T> slerp(const Quat<T>& a_from, const Quat<T>& a_to, T a_time) 
+	constexpr Quat<T> slerp(const Quat<T>& a_from, const Quat<T>& a_to, T a_time)
 	{
-		const T clamped = std::acos(Clamp<T>(Dot(a_from, a_to), static_cast<T>(-1.0), static_cast<T>(1.0)));
-		if (Abs<T>(clamped) < Epsilon<T>())
+		T theta = std::acos(Clamp<T>(Dot(a_from, a_to), static_cast<T>(-1.0), static_cast<T>(1.0)));
+		if (Abs<T>(theta) < Epsilon<T>())
 		{
-			clamped = Epsilon<T>();
+			theta = Epsilon<T>();
 		}
 
-		const T s = std::sin(clamped);
-		const T st0 = std::sin((1.0 - a_time) * clamped) / s;
-		const T st1 = std::sin(a_time * clamped) / s;
+		const T s = std::sin(theta);
+		const T st0 = std::sin((static_cast<T>(1.0) - a_time) * theta) / s;
+		const T st1 = std::sin(a_time * theta) / s;
 
 		return a_from * st0 + a_to * st1;
 	}
@@ -417,9 +414,9 @@ namespace dxray::vath
 	{
 		const T halfAngle = a_angleInRad * static_cast<T>(0.5);
 		return Quat<T>(
-			std::sin(halfAngle), 
-			0, 
-			0, 
+			std::sin(halfAngle),
+			0,
+			0,
 			std::cos(halfAngle)
 		);
 	}
@@ -429,9 +426,9 @@ namespace dxray::vath
 	{
 		const T halfAngle = a_angleInRad * static_cast<T>(0.5);
 		return Quat<T>(
-			0, 
-			std::sin(halfAngle), 
-			0, 
+			0,
+			std::sin(halfAngle),
+			0,
 			std::cos(halfAngle)
 		);
 	}
@@ -441,23 +438,23 @@ namespace dxray::vath
 	{
 		const T halfAngle = a_angleInRad * static_cast<T>(0.5);
 		return Quat<T>(
-			0, 
-			0, 
-			std::sin(halfAngle), 
+			0,
+			0,
+			std::sin(halfAngle),
 			std::cos(halfAngle)
 		);
 	}
 
 	template<typename T>
-	constexpr Quat<T> AngleAxis(const Quat<T>& a_axis, T a_angleInRad)
+	constexpr Quat<T> AngleAxis(const Vector<3, T>& a_axis, T a_angleInRad)
 	{
 		const T halfAngle = a_angleInRad * static_cast<T>(0.5);
 		const T halfSin = std::sin(halfAngle);
 
 		return Quat<T>(
-			halfSin,
-			halfSin,
-			halfSin,
+			a_axis[0] * halfSin,
+			a_axis[1] * halfSin,
+			a_axis[2] * halfSin,
 			std::cos(halfAngle)
 		);
 	}
@@ -478,7 +475,7 @@ namespace dxray::vath
 		return Matrix<3, 3, T>(
 			static_cast<T>(1.0) - static_cast<T>(2.0) * (y2 + z2), static_cast<T>(2.0) * (xy - wz), static_cast<T>(2.0) * (xz + wy),
 			static_cast<T>(2.0) * (xy + wz), static_cast<T>(1.0) - static_cast<T>(2.0) * (x2 + z2), static_cast<T>(2.0) * (yz - wx),
-			static_cast<T>(2.0) * (xz - wy), static_cast<T>(2.0) * (yz + wx), static_cast<T>(1.0) - static_cast<T>(2.0) * (x2 - y2)
+			static_cast<T>(2.0) * (xz - wy), static_cast<T>(2.0) * (yz + wx), static_cast<T>(1.0) - static_cast<T>(2.0) * (x2 + y2)
 		);
 	}
 

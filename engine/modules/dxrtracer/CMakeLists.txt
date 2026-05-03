@@ -10,6 +10,7 @@ set(HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/shaderConstructs.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/camera.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/renderer.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/dxrtracer/descriptorHeap.h"
 )
 
 set(SOURCE
@@ -21,6 +22,7 @@ set(SOURCE
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/accelerationStructure.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/renderer.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/dxrtracer.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/descriptorHeap.cpp"
 )
 
 set(DEPS

@@ -4,6 +4,7 @@ namespace dxray::riow
 {
 	Camera::Camera() :
 		m_worldTransform(),
+		m_viewTransform(),
 		m_viewportPixelDims(0u, 0u),
 		m_depthLimits(0.001f, 1000.0f),
 		m_aspectRatio(0.0f),
@@ -23,7 +24,9 @@ namespace dxray::riow
     {
 		DXRAY_ASSERT_WITH_MSG(vath::SqrMagnitude(m_viewportPixelDims) > 0.0f, "Ensure that the viewport pixel dimensions are set -> Camera::SetViewportDimensionInPx");
 
-		m_worldTransform = vath::LookAtRH(a_position, a_focusPoint, a_worldNormal);
+		m_viewTransform = vath::LookAtRH(a_position, a_focusPoint, a_worldNormal);
+		m_worldTransform = vath::Inverse(m_viewTransform);
+
         const fp32 imagePlaneScale = std::tanf(m_fov / 2.0f);
 
 		//Calculate the viewport rect based on the look at position. It's always centered on the camera position.

@@ -54,19 +54,22 @@ bool EngineInitialize()
 	const Model& quad = BuildQuadModel();
 
 	m_renderer->BeginResourceLoading();
-	m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
-	m_renderer->LoadModel(vath::Vector3f(-6.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(16.0f, 0.1f, 12.0f), quad);
+	//m_renderer->LoadModel(vath::Vector3f(0.0f, 0.0f, 0.0f), vath::Vector3f(0.0f), vath::Vector3f(20.0f), quad);
+	//m_renderer->LoadModel(vath::Vector3f(-6.5f, 0.1f, 0.025f), vath::Vector3f(0.0f), vath::Vector3f(16.0f, 0.1f, 12.0f), quad);
 	m_renderer->LoadModel(vath::Vector3f(0.0f), vath::Vector3f(0.0f), vath::Vector3f(0.008f), modelLoader.GetModel());
 	m_renderer->EndResourceLoading();
 
 	DXRAY_INFO("Initialization completed in: {}", m_appTime.GetElapsedSeconds());
+
+	m_camera->LookAt(vath::Vector3f(5.0f, 0.f, 0.0f), vath::Vector3f(0.f)/*, vath::Vector3f(-4.0f, sinf(m_appTime.GetElapsedSeconds()), 0.0f)*/, vath::Vector3f(0.0f, 1.0f, 0.0f));
 
 	return true;
 }
 
 void EngineTick(const fp32 a_dt)
 {
-	m_camera->LookAt(vath::Vector3f(5.0f, 3.0f, 0.0f), vath::Vector3f(-4.0f, sinf(m_appTime.GetElapsedSeconds()), 0.0f), vath::Vector3f(0.0f, 1.0f, 0.0f));
+	//m_camera->SetPosition(vath::Vector3f(5.f, 2.f + sinf(m_appTime.GetElapsedSeconds()), 0.f));
+	m_camera->SetPosition(vath::Vector3f(5.f, 3.f, 0.f));
 }
 
 void EngineLoop()

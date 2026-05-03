@@ -47,25 +47,25 @@ namespace dxray::riow
     public:
         CheckerBoard(const fp32 a_scale, std::shared_ptr<Texture> a_evenTile, std::shared_ptr<Texture> a_oddTile) :
             m_scaleReciprocal(1.0f / a_scale),
-            m_evenTileTexture(a_evenTile), 
+            m_evenTileTexture(a_evenTile),
             m_oddTileTexture(a_oddTile)
-        { }
+        {}
 
         CheckerBoard(const fp32 a_scale, const Color& a_evenColor, const Color& a_oddColor) :
             m_scaleReciprocal(1.0f / a_scale),
             m_evenTileTexture(std::make_shared<SolidColor>(a_evenColor)),
             m_oddTileTexture(std::make_shared<SolidColor>(a_oddColor))
-        { }
+        {}
 
         Color Sample(const vath::Vector2f& a_uvCoord, const vath::Vector3f& a_point) const override
         {
-            const vath::Vector3u32 tileEdges(
-                static_cast<u32>(std::floor(m_scaleReciprocal * a_point.x)),
-                static_cast<u32>(std::floor(m_scaleReciprocal * a_point.y)),
-                static_cast<u32>(std::floor(m_scaleReciprocal * a_point.z))
+            const vath::Vector3i32 tileEdges(
+                static_cast<i32>(std::floor(m_scaleReciprocal * a_point.x)),
+                static_cast<i32>(std::floor(m_scaleReciprocal * a_point.y)),
+                static_cast<i32>(std::floor(m_scaleReciprocal * a_point.z))
             );
 
-            return (tileEdges.x + tileEdges.y + tileEdges.z) % 2 == 0
+            return (std::abs(tileEdges.x) + std::abs(tileEdges.y) + std::abs(tileEdges.z)) % 2 == 0
                 ? m_evenTileTexture->Sample(a_uvCoord, a_point)
                 : m_oddTileTexture->Sample(a_uvCoord, a_point);
         }
@@ -85,7 +85,7 @@ namespace dxray::riow
     public:
         ImageTexture(std::shared_ptr<Image> a_image) :
             m_image(a_image)
-        { }
+        {}
 
         Color Sample(const vath::Vector2f& a_uvCoord, const vath::Vector3f& a_point) const override
         {

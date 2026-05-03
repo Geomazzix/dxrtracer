@@ -9,7 +9,11 @@ namespace dxray
         //this existing buffer and using them to interpolate them.
         for (i32 i = 0; i < m_pointCount; i++)
         {
-            m_noiseMap[i] = vath::Normalize(vath::Vector3f(vath::RandomNumber<fp32>(-1.0f, 1.0f)));
+            m_noiseMap[i] = vath::Normalize(vath::Vector3f(
+                vath::RandomNumber<fp32>(-1.0f, 1.0f),
+                vath::RandomNumber<fp32>(-1.0f, 1.0f),
+                vath::RandomNumber<fp32>(-1.0f, 1.0f)
+            ));
         }
 
         for (i32 i = 0; i < m_pointCount; i++)

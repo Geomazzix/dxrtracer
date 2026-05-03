@@ -33,13 +33,13 @@ namespace dxray::vath
 
 		ColumnType& operator[](usize i)
 		{
-			DXRAY_ASSERT(i < GetColumnCount() * GetRowCount());
+			DXRAY_ASSERT(i < 4);
 			return m_data[i];
 		}
 
 		const ColumnType& operator[](usize i) const
 		{
-			DXRAY_ASSERT(i < GetColumnCount() * GetRowCount());
+			DXRAY_ASSERT(i < 4);
 			return m_data[i];
 		}
 
@@ -135,7 +135,7 @@ namespace dxray::vath
 	constexpr Matrix<3, 3, T> Matrix<4, 4, T>::GetInner() const
 	{
 		return Matrix<3, 3, T>(
-			m_data[0][0], m_data[0][0], m_data[0][0],
+			m_data[0][0], m_data[0][1], m_data[0][2],
 			m_data[1][0], m_data[1][1], m_data[1][2],
 			m_data[2][0], m_data[2][1], m_data[2][2]
 		);
@@ -279,10 +279,10 @@ namespace dxray::vath
 	constexpr Vector<4, T> operator*(const Matrix<4, 4, T>& a_lhs, const Vector<4, T>& a_vector)
 	{
 		return Vector<4, T>(
-			a_lhs[0][0] * a_vector[0] + a_lhs[0][1] * a_vector[1] + a_lhs[0][2] * a_vector[2] + a_lhs[0][3] * a_vector[3],
-			a_lhs[1][0] * a_vector[0] + a_lhs[1][1] * a_vector[1] + a_lhs[1][2] * a_vector[2] + a_lhs[1][3] * a_vector[3],
-			a_lhs[2][0] * a_vector[0] + a_lhs[2][1] * a_vector[1] + a_lhs[2][2] * a_vector[2] + a_lhs[2][3] * a_vector[3],
-			a_lhs[3][0] * a_vector[0] + a_lhs[3][1] * a_vector[1] + a_lhs[3][2] * a_vector[2] + a_lhs[3][3] * a_vector[3]
+			a_lhs[0][0] * a_vector[0] + a_lhs[1][0] * a_vector[1] + a_lhs[2][0] * a_vector[2] + a_lhs[3][0] * a_vector[3],
+			a_lhs[0][1] * a_vector[0] + a_lhs[1][1] * a_vector[1] + a_lhs[2][1] * a_vector[2] + a_lhs[3][1] * a_vector[3],
+			a_lhs[0][2] * a_vector[0] + a_lhs[1][2] * a_vector[1] + a_lhs[2][2] * a_vector[2] + a_lhs[3][2] * a_vector[3],
+			a_lhs[0][3] * a_vector[0] + a_lhs[1][3] * a_vector[1] + a_lhs[2][3] * a_vector[2] + a_lhs[3][3] * a_vector[3]
 		);
 	}
 
@@ -364,10 +364,10 @@ namespace dxray::vath
 	constexpr Matrix<4, 4, T> Translation(const Vector<3, T>& a_translation)
 	{
 		return Matrix<4, 4, T>(
-			1, 0, 0, a_translation[0],
-			0, 1, 0, a_translation[1],
-			0, 0, 1, a_translation[2],
-			0, 0, 0, 1
+			1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			a_translation[0], a_translation[1], a_translation[2], 1
 		);
 	}
 
@@ -400,13 +400,13 @@ namespace dxray::vath
 	constexpr Matrix<4, 4, T> PerspectiveFovLH(T a_fovInRad, T a_aspectRatio, T a_zNear, T a_zFar)
 	{
 		const T focalLength = std::tan(a_fovInRad / 2);
-		const T range = -a_zFar / (a_zFar - a_zNear);
+		const T range = a_zFar / (a_zFar - a_zNear);  // positive for LH
 
 		return Matrix<4, 4, T>(
 			static_cast<T>(1) / (a_aspectRatio * focalLength), 0, 0, 0,
 			0, static_cast<T>(1) / focalLength, 0, 0,
 			0, 0, range, static_cast<T>(1),
-			0, 0, range * a_zNear, 0
+			0, 0, -range * a_zNear, 0
 		);
 	}
 
@@ -414,14 +414,14 @@ namespace dxray::vath
 	constexpr Matrix<4, 4, T> LookToRH(const Vector<3, T>& a_position, const Vector<3, T>& a_lookTo, const Vector<3, T>& a_worldUp)
 	{
 		const Vector<3, T> forward = Normalize(a_lookTo);
-		const Vector<3, T> right(Normalize(Cross(a_worldUp, forward)));
-		const Vector<3, T> up(Cross(forward, right));
+		const Vector<3, T> right(Normalize(Cross(forward, a_worldUp)));
+		const Vector<3, T> up(Cross(right, forward));
 
 		return Matrix<4, 4, T>(
-			right[0], right[1], right[2], -vath::Dot(right, a_position),
-			up[0], up[1], up[2], -vath::Dot(up, a_position),
-			forward[0], forward[1], forward[2], -vath::Dot(forward, a_position),
-			static_cast<T>(0), static_cast<T>(0), static_cast<T>(0), static_cast<T>(1)
+			right[0], up[0], forward[0], 0,
+			right[1], up[1], forward[1], 0,
+			right[2], up[2], forward[2], 0,
+			-Dot(right, a_position), -Dot(up, a_position), -Dot(forward, a_position), 1
 		);
 	}
 

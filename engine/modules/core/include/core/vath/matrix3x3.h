@@ -32,13 +32,13 @@ namespace dxray::vath
 
 		ColumnType& operator[](usize i)
 		{
-			DXRAY_ASSERT(i < GetColumnCount() * GetRowCount());
+			DXRAY_ASSERT(i < 4);
 			return m_data[i];
 		}
 
 		const ColumnType& operator[](usize i) const
 		{
-			DXRAY_ASSERT(i < GetColumnCount() * GetRowCount());
+			DXRAY_ASSERT(i < 4);
 			return m_data[i];
 		}
 
@@ -75,7 +75,7 @@ namespace dxray::vath
 
 	template<typename T>
 	constexpr Matrix<3, 3, T>::Matrix() :
-		m_data{ ColumnType(1, 0, 0), ColumnType(0, 1, 0), ColumnType(0, 0, 1)}
+		m_data{ ColumnType(1, 0, 0), ColumnType(0, 1, 0), ColumnType(0, 0, 1) }
 	{}
 
 	template<typename T>
@@ -206,7 +206,7 @@ namespace dxray::vath
 			a_lhs[0][0] * a_rhs[1][0] + a_lhs[1][0] * a_rhs[1][1] + a_lhs[2][0] * a_rhs[1][2],
 			a_lhs[0][1] * a_rhs[1][0] + a_lhs[1][1] * a_rhs[1][1] + a_lhs[2][1] * a_rhs[1][2],
 			a_lhs[0][2] * a_rhs[1][0] + a_lhs[1][2] * a_rhs[1][1] + a_lhs[2][2] * a_rhs[1][2],
-			
+
 			//Col2
 			a_lhs[0][0] * a_rhs[2][0] + a_lhs[1][0] * a_rhs[2][1] + a_lhs[2][0] * a_rhs[2][2],
 			a_lhs[0][1] * a_rhs[2][0] + a_lhs[1][1] * a_rhs[2][1] + a_lhs[2][1] * a_rhs[2][2],
@@ -238,9 +238,9 @@ namespace dxray::vath
 	constexpr Vector<3, T> operator*(const Matrix<3, 3, T>& a_lhs, const Vector<3, T>& a_vector)
 	{
 		return Vector<3, T>(
-			a_lhs[0][0] * a_vector[0] + a_lhs[0][1] * a_vector[1] + a_lhs[0][2] * a_vector[2],
-			a_lhs[1][0] * a_vector[0] + a_lhs[1][1] * a_vector[1] + a_lhs[1][2] * a_vector[2],
-			a_lhs[2][0] * a_vector[0] + a_lhs[2][1] * a_vector[1] + a_lhs[2][2] * a_vector[2]
+			a_lhs[0][0] * a_vector[0] + a_lhs[1][0] * a_vector[1] + a_lhs[2][0] * a_vector[2],
+			a_lhs[0][1] * a_vector[0] + a_lhs[1][1] * a_vector[1] + a_lhs[2][1] * a_vector[2],
+			a_lhs[0][2] * a_vector[0] + a_lhs[1][2] * a_vector[1] + a_lhs[2][2] * a_vector[2]
 		);
 	}
 
@@ -320,7 +320,7 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<3, 3, T> RotateX(T a_angle, const Vector<3, T>& a_axis)
+	constexpr Matrix<3, 3, T> RotateX(T a_angle)
 	{
 		const T c = std::cos(a_angle);
 		const T s = std::sin(a_angle);
@@ -333,7 +333,7 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<3, 3, T> RotateY(T a_angle, const Vector<3, T>& a_axis)
+	constexpr Matrix<3, 3, T> RotateY(T a_angle)
 	{
 		const T c = std::cos(a_angle);
 		const T s = std::sin(a_angle);
@@ -346,7 +346,7 @@ namespace dxray::vath
 	}
 
 	template<typename T>
-	constexpr Matrix<3, 3, T> RotateZ(T a_angle, const Vector<3, T>& a_axis)
+	constexpr Matrix<3, 3, T> RotateZ(T a_angle)
 	{
 		const T c = std::cos(a_angle);
 		const T s = std::sin(a_angle);
@@ -386,7 +386,7 @@ namespace dxray::vath
 	constexpr Vector<3, T> ToEuler(const Matrix<3, 3, T>& a_rotationMat)
 	{
 		Vector<3, T> euler;
-		
+
 		//Retrieves the euler angle in yaw-pitch-roll order.
 		euler[1] = std::asin(a_rotationMat[0][2]);
 

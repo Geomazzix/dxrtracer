@@ -142,9 +142,9 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<2, T>& Vector<2, T>::operator/=(T a_scalar)
 	{
-		T divider = 1.0f / a_scalar;
-		x *= a_scalar;
-		y *= a_scalar;
+		T divider = static_cast<T>(1) / a_scalar;
+		x *= divider;
+		y *= divider;
 		return *this;
 	}
 
@@ -184,7 +184,7 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<2, T> operator-(const T a_scalar, const Vector<2, T>& a_rhs)
 	{
-		return a_rhs - a_scalar;
+		return Vector<2, T>(a_scalar - a_rhs[0], a_scalar - a_rhs[1]);
 	}
 
 	template<typename T>
@@ -257,7 +257,7 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<2, T> Project(const Vector<2, T>& a_lhs, const Vector<2, T>& a_rhs)
 	{
-		return (a_rhs * Dot(a_lhs, a_rhs) / Dot(a_lhs, a_rhs));
+		return (a_rhs * (Dot(a_lhs, a_rhs) / Dot(a_rhs, a_rhs)));
 	}
 
 	template<typename T>

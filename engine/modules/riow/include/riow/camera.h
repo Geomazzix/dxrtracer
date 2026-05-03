@@ -37,11 +37,13 @@ namespace dxray::riow
 		const fp32 GetAperture() const;
 		const fp32 GetFov() const;
 		const fp32 GetShutterSpeed() const;
-		const vath::Rect<fp32> GetViewportRect() const;
-		const vath::Matrix4x4f GetWorldTransform() const;
+		const vath::Rect<fp32>& GetViewportRect() const;
+		const vath::Matrix4x4f& GetViewTransform() const;
+		const vath::Matrix4x4f& GetWorldTransform() const;
 
 	private:
 		vath::Matrix4x4f m_worldTransform;
+		vath::Matrix4x4f m_viewTransform;
 		vath::Vector2u32 m_viewportPixelDims;
 		vath::Rect<fp32> m_viewportRect;
 		vath::Vector2f m_depthLimits;
@@ -149,12 +151,17 @@ namespace dxray::riow
 		return m_shutterSpeed;
 	}
 
-	inline const vath::Rect<fp32> Camera::GetViewportRect() const
+	inline const vath::Rect<fp32>& Camera::GetViewportRect() const
 	{
 		return m_viewportRect;
 	}
 
-	inline const vath::Matrix4x4f Camera::GetWorldTransform() const
+	inline const vath::Matrix4x4f& Camera::GetViewTransform() const
+	{
+		return m_viewTransform;
+	}
+
+	inline const vath::Matrix4x4f& Camera::GetWorldTransform() const
 	{
 		return m_worldTransform;
 	}

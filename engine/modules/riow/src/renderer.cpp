@@ -10,10 +10,10 @@ namespace dxray::riow
 		return direction * std::sqrtf(vath::RandomNumber<fp32>());
 	}
 
-    Renderer::Renderer() :
+	Renderer::Renderer() :
 		m_taskScheduler(2),
 		m_backgroundColor(0.0f)
-    {}
+	{}
 
 	void Renderer::Render(const Scene& a_scene, std::vector<vath::Vector3f>& a_colorDataBuffer)
 	{
@@ -28,7 +28,7 @@ namespace dxray::riow
 		//Anti-aliasing.
 		const u8 sampleSize = m_pipelineConfiguration.SuperSampleFactor;
 		const u8 sampleCount = sampleSize * sampleSize;
-        const fp32 pixelSampleSize = static_cast<fp32>(sampleSize) / sampleCount;
+		const fp32 pixelSampleSize = static_cast<fp32>(sampleSize) / sampleCount;
 		const fp32 superSampleReciprocal = 1.0f / sampleCount;
 
 		//Depth of field.
@@ -40,27 +40,33 @@ namespace dxray::riow
 		//Task threading.
 		const vath::Vector2u8 clusterSize(m_pipelineConfiguration.ClusterSize, m_pipelineConfiguration.ClusterSize);
 
-        DXRAY_INFO("=================================");
-        DXRAY_INFO("Loaded render pipeline:");
-        DXRAY_INFO("Image dimensions: {}, {}", viewportDimsInPx.x, viewportDimsInPx.y);
-        DXRAY_INFO("AA sample size {}", sampleSize);
-        DXRAY_INFO("DoF sampel count {}", dofSampleCount);
-        DXRAY_INFO("=================================");
-        DXRAY_INFO("Threading setup:");
-        DXRAY_INFO("Num worker threads: {}", m_taskScheduler.GetWorkerCount());
-        DXRAY_INFO("Ray Cluster size {}, {}", clusterSize.x, clusterSize.y);
-        DXRAY_INFO("=================================");
-        DXRAY_INFO("Rendering...");
+		DXRAY_INFO("=================================");
+		DXRAY_INFO("Loaded render pipeline:");
+		DXRAY_INFO("Image dimensions: {}, {}", viewportDimsInPx.x, viewportDimsInPx.y);
+		DXRAY_INFO("AA sample size {}", sampleSize);
+		DXRAY_INFO("DoF sampel count {}", dofSampleCount);
+		DXRAY_INFO("=================================");
+		DXRAY_INFO("Threading setup:");
+		DXRAY_INFO("Num worker threads: {}", m_taskScheduler.GetWorkerCount());
+		DXRAY_INFO("Ray Cluster size {}, {}", clusterSize.x, clusterSize.y);
+		DXRAY_INFO("=================================");
+		DXRAY_INFO("Rendering...");
 
 		//Sample the depth of field of a super-sampled pixel.
+		// Extract camera basis vectors for correct DoF lens offset.
+		const vath::Vector3f camRight = vath::Vector3f(m_camera.GetWorldTransform()[0]);
+		const vath::Vector3f camUp = vath::Vector3f(m_camera.GetWorldTransform()[1]);
+
 		auto SampleDepthOfField = [=](const vath::Vector3f a_rayDirection)
 		{
 			Color sampleColor(0.0f);
-			const vath::Vector3f focalPoint = cameraPosition + a_rayDirection * focalLength;
+			const vath::Vector3f normalizedDir = vath::Normalize(a_rayDirection);
+			const vath::Vector3f focalPoint = cameraPosition + normalizedDir * focalLength;
 			for (u32 si = 0; si < dofSampleCount; ++si)
 			{
 				const vath::Vector2f diskSample = GetRandom2dUnitDirection();
-				const vath::Vector3 rayOrigin = cameraPosition + vath::Vector3f(diskSample.x, diskSample.y, 0.0f) * lensRadius;
+				// Offset along camera-local right and up axes, not world X/Y.
+				const vath::Vector3 rayOrigin = cameraPosition + (camRight * diskSample.x + camUp * diskSample.y) * lensRadius;
 
 				//#Note: Shutter speed is randomly sampled so all motion is visible on the image - a real camera needs 1/100 samples to capture a full second of motion,
 				//which is way over the speed of what a CPU path tracer can do, games have a target framerate of 1/60 (most often).
@@ -75,14 +81,14 @@ namespace dxray::riow
 		//Super sample a pixel location.
 		auto SuperSamplePixel = [=](const vath::Vector2u32& a_pixelIndex)
 		{
-            Color pixelColor(0.0f);
-            for (u32 sy = 1; sy <= sampleSize; ++sy)
-            {
-                for (u32 sx = 1; sx <= sampleSize; ++sx)
-                {
+			Color pixelColor(0.0f);
+			for (u32 sy = 1; sy <= sampleSize; ++sy)
+			{
+				for (u32 sx = 1; sx <= sampleSize; ++sx)
+				{
 					//Anti-aliasing.
-                    const fp32 r = vath::RandomNumber<fp32>();
-                    const vath::Vector2f sampleOffset(
+					const fp32 r = vath::RandomNumber<fp32>();
+					const vath::Vector2f sampleOffset(
 						static_cast<fp32>(sx) / sampleSize - pixelSampleSize * r,
 						static_cast<fp32>(sy) / sampleSize - pixelSampleSize * r
 					);
@@ -90,7 +96,7 @@ namespace dxray::riow
 					const vath::Vector2f pixelOffset(
 						a_pixelIndex.x * pixelDelta.x + sampleOffset.x * pixelDelta.x,
 						a_pixelIndex.y * pixelDelta.y + sampleOffset.y * pixelDelta.y
-                    );
+					);
 
 					const vath::Vector3f rayDirection(m_camera.GetWorldTransform() * vath::Vector4f(
 						viewportRect.x + pixelOffset.x,
@@ -100,17 +106,17 @@ namespace dxray::riow
 					));
 
 					pixelColor += SampleDepthOfField(rayDirection);
-                }
-            }
+				}
+			}
 
 			return pixelColor * superSampleReciprocal;
 		};
 
-        //Render the pixel data into the provided output buffer using the task scheduler.
-        for (u16 py = 0; py < viewportDimsInPx.y; py += clusterSize.y)
-        {
-            for (u16 px = 0; px < viewportDimsInPx.x; px += clusterSize.x)
-            {
+		//Render the pixel data into the provided output buffer using the task scheduler.
+		for (u16 py = 0; py < viewportDimsInPx.y; py += clusterSize.y)
+		{
+			for (u16 px = 0; px < viewportDimsInPx.x; px += clusterSize.x)
+			{
 				//Spawn a task for the task scheduler in the form of a ray cluster.
 				TaskScheduler::Task task = [&, clusterSize, px, py]()
 				{
@@ -118,18 +124,18 @@ namespace dxray::riow
 					{
 						for (u8 cpx = 0; cpx < clusterSize.x; cpx++)
 						{
-                            const Color rgb = SuperSamplePixel(vath::Vector2u32(px + cpx, py + cpy));
+							const Color rgb = SuperSamplePixel(vath::Vector2u32(px + cpx, py + cpy));
 							const u32 pi = (px + cpx + (py + cpy) * viewportDimsInPx.x);
-                            a_colorDataBuffer[pi] = LinearToSrgb(rgb);
+							a_colorDataBuffer[pi] = LinearToSrgb(rgb);
 						}
 					}
 				};
 
-                m_taskScheduler.Execute(task);
-            }
+				m_taskScheduler.Execute(task);
+			}
 
 			DXRAY_TRACE("PixelY: {} / {}", py, viewportDimsInPx.y);
-        }
+		}
 
 		m_taskScheduler.Wait();
 	}
@@ -150,16 +156,16 @@ namespace dxray::riow
 			return m_backgroundColor;
 		}
 
-        Ray scattered;
-        Color attenuation;
+		Ray scattered;
+		Color attenuation;
 
 		const Color emissiveLight = hitInfo.Mat->Emitted(hitInfo.UvCoord, hitInfo.Point);
-        if (!hitInfo.Mat->Scatter(a_ray, hitInfo, attenuation, scattered))
-        {
+		if (!hitInfo.Mat->Scatter(a_ray, hitInfo, attenuation, scattered))
+		{
 			return emissiveLight; //An emissive material does not scatter, it emits, hence scatter returns false.
-        }
+		}
 
 		Color diffuseReflectance = attenuation * TraceRayColor(scattered, a_scene, a_maxTraceDepth - 1);
-        return emissiveLight + diffuseReflectance;
+		return emissiveLight + diffuseReflectance;
 	}
 }

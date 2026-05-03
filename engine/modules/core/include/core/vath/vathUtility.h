@@ -16,7 +16,7 @@ namespace dxray::vath
 	template <Arithmetic T>
 	inline constexpr T Min(const T a_value, const T a_min)
 	{
-        return std::min<T>(a_value, a_min);
+		return std::min<T>(a_value, a_min);
 	}
 
 	template <Arithmetic T>
@@ -37,17 +37,17 @@ namespace dxray::vath
 		return std::abs(a_value);
 	}
 
-    template <FloatingPoint T>
+	template <FloatingPoint T>
 	inline constexpr T Floor(const T a_fp)
-    {
+	{
 		return std::floor(a_fp);
-    }
+	}
 
-    template <FloatingPoint T>
+	template <FloatingPoint T>
 	inline constexpr T Ceil(const T a_fp)
-    {
+	{
 		return std::ceil(a_fp);
-    }
+	}
 
 	template <FloatingPoint T>
 	inline constexpr T Round(const T a_fp)
@@ -76,7 +76,19 @@ namespace dxray::vath
 	template<FloatingPoint T>
 	inline constexpr T Pi()
 	{
-		return std::numbers::pi_v<fp32>;
+		return std::numbers::pi_v<T>;
+	}
+
+	template <FloatingPoint T>
+	inline constexpr T Sqrt(const T a_value)
+	{
+		return std::sqrt(a_value);
+	}
+
+	template <FloatingPoint T>
+	inline constexpr T Tan(const T a_value)
+	{
+		return std::tan(a_value);
 	}
 
 	template <FloatingPoint T>
@@ -103,12 +115,12 @@ namespace dxray::vath
 		return a_min + (a_max - a_min) * distribution(generator);
 	}
 
-    template <Integral T>
-    inline T RandomNumber(const T a_min, const T a_max)
-    {
-        std::random_device dev;
-        static std::mt19937 generator(dev());
-        static std::uniform_int_distribution<T> distribution(static_cast<T>(0.0), static_cast<T>(1.0));
-        return distribution(generator);
-    }
+	template <Integral T>
+	inline T RandomNumber(const T a_min, const T a_max)
+	{
+		std::random_device dev;
+		static std::mt19937 generator(dev());
+		std::uniform_int_distribution<T> distribution(a_min, a_max);
+		return distribution(generator);
+	}
 }

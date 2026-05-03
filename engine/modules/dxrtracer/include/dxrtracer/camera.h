@@ -34,9 +34,17 @@ namespace dxray
 			m_view = vath::LookAtRH(Position, a_lookat, a_worldUp);
 		}
 
+		inline void SetPosition(const vath::Vector3f& a_position)
+		{
+			Position = a_position;
+			m_view[0][3] = a_position.x;
+			m_view[1][3] = a_position.y;
+			m_view[2][3] = a_position.z;
+		}
+
 		inline const vath::Matrix4x4f GetViewMatrix() const
 		{
-			return m_view;
+			return vath::Inverse(m_view);
 		}
 		
 		inline const vath::Matrix4x4f GetProjectionMatrix() const

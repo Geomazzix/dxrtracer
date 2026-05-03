@@ -30,7 +30,7 @@ namespace dxray::vath
 
 		constexpr Vector<3, T>(const Vector<3, T>& a_rhs) = default;
 		constexpr Vector<3, T>& operator=(const Vector<3, T>& a_rhs) = default;
-		
+
 		T& operator[](usize i);
 		const T& operator[](usize i) const;
 		constexpr usize GetLength() const;
@@ -221,14 +221,14 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<3, T> operator -(const T a_scalar, const Vector<3, T>& a_vector)
 	{
-		return Vector<3, T>(a_vector - a_scalar);
+		return Vector<3, T>(a_scalar - a_vector[0], a_scalar - a_vector[1], a_scalar - a_vector[2]);
 	}
 
-    template<typename T>
-    constexpr Vector<3, T> operator *(const Vector<3, T>& a_lhs, const Vector<3, T>& a_rhs)
-    {
-        return Vector<3, T>(a_lhs[0] * a_rhs[0], a_lhs[1] * a_rhs[1], a_lhs[2] * a_rhs[2]);
-    }
+	template<typename T>
+	constexpr Vector<3, T> operator *(const Vector<3, T>& a_lhs, const Vector<3, T>& a_rhs)
+	{
+		return Vector<3, T>(a_lhs[0] * a_rhs[0], a_lhs[1] * a_rhs[1], a_lhs[2] * a_rhs[2]);
+	}
 
 	template<typename T>
 	constexpr Vector<3, T> operator *(const Vector<3, T>& a_vector, const T a_scalar)
@@ -270,7 +270,7 @@ namespace dxray::vath
 		return !(a_lhs == a_rhs);
 	}
 
-	
+
 	//--- Vector applicable functionality ---
 
 	template<typename T>
@@ -310,7 +310,7 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<3, T> Project(const Vector<3, T>& a_lhs, const Vector<3, T>& a_rhs)
 	{
-		return (a_rhs * Dot(a_lhs, a_rhs) / Dot(a_lhs, a_rhs));
+		return (a_rhs * (Dot(a_lhs, a_rhs) / Dot(a_rhs, a_rhs)));
 	}
 
 	template<typename T>

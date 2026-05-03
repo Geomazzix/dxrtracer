@@ -120,7 +120,7 @@ int main(int argc, char** argv)
 	timer.Start();
 
 	//STB expects signed integers for image writing, the values will never be negative regardless within the framework, so use unsigned integers onwards.
-	const vath::Vector2i32 imageDimensions(2560, 1440);
+	const vath::Vector2i32 imageDimensions(2560, 1400);
 	const i32 imageChannelNum = 3;
 	const u32 clusterSize = 4;
 	DXRAY_ASSERT_WITH_MSG(imageDimensions.x % clusterSize == 0, "Image width should be divisible by the cluster size. Clamping is currently not implemented.");
@@ -156,8 +156,8 @@ int main(int argc, char** argv)
 	const riow::RendererPipeline renderPipeline =
 	{
 		.MaxTraceDepth = 100,
-		.SuperSampleFactor = 4,
-		.DepthOfFieldSampleCount = 16,
+		.SuperSampleFactor = 2,
+		.DepthOfFieldSampleCount = 2,
 		.ClusterSize = clusterSize
 	};
 

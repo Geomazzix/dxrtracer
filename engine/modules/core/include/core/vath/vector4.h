@@ -204,7 +204,7 @@ namespace dxray::vath
 	template<typename T>
 	constexpr Vector<4, T> operator-(const T a_scalar, const Vector<4, T>& a_rhs)
 	{
-		return a_rhs - a_scalar;
+		return Vector<4, T>(a_scalar - a_rhs[0], a_scalar - a_rhs[1], a_scalar - a_rhs[2], a_scalar - a_rhs[3]);
 	}
 
 	template<typename T>

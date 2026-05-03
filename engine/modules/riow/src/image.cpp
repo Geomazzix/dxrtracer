@@ -1,4 +1,5 @@
 #include "riow/image.h"
+#include <filesystem>
 
 #define STBI_MSC_SECURE_CRT
 #define STB_IMAGE_IMPLEMENTATION
@@ -24,7 +25,7 @@ namespace dxray::riow
             return String(".jpg");
         case Image::EFileExtension::Invalid:
         default:
-            DXRAY_ASSERT_WITH_MSG(true, "Invalid image file format chosen");
+            DXRAY_ASSERT_WITH_MSG(false, "Invalid image file format chosen");
         }
 
         return String("");
@@ -71,7 +72,7 @@ namespace dxray::riow
             return CyanPixelColor;
         }
 
-        const vath::Vector2i32 clampedCoords(vath::Clamp<i32>(a_pixelCoords.x, 0, m_dimensions.x), vath::Clamp<i32>(a_pixelCoords.y, 0, m_dimensions.y));
+        const vath::Vector2i32 clampedCoords(vath::Clamp<i32>(a_pixelCoords.x, 0, m_dimensions.x - 1), vath::Clamp<i32>(a_pixelCoords.y, 0, m_dimensions.y - 1));
         const i32 pixelIndex = vath::Clamp<i32>(clampedCoords.x * m_channelCount + m_dimensions.x * m_channelCount * clampedCoords.y, 0, m_dimensions.x * m_dimensions.y * m_channelCount - 1);
         return &m_data[pixelIndex];
     }
@@ -81,7 +82,7 @@ namespace dxray::riow
         const i32 pixelCount = a_width * a_height;
         u8* const pixels = new u8[pixelCount * a_numChannels];
 
-        for (i32 pixelIndex = 0; pixelIndex < pixelCount * a_numChannels; pixelIndex)
+        for (i32 pixelIndex = 0; pixelIndex < pixelCount * a_numChannels; pixelIndex += a_numChannels)
         {
             for (i32 channelIndex = 0; channelIndex < a_numChannels; channelIndex++)
             {
@@ -96,11 +97,10 @@ namespace dxray::riow
                     pixels[pixelIndex + channelIndex] = static_cast<u8>(channelValue);
                 }
             }
-
-            pixelIndex += a_numChannels;
         }
 
-        const i32 result = stbi_write_png(String(a_fileName + GetFileExtension(a_fileExtension)).c_str(), a_width, a_height, a_numChannels, pixels, a_width * a_numChannels);
+        const auto filepath = std::filesystem::path("bin") / CMAKE_INTDIR / String(a_fileName + GetFileExtension(a_fileExtension));
+        const i32 result = stbi_write_png(filepath.string().c_str(), a_width, a_height, a_numChannels, pixels, a_width * a_numChannels);
         DXRAY_ASSERT(result > 0); //0 - failure.
         if (pixels != nullptr)
         {
