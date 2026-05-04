@@ -52,25 +52,25 @@ namespace dxray
 	{
 		Mesh mesh;
 
-		mesh.Positions.reserve(a_pMesh->mNumVertices);
+		mesh.Vertices.resize(a_pMesh->mNumVertices);
 		for (usize vertexIdx = 0; vertexIdx < a_pMesh->mNumVertices; ++vertexIdx)
 		{
 			DXRAY_ASSERT(a_pMesh->HasPositions());
 
 			aiVector3f position = a_pMesh->mVertices[vertexIdx];
-			mesh.Positions.push_back({ position.x, position.y, position.z });
+			mesh.Vertices[vertexIdx].Position = { position.x, position.y, position.z };
 
 			if (a_pMesh->HasNormals())
 			{
 				aiVector3f normal = a_pMesh->mNormals[vertexIdx];
-				mesh.Normals.push_back({ normal.x, normal.y, normal.z });
+				mesh.Vertices[vertexIdx].Normal = { normal.x, normal.y, normal.z };
 			}
 
 			// #Todo: support more than one UV channel.
 			if (a_pMesh->HasTextureCoords(0))
 			{
 				aiVector3D uvCoord = a_pMesh->mTextureCoords[0][vertexIdx];
-				mesh.Uvs.push_back({ uvCoord.x, uvCoord.y });
+				mesh.Vertices[vertexIdx].UV = { uvCoord.x, uvCoord.y };
 			}
 		}
 

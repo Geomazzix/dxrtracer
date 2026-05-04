@@ -45,7 +45,7 @@ namespace dxray
 		const D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE vertexBuffer =
 		{
 			.StartAddress = a_vsBuffer->GetGPUVirtualAddress(),
-			.StrideInBytes = sizeof(vath::Vector3f)
+			.StrideInBytes = sizeof(Vertex)
 		};
 
 		const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC triangleDesc =

@@ -14,19 +14,19 @@ namespace dxray
 
 	void RenderPass::Execute(ComPtr<ID3D12GraphicsCommandList>& a_commandList, const RenderPassExecuteInfo& a_execInfo)
 	{
+		a_execInfo.BindlessHeap.Bind(a_commandList);
+
 		ComPtr<ID3D12GraphicsCommandList5> dxrCmdList;
 		D3D12_CHECK(a_commandList.As(&dxrCmdList));
 
 		dxrCmdList->SetPipelineState1(m_rtpso.Pso.Get());
 		dxrCmdList->SetComputeRootSignature(m_rootSig.Get());
-		dxrCmdList->SetDescriptorHeaps(1, a_execInfo.UavHeap.GetAddressOf());
 
-		const u32 descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		const CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable(a_execInfo.UavHeap->GetGPUDescriptorHandleForHeapStart(), a_execInfo.SwapchainIndex, descriptorSize);
-		dxrCmdList->SetComputeRootDescriptorTable(0, uavTable);
+		dxrCmdList->SetComputeRootConstantBufferView(0, a_execInfo.SceneCbvAddr);
 		dxrCmdList->SetComputeRootShaderResourceView(1, a_execInfo.TlasBufferAddr);
-		dxrCmdList->SetComputeRootConstantBufferView(2, a_execInfo.SceneCbvAddr);
-
+		dxrCmdList->SetComputeRootDescriptorTable(2, a_execInfo.BindlessHeap.GetGpuHandle(0));
+		dxrCmdList->SetComputeRootDescriptorTable(3, a_execInfo.BindlessHeap.GetGpuHandle(a_execInfo.RenderTargetUavSlot));
+		
 		// #note_renderPass: A ray dispatch configures the shader table, consisting of shader records which identify how the GPU can find the resources
 		// to invoke the attached shader. As the application currently only uses a global root signature these are sized to the shader identifier and aligned
 		// to the SHADER_TABLE_BYTE_SIZE.
@@ -62,21 +62,31 @@ namespace dxray
 
 	void RenderPass::CreateRayTraceDemoRootSig()
 	{
-		// #Todo: Include the UAV into the bindless table as all DXR capable GPUs support bindless resource tier 3.
-		CD3DX12_DESCRIPTOR_RANGE uavRange;
-		uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
+		CD3DX12_DESCRIPTOR_RANGE1 frameBufferUavRange;
+		frameBufferUavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 16, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 
-		FixedArray<CD3DX12_ROOT_PARAMETER, 3> rootParams;
-		rootParams[0].InitAsDescriptorTable(1, &uavRange);
+		CD3DX12_DESCRIPTOR_RANGE1 bindlessSrvRange;
+		bindlessSrvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1024, 0, 1, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+
+		FixedArray<CD3DX12_ROOT_PARAMETER1, 4> rootParams;
+		rootParams[0].InitAsConstantBufferView(0, 0);
 		rootParams[1].InitAsShaderResourceView(0, 0);
-		rootParams[2].InitAsConstantBufferView(0, 0);
+		rootParams[2].InitAsDescriptorTable(1, &bindlessSrvRange, D3D12_SHADER_VISIBILITY_ALL);
+		rootParams[3].InitAsDescriptorTable(1, &frameBufferUavRange, D3D12_SHADER_VISIBILITY_ALL);
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
-		rootSigDesc.Init_1_0(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr);
+		rootSigDesc.Init_1_1(static_cast<u32>(rootParams.size()), rootParams.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
 		//#Todo: Add proper error checking on the return blob.
 		ComPtr<ID3DBlob> blob = nullptr;
-		D3D12_CHECK(D3D12SerializeVersionedRootSignature(&rootSigDesc, &blob, nullptr));
+		ComPtr<ID3DBlob> error = nullptr;
+		D3D12_CHECK(D3D12SerializeVersionedRootSignature(&rootSigDesc, &blob, &error));
+
+		if (error && error->GetBufferSize() > 0)
+		{
+			OutputDebugStringA((char*)error->GetBufferPointer());
+		}
+
 		D3D12_CHECK(m_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&m_rootSig)));
 		D3D12_NAME_OBJECT(m_rootSig, WString(L"RenderPass_RootSig"));
 	}
@@ -202,7 +212,7 @@ namespace dxray
 
 		ComPtr<ID3D12Device5> dxrDevice;
 		D3D12_CHECK(m_device.As(&dxrDevice));
-		D3D12_CHECK(dxrDevice->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(&m_rtpso.Pso)));		
+		D3D12_CHECK(dxrDevice->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(&m_rtpso.Pso)));
 	}
 
 	void RenderPass::CreateShaderTable()

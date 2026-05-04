@@ -68,8 +68,8 @@ bool EngineInitialize()
 
 void EngineTick(const fp32 a_dt)
 {
-	//m_camera->SetPosition(vath::Vector3f(5.f, 2.f + sinf(m_appTime.GetElapsedSeconds()), 0.f));
-	m_camera->SetPosition(vath::Vector3f(5.f, 3.f, 0.f));
+	m_camera->SetPosition(vath::Vector3f(5.f, 2.f + sinf(m_appTime.GetElapsedSeconds()), 0.f));
+	//m_camera->SetPosition(vath::Vector3f(5.f, 3.f, 0.f));
 }
 
 void EngineLoop()

@@ -75,10 +75,11 @@ namespace dxray
 		m_mainCamera(a_createInfo.MainCam),
 		m_useWarp(false),
 		m_swapchainIndex(0),
-		m_alignedSceneConstantBufferElementSize(CalculateConstantBufferSize(sizeof(SceneConstantBuffer)))
+		m_sceneCbStride(CalculateConstantBufferSize(sizeof(SceneConstantBuffer)))
 	{
 		m_device = CreateDevice();
 		m_graphicsQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+				
 		CreateSwapchain(a_createInfo.SwapchainInfo);
 		CreateFrameResources();
 
@@ -102,20 +103,20 @@ namespace dxray
 		D3D12_CHECK(frameResources.CommandAllocator->Reset());
 		D3D12_CHECK(m_commandList->Reset(frameResources.CommandAllocator.Get(), nullptr));
 
+		/* Update the scene constant buffer data. */
 		frameResources.SceneConstantBufferData.View = vath::Inverse(m_mainCamera->GetViewMatrix());
 		frameResources.SceneConstantBufferData.Projection = m_mainCamera->GetProjectionMatrix();
 		frameResources.SceneConstantBufferData.FrameIndex = m_swapchainIndex;
-		frameResources.SceneConstantBufferData.SuperSampleSize = static_cast<u32>(ESuperSampleSize::x4);
-		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + m_alignedSceneConstantBufferElementSize * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
+		memcpy(reinterpret_cast<u8*>(m_cbvSceneHeapAddr) + m_sceneCbStride * m_swapchainIndex, &frameResources.SceneConstantBufferData, sizeof(SceneConstantBuffer));
 
 		UpdateTlas(m_device, m_commandList, frameResources.WorldTlas, m_sceneObjectInstances);
-		
-		const RenderPassExecuteInfo executionInfo = 
+
+		const RenderPassExecuteInfo executionInfo =
 		{
-			.UavHeap = m_uavHeap,
+			.BindlessHeap = m_bindlessHeap,
+			.SceneCbvAddr = m_cbvSceneHeap->GetGPUVirtualAddress() + m_sceneCbStride * m_swapchainIndex,
 			.TlasBufferAddr = frameResources.WorldTlas.Buffer->GetGPUVirtualAddress(),
-			.SceneCbvAddr = m_cbvSceneHeap->GetGPUVirtualAddress() + m_alignedSceneConstantBufferElementSize * m_swapchainIndex,
-			.SwapchainIndex = m_swapchainIndex,
+			.RenderTargetUavSlot = 1024 + m_swapchainIndex,
 			.SurfaceWidth = swapchainDesc.Width,
 			.SurfaceHeight = swapchainDesc.Height
 		};
@@ -298,65 +299,45 @@ namespace dxray
 		D3D12_CHECK(swapchain.As(&m_swapchain));
 		m_swapchainIndex = m_swapchain->GetCurrentBackBufferIndex();
 
-		//Create swap chain descriptor heaps.
-		{
-			// Describe and create a render target view (RTV) descriptor heap.
-			const D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc =
-			{
-				.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-				.NumDescriptors = SwapchainBackbufferCount,
-				.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-				.NodeMask = 0
-			};
-			D3D12_CHECK(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-			m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		}
-
 		//Retrieve the swap chain render targets.
+		m_rtvHeap = DescriptorHeap(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, SwapchainBackbufferCount, false);
+		for (u32 i = 0; i < m_swapchainRenderTargets.size(); i++)
 		{
-			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-			for (u32 i = 0; i < m_swapchainRenderTargets.size(); i++)
-			{
-				D3D12_CHECK(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_swapchainRenderTargets[i])));
-				m_device->CreateRenderTargetView(m_swapchainRenderTargets[i].Get(), nullptr, rtvHandle);
-				rtvHandle.Offset(1, m_rtvDescriptorSize);
-			}
+			D3D12_CHECK(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_swapchainRenderTargets[i])));
+			m_device->CreateRenderTargetView(m_swapchainRenderTargets[i].Get(), nullptr, m_rtvHeap.GetCpuHandle(i));
 		}
 	}
 
 	void Renderer::CreateFrameResources()
 	{
-		// Uav and scene Cbv descriptor heap -> indexed by backbuffer index.
-		const D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc =
-		{
-			.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-			.NumDescriptors = SwapchainBackbufferCount,
-			.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-			.NodeMask = 0
-		};
+		m_bindlessHeap = DescriptorHeap(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1040, true);
 
-		D3D12_CHECK(m_device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_uavHeap)));
-		D3D12_NAME_OBJECT(m_uavHeap, std::format(L"UavDescriptorHeap"));
-		
-		// Scene constants
+		/* Scene constant buffer */
 		const D3D12_HEAP_PROPERTIES uploadHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * m_alignedSceneConstantBufferElementSize);
+		const D3D12_RESOURCE_DESC cbDesc = CD3DX12_RESOURCE_DESC::Buffer(SwapchainBackbufferCount * m_sceneCbStride);
 
 		D3D12_CHECK(m_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_cbvSceneHeap)));
 		D3D12_NAME_OBJECT(m_cbvSceneHeap, WString(L"CbvSceneHeap{}"));
 		D3D12_CHECK(m_cbvSceneHeap->Map(0, nullptr, &m_cbvSceneHeapAddr)); // Kept mapped for the lifetime of the application, values in here are nearly 100% to change every frame.
 
-		// Backbuffer dependent resources (i.e. the ones that need to exist x amount of times to account for in-flight/recording data).
-		m_uavCbvSrvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetCPUDescriptorHandleForHeapStart());
-
+		/* On frame basis data. */
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc;
 		D3D12_CHECK(m_swapchain->GetDesc1(&swapchainDesc));
+
+		const D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc =
+		{
+			.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+			.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+			.Texture2D = 
+			{
+				.MipSlice = 0, 
+				.PlaneSlice = 0 
+			},
+		};
 
 		for (u32 i = 0; i < SwapchainBackbufferCount; i++)
 		{
 			FrameResources& frameResources = m_frameResources[i];
-
 			frameResources.SceneConstantBufferData =
 			{
 				.SkyColour = vath::Vector4f(0.24f, 0.44f, 0.72f, 1.0),
@@ -372,22 +353,12 @@ namespace dxray
 			D3D12_CHECK(m_device->CreateCommittedResource(&shaderRtHeapProps, D3D12_HEAP_FLAG_NONE, &shaderRtDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&frameResources.RaytraceRenderTarget)));
 			D3D12_NAME_OBJECT(frameResources.RaytraceRenderTarget, std::format(L"RaytraceRenderTarget_{}", i));
 
-			const D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc =
-			{
-				.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-				.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
-				.Texture2D =
-				{
-					.MipSlice = 0,
-					.PlaneSlice = 0
-				}
-			};
-			m_device->CreateUnorderedAccessView(frameResources.RaytraceRenderTarget.Get(), nullptr, &uavDesc, uavHandle);
-			uavHandle.Offset(1, m_uavCbvSrvDescriptorSize);
+			m_device->CreateUnorderedAccessView(frameResources.RaytraceRenderTarget.Get(), nullptr, &uavDesc, m_bindlessHeap.GetCpuHandle(1024 + i));
 
 			frameResources.FenceValue = i;
 		}
 
+		/* For simplicity's sake this application currently only uses 1 command list. */
 		D3D12_CHECK(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_frameResources[0].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
 		D3D12_NAME_OBJECT(m_commandList, std::format(L"D3D12{}CommandList", CommandListTypeToUnicode(D3D12_COMMAND_LIST_TYPE_DIRECT)));
 		m_commandList->Close();
@@ -406,38 +377,61 @@ namespace dxray
 
 	void Renderer::LoadModel(const vath::Vector3f& a_location, const vath::Vector3f& a_eulerRotation, const vath::Vector3f& a_scale, const Model& a_model)
 	{
-		static u32 objectCount = 0;
+		const auto WriteStructuredBufferSrv = [](ComPtr<ID3D12Device>& a_device, D3D12_CPU_DESCRIPTOR_HANDLE a_dest, ComPtr<ID3D12Resource>& a_resource, u32 a_numElements, u32 a_stride)
+		{
+			const D3D12_SHADER_RESOURCE_VIEW_DESC desc =
+			{
+				.Format = DXGI_FORMAT_UNKNOWN,
+				.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Buffer =
+				{
+					.FirstElement = 0,
+					.NumElements = a_numElements,
+					.StructureByteStride = a_stride,
+					.Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+				},
+			};
+
+			a_device->CreateShaderResourceView(a_resource.Get(), &desc, a_dest);
+		};
+
 		for (const Mesh& mesh : a_model.Meshes)
 		{
+			/* Create the mesh itself */
 			D3D12Mesh d3d12Mesh;
 		
-			// Create the data attribute buffers.
-			d3d12Mesh.VertexCount = mesh.Positions.size();
-			CreateReadBackBuffer(m_device, d3d12Mesh.VertexPositionAttribBuffer, mesh.Positions.data(), mesh.Positions.size() * sizeof(Vector3f));
-			D3D12_NAME_OBJECT(d3d12Mesh.VertexPositionAttribBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
+			d3d12Mesh.VertexCount = static_cast<u32>(mesh.Vertices.size());
+			CreateReadBackBuffer(m_device, d3d12Mesh.VertexBuffer, mesh.Vertices.data(), mesh.Vertices.size() * sizeof(Vertex));
+			D3D12_NAME_OBJECT(d3d12Mesh.VertexBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
 
-			CreateReadBackBuffer(m_device, d3d12Mesh.VertexNormalAttribBuffer, mesh.Normals.data(), mesh.Normals.size() * sizeof(Vector3f));
-			D3D12_NAME_OBJECT(d3d12Mesh.VertexNormalAttribBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
-
-			CreateReadBackBuffer(m_device, d3d12Mesh.VertexUvAttribBuffer, mesh.Positions.data(), mesh.Positions.size() * sizeof(Vector2f));
-			D3D12_NAME_OBJECT(d3d12Mesh.VertexUvAttribBuffer, std::format(L"{}{}", a_model.DebugName, L"_vertex_position_buffer"));
-
-			d3d12Mesh.IndexCount = mesh.Indices.size();
+			d3d12Mesh.IndexCount = static_cast<u32>(mesh.Indices.size());
 			CreateReadBackBuffer(m_device, d3d12Mesh.IndexBuffer, mesh.Indices.data(), mesh.Indices.size() * sizeof(u32));
 			D3D12_NAME_OBJECT(d3d12Mesh.IndexBuffer, std::format(L"{}{}", a_model.DebugName, L"_index_buffer"));
 
-			// Then create the bottom-level acceleration structure.
-			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexPositionAttribBuffer, mesh.Positions.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
+			CreateBlas(m_device, m_commandList, d3d12Mesh.Blas, d3d12Mesh.VertexBuffer, mesh.Vertices.size(), d3d12Mesh.IndexBuffer, mesh.Indices.size());
 			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Scratch, std::format(L"{}{}", a_model.DebugName, L"_Blas_Scratch"));
 			D3D12_NAME_OBJECT(d3d12Mesh.Blas.Buffer, std::format(L"{}{}", a_model.DebugName, L"_Blas"));
 			m_meshes.push_back(d3d12Mesh);
 
-			// Lastly specify the instance data.
+			const u32 meshIdx = static_cast<u32>(m_meshes.size() - 1);
+
+			/* Then assign the mesh indices to the bindless descriptor heap. */
+			WriteStructuredBufferSrv(m_device, m_bindlessHeap.GetCpuHandle(1 + meshIdx), d3d12Mesh.VertexBuffer, d3d12Mesh.VertexCount, sizeof(Vertex));
+			WriteStructuredBufferSrv(m_device, m_bindlessHeap.GetCpuHandle(257 + meshIdx), d3d12Mesh.IndexBuffer, d3d12Mesh.IndexCount, sizeof(u32));
+
+			m_meshData.push_back(MeshData
+			{
+				.VertexBufferIdx = meshIdx,
+				.IndexBufferIdx = meshIdx
+			});
+
+			/* Lastly specify the Tlas data, so the mesh can be instanced. */
 			D3D12_RAYTRACING_INSTANCE_DESC desc =
 			{
-				.InstanceID = objectCount++,						// InstanceID in hlsl.
-				.InstanceMask = 1,									// Unique to dxr - can be used to mask out the execution of this *group* of geometry completely. See TraceRay for index - non-0 for inclusion.
-				.InstanceContributionToHitGroupIndex = 0,			// Used to specify which hitgroup in the SBT to execute.
+				.InstanceID = static_cast<u32>(m_meshes.size() - 1),
+				.InstanceMask = 1,
+				.InstanceContributionToHitGroupIndex = 0,
 				.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE,
 				.AccelerationStructure = d3d12Mesh.Blas.Buffer->GetGPUVirtualAddress()
 			};
@@ -454,6 +448,30 @@ namespace dxray
 
 	void Renderer::EndResourceLoading()
 	{
+		if (m_meshData.empty())
+		{
+			return;
+		}
+
+		const usize bytes = m_meshData.size() * sizeof(MeshData);
+		CreateReadBackBuffer(m_device, m_meshDataBuffer, m_meshData.data(), bytes);
+		D3D12_NAME_OBJECT(m_meshDataBuffer, std::format(L"{}", L"_MeshData_StructuredBuffer"));
+
+		const D3D12_SHADER_RESOURCE_VIEW_DESC desc =
+		{
+			.Format = DXGI_FORMAT_UNKNOWN,
+			.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+			.Buffer =
+			{
+				.FirstElement = 0,
+				.NumElements = static_cast<u32>(m_meshData.size()),
+				.StructureByteStride = sizeof(MeshData),
+				.Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+			},
+		};
+		m_device->CreateShaderResourceView(m_meshDataBuffer.Get(), &desc, m_bindlessHeap.GetCpuHandle(0));
+
 		D3D12_CHECK(m_commandList->Close());
 		ID3D12CommandList* const lists[] = { m_commandList.Get() };
 		m_graphicsQueue->Handle->ExecuteCommandLists(1, lists);

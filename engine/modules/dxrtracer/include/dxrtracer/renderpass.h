@@ -1,4 +1,5 @@
 #pragma once
+#include "dxrtracer/descriptorHeap.h"
 
 namespace dxray
 {
@@ -11,26 +12,18 @@ namespace dxray
 		ComPtr<ID3D12Resource> ShaderTable;
 	};
 
-
 	/**
 	 * @brief Render pass execution info for the dispatch rays.
 	 */
 	struct RenderPassExecuteInfo
 	{
-		ComPtr<ID3D12DescriptorHeap>& UavHeap;
-		D3D12_GPU_VIRTUAL_ADDRESS TlasBufferAddr;
+		const DescriptorHeap& BindlessHeap;
 		D3D12_GPU_VIRTUAL_ADDRESS SceneCbvAddr;
-
-		ComPtr<ID3D12DescriptorHeap> GeometryVertexPositionAttribDescriptorHeap;
-		ComPtr<ID3D12DescriptorHeap> GeometryVertexNormalAttribDescriptorHeap;
-		ComPtr<ID3D12DescriptorHeap> GeometryVertexUvCoordAttribDescriptorHeap;
-		ComPtr<ID3D12DescriptorHeap> GeometryVertexAttribDescriptorHeap;
-
-		u32 SwapchainIndex;
+		D3D12_GPU_VIRTUAL_ADDRESS TlasBufferAddr;
+		u32 RenderTargetUavSlot;
 		u32 SurfaceWidth;
 		u32 SurfaceHeight;
 	};
-
 
 	/**
 	 * @brief The render-pass is currently responsible for the dispatching of the rays for the ray-traced output.

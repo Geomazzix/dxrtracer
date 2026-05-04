@@ -4,6 +4,7 @@
 #include <core/memory/memory.h>
 #include "dxrtracer/shaderConstructs.h"
 #include "dxrtracer/accelerationStructure.h"
+#include "dxrtracer/descriptorHeap.h"
 
 namespace dxray
 {
@@ -11,19 +12,6 @@ namespace dxray
 	class RenderPass;
 	struct Camera;
 	struct Model;
-
-	/**
-	 * @brief Used to indicate which sample size the shader should use.
-	 * @Note Kept 4 bytes big, as hlsl doesn't support 8 bit types.
-	 */
-	enum class ESuperSampleSize : u32
-	{
-		x1 = 1,
-		x2 = 2,
-		x4 = 4,
-		x8 = 8
-	};
-
 
 	/**
 	 * @brief Constantbuffers require alignment to 255 bytes.
@@ -35,23 +23,19 @@ namespace dxray
 		return Align<usize>(a_size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	}
 
-
 	/**
-	* @brief Render data as represented by d3d12. Not instanced.
-	*/
+	 * @brief Render data as represented by d3d12. Not instanced.
+	 */
 	struct D3D12Mesh
 	{
-		ComPtr<ID3D12Resource> VertexPositionAttribBuffer = nullptr;
-		ComPtr<ID3D12Resource> VertexNormalAttribBuffer = nullptr;
-		ComPtr<ID3D12Resource> VertexUvAttribBuffer = nullptr;
-		usize VertexCount = 0;
+		ComPtr<ID3D12Resource> VertexBuffer = nullptr;
+		u32 VertexCount = 0;
 
 		ComPtr<ID3D12Resource> IndexBuffer = nullptr;
-		usize IndexCount = 0;
+		u32 IndexCount = 0;
 
 		BottomLevelAccelerationStructure Blas;
 	};
-
 
 	/**
 	 * @brief Global frame-to-frame resources, these exist x amount of swap-chain back-buffers.
@@ -65,7 +49,6 @@ namespace dxray
 		ComPtr<ID3D12Resource> RaytraceRenderTarget = nullptr;
 		u64 FenceValue = 0;
 	};
-
 
 	/**
 	 * @brief Wrapper object for a command queue - internally tracks submission and synchronization based on provided primitives.
@@ -85,7 +68,6 @@ namespace dxray
 		void WaitIdle();
 	};
 
-
 	/**
 	 * @brief Info structure to describe the swap chain properties during (re-)creation.
 	 */
@@ -96,7 +78,6 @@ namespace dxray
 		std::shared_ptr<WinApiWindow> Window;
 	};
 
-
 	/**
 	 * @brief Info structure to describe the renderer initialization.
 	 */
@@ -105,7 +86,6 @@ namespace dxray
 		std::shared_ptr<Camera> MainCam;
 		SwapchainCreateInfo SwapchainInfo;
 	};
-
 
 	/**
 	 * @brief The renderer is responsible for the GPU frame-to-frame generation and execution, while maintaining the render-pass dependencies as well.
@@ -131,31 +111,30 @@ namespace dxray
 
 		ComPtr<ID3D12Device> m_device;
 		ComPtr<IDXGIFactory4> m_factory;
+		bool m_useWarp;
 
 		std::unique_ptr<CommandQueue> m_graphicsQueue;
 		ComPtr<ID3D12GraphicsCommandList> m_commandList;
 		std::unique_ptr<RenderPass> m_renderPass;
 
+		ComPtr<IDXGISwapChain3> m_swapchain;
 		const static u32 SwapchainBackbufferCount = 3;
 		FixedArray<ComPtr<ID3D12Resource>, SwapchainBackbufferCount> m_swapchainRenderTargets;
 		FixedArray<FrameResources, SwapchainBackbufferCount> m_frameResources;
-		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-		ComPtr<ID3D12DescriptorHeap> m_uavHeap;
-		ComPtr<IDXGISwapChain3> m_swapchain;
-
 		u32 m_swapchainIndex;
-		u32 m_rtvDescriptorSize;
-		u32 m_uavCbvSrvDescriptorSize;
-		bool m_useWarp;
 
-		std::shared_ptr<Camera> m_mainCamera;
+		ComPtr<ID3D12Resource> m_cbvSceneHeap;
+		usize m_sceneCbStride;
+		void* m_cbvSceneHeapAddr;
+
 		Array<D3D12Mesh> m_meshes;
 		Array<D3D12_RAYTRACING_INSTANCE_DESC> m_sceneObjectInstances;
 
-		// #Todo: Looks this like this resource, regardless of whether the GPU is idle or not, is not being correctly destroyed...? - keep an eye on this.
-		ComPtr<ID3D12Resource> m_cbvSceneHeap;
-		ComPtr<ID3D12DescriptorHeap> m_geometryDescriptors;
-		usize m_alignedSceneConstantBufferElementSize;
-		void* m_cbvSceneHeapAddr;
+		DescriptorHeap m_rtvHeap;
+		DescriptorHeap m_bindlessHeap;
+		std::vector<MeshData> m_meshData;
+		ComPtr<ID3D12Resource> m_meshDataBuffer;
+
+		std::shared_ptr<Camera> m_mainCamera;
 	};
 }

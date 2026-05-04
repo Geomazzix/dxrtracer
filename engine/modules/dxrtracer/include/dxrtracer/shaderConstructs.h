@@ -13,6 +13,24 @@ static const fp32 MinTraceDistance = 0.01f;
 static const fp32 MaxTraceDistance = 1000.0f;
 
 /**
+ * @brief Used to access vertex attribute data inside the DXR renderpipeline.
+ */
+struct Vertex
+{
+	Vector3f Position;
+	Vector3f Normal;
+	Vector2f UV;
+};
+
+struct MeshData
+{
+	u32 VertexBufferIdx;
+	u32 IndexBufferIdx;
+	u32 Padding0;
+	u32 Padding1;
+};
+
+/**
  * @brief Contains global scene data, set every frame.
  */
 struct SceneConstantBuffer
@@ -24,7 +42,6 @@ struct SceneConstantBuffer
 	Vector4f SunDirection;
 
 	u32 FrameIndex;
-	u32 SuperSampleSize;
 };
 
 /**

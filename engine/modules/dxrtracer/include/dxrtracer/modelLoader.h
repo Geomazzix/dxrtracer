@@ -2,6 +2,7 @@
 #include <core/containers/string.h>
 #include <core/containers/array.h>
 #include <core/vath/vath.h>
+#include "shaderConstructs.h"
 
 struct aiMesh;
 struct aiNode;
@@ -11,9 +12,7 @@ namespace dxray
 {
 	struct Mesh
 	{
-		Array<vath::Vector3f> Positions;
-		Array<vath::Vector3f> Normals;
-		Array<vath::Vector2f> Uvs;
+		Array<Vertex> Vertices;
 		Array<u32> Indices;
 	};
 
@@ -28,26 +27,26 @@ namespace dxray
 	inline Model BuildQuadModel()
 	{
 		Mesh mesh;
-		mesh.Positions = {
-			{ -0.5f, 0, -0.5f },
-			{ -0.5f, 0, 0.5f },
-			{ 0.5f, 0, 0.5f },
-			{ 0.5f, 0, -0.5f },
-		};
-
-		mesh.Normals = {
-			{ 0.0f, 1.0f, 0.0f },
-			{ 0.0f, 1.0f, 0.0f },
-			{ 0.0f, 1.0f, 0.0f },
-			{ 0.0f, 1.0f, 0.0f },
-		};
-
-		mesh.Uvs = 
+		mesh.Vertices = 
 		{
-			{ 0.0f, 0.0f },
-			{ 0.0f, 1.0f },
-			{ 1.0f, 1.0f },
-			{ 1.0f, 0.0f }
+			{ 
+				{ -0.5f, 0, -0.5f }, 
+				{ 0.0f, 1.0f, 0.0f },
+				{ 0.0f, 0.0f } 
+			},
+			{ 
+				{ -0.5f, 0, 0.5f }, 
+				{ 0.0f, 1.0f, 0.0f }, 
+				{ 0.0f, 1.0f } },
+			{ 
+				{ 0.5f, 0, 0.5f }, 
+				{ 0.0f, 1.0f, 0.0f }, 
+				{ 1.0f, 1.0f } },
+			{ 
+				{ 0.5f, 0, -0.5f }, 
+				{ 0.0f, 1.0f, 0.0f }, 
+				{ 1.0f, 0.0f } 
+			}
 		};
 
 		mesh.Indices = {
